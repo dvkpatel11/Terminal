@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  aggregatePricePoints,
   buildQuoteFromStooq,
   extractArticleContent,
   filterNewsItems,
@@ -9,6 +10,23 @@ import {
   parseStooqCurrent,
   parseStooqHistory,
 } from "./marketData";
+
+test("aggregatePricePoints resamples five-minute points into fifteen-minute OHLCV bars", () => {
+  const bars = aggregatePricePoints(
+    [
+      { timestamp: Date.parse("2026-03-17T14:00:00.000Z"), price: 100, volume: 10 },
+      { timestamp: Date.parse("2026-03-17T14:05:00.000Z"), price: 105, volume: 12 },
+      { timestamp: Date.parse("2026-03-17T14:10:00.000Z"), price: 103, volume: 11 },
+      { timestamp: Date.parse("2026-03-17T14:15:00.000Z"), price: 108, volume: 20 },
+    ],
+    "15m",
+  );
+
+  assert.deepEqual(bars, [
+    { date: "2026-03-17T14:00:00.000Z", open: 100, high: 105, low: 100, close: 103, volume: 33 },
+    { date: "2026-03-17T14:15:00.000Z", open: 108, high: 108, low: 108, close: 108, volume: 20 },
+  ]);
+});
 
 test("parseStooqCurrent parses current quote csv rows", () => {
   const current = parseStooqCurrent("AAPL.US,20260316,210017,252.105,253.885,249.88,252.82,32074210,");

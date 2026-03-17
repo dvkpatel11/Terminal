@@ -65,7 +65,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/finance/ohlcv", handleFinance(async (req) => {
     const symbol = String(req.query.symbol || "AAPL").toUpperCase();
     const range = String(req.query.range || "1Y");
-    return getOHLCV(symbol, range);
+    const interval = String(req.query.interval || "1d") as "5m" | "15m" | "1h" | "1d";
+    return getOHLCV(symbol, range, interval);
   }));
 
   app.get("/api/finance/gainers", handleFinance(async () => getMarketMovers("gainers")));

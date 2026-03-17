@@ -74,7 +74,7 @@ export default function Terminal() {
       case "quote":
         return <QuotePanel symbol={pane.symbol} onNav={onNav} />;
       case "chart":
-        return <ChartPanel symbol={pane.symbol} onSymbol={onSymbol} />;
+        return <ChartPanel symbol={pane.symbol} onSymbol={(nextSymbol) => setWorkspace((current) => openSecurityView(focusPane(current, paneId), nextSymbol, "chart"))} />;
       case "news":
         return <NewsPanel symbol={pane.symbol} />;
       case "agent":

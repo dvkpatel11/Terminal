@@ -33,11 +33,12 @@ export function useQuote(symbol: string) {
   });
 }
 
-export function useOHLCV(symbol: string, range: string = "1Y") {
+export function useOHLCV(symbol: string, range: string = "1Y", interval: "5m" | "15m" | "1h" | "1d" = "1d") {
   return useQuery<OHLCVBar[]>({
-    queryKey: ["/api/finance/ohlcv", symbol, range],
+    queryKey: ["/api/finance/ohlcv", symbol, range, interval],
     queryFn: async () => {
-      const res = await fetch(`/api/finance/ohlcv?symbol=${symbol}&range=${range}`);
+      const params = new URLSearchParams({ symbol, range, interval });
+      const res = await fetch(`/api/finance/ohlcv?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch OHLCV");
       return res.json();
     },

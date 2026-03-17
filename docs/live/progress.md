@@ -4,12 +4,12 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Current State
 
-- State: Alerts are now live behavior, not static records. The backend evaluates thresholds against current quotes and the top bar surfaces triggered alerts in a notification center.
+- State: Charting now supports comparison overlays and truthful interval behavior. Crypto charts can use intraday intervals from CoinGecko-backed data, while non-crypto charts stay daily-only with explicit messaging.
 
 ## Latest Completed Work
 
-- Completed: Added a pure alert evaluation engine, extended alert state with trigger price/time, made `/api/alerts` evaluate pending alerts against live quotes, introduced a shared alert query hook, and upgraded the top bar and Alerts panel to surface triggered alerts clearly.
-- Why it matters: The terminal now proactively tells the user when a monitored condition fired, which is a core workflow step rather than a decorative data screen.
+- Completed: Added interval-aware OHLCV support with crypto resampling, introduced chart-series normalization helpers and tests, upgraded `ChartPanel` with comparison overlays and interval controls, and fixed chart-pane symbol routing so chart symbol entry stays in chart mode.
+- Why it matters: The terminal can now answer the next analytical question after opening a chart: how is this asset performing relative to another, and what does the move look like on a sub-daily timescale when the provider supports it.
 
 ## In Progress
 
@@ -21,18 +21,18 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Next Recommended Action
 
-- Next step: Implement the next roadmap tranche: chart comparison overlays and intraday intervals.
+- Next step: Implement the next roadmap tranche: add benchmark/risk context to portfolio workflows.
 
 ## Touched Files
 
-- `src/shared/schema.ts`
-- `src/server/alertsEngine.ts`
-- `src/server/alertsEngine.test.ts`
-- `src/server/storage.ts`
+- `src/server/marketData.ts`
+- `src/server/marketData.test.ts`
 - `src/server/routes.ts`
-- `src/client/src/lib/useAlerts.ts`
-- `src/client/src/components/terminal/TopBar.tsx`
-- `src/client/src/components/panels/AlertsPanel.tsx`
+- `src/client/src/lib/useFinance.ts`
+- `src/client/src/lib/chartSeries.ts`
+- `src/client/src/lib/chartSeries.test.ts`
+- `src/client/src/components/panels/ChartPanel.tsx`
+- `src/client/src/pages/Terminal.tsx`
 - `docs/live/current-focus.md`
 - `docs/live/progress.md`
 - `docs/live/todo.md`
@@ -40,15 +40,13 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 ## Verification Status
 
 - Check: `npm test`
-- Result: Pass (26 tests, 0 failures).
+- Result: Pass (29 tests, 0 failures).
 - Check: `npm run check`
 - Result: Pass.
-- Check: Direct route checks against local dev server
-- Result: Creating an `AAPL above 1` alert and then fetching `/api/alerts` returned `triggered: true`, `triggerPrice: 252.82`, and a populated `triggeredAt`.
 - Check: Browser smoke tests via Puppeteer against local dev server
-- Result: The top bar showed a triggered-alert badge, the notification center listed the triggered alert, and `VIEW ALL` opened the Alerts panel with trigger metadata visible.
+- Result: `BTC-USD GP` opened a chart pane with crypto intraday controls, adding `ETH-USD` created a comparison overlay chip, and switching the chart symbol to `AAPL` kept the chart pane active while surfacing the non-crypto intraday availability notice.
 
 ## Hand-off Note
 
-- Resume from: Alert workflow tranche is landed; next roadmap item should be chart comparison + intraday intervals.
-- Watch for: `/api/alerts` currently evaluates on read, not in a background worker, so alerts trigger when clients poll/view alerts rather than via server push.
+- Resume from: Chart tranche is landed; next roadmap item should be portfolio benchmark/risk context.
+- Watch for: Public-provider intraday truth is intentionally asymmetric—crypto only for now—until a reliable no-key equity intraday source is introduced.

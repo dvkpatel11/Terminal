@@ -9,6 +9,8 @@ export interface OHLCVBar {
   volume: number;
 }
 
+export type OhlcvInterval = "5m" | "15m" | "1h" | "1d";
+
 export interface Quote {
   symbol: string;
   name: string;
@@ -82,6 +84,12 @@ interface BuildQuoteInput {
 interface RssFeedConfig {
   url: string;
   fallbackSource: string;
+}
+
+interface PricePoint {
+  timestamp: number;
+  price: number;
+  volume: number;
 }
 
 const XML = new XMLParser({
@@ -261,6 +269,41 @@ function sanitizeArticleUrl(url: string) {
     throw new Error(`Unsupported article protocol: ${parsed.protocol}`);
   }
   return parsed.toString();
+}
+
+function getIntervalBucketMs(interval: OhlcvInterval) {
+  switch (interval) {
+    case "5m": return 5 * 60_000;
+    case "15m": return 15 * 60_000;
+    case "1h": return 60 * 60_000;
+    case "1d":
+    default:
+      return 24 * 60 * 60_000;
+  }
+}
+
+export function aggregatePricePoints(points: PricePoint[], interval: OhlcvInterval): OHLCVBar[] {
+  if (!points.length) return [];
+  const bucketMs = getIntervalBucketMs(interval);
+  const buckets = new Map<number, PricePoint[]>();
+
+  for (const point of points) {
+    const bucketStart = Math.floor(point.timestamp / bucketMs) * bucketMs;
+    const group = buckets.get(bucketStart) ?? [];
+    group.push(point);
+    buckets.set(bucketStart, group);
+  }
+
+  return Array.from(buckets.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([bucketStart, bucketPoints]) => ({
+      date: new Date(bucketStart).toISOString(),
+      open: round(bucketPoints[0].price),
+      high: round(Math.max(...bucketPoints.map((point) => point.price))),
+      low: round(Math.min(...bucketPoints.map((point) => point.price))),
+      close: round(bucketPoints.at(-1)?.price ?? bucketPoints[0].price),
+      volume: Math.round(bucketPoints.reduce((sum, point) => sum + point.volume, 0)),
+    }));
 }
 
 function uniqueBy<T>(items: T[], key: (item: T) => string) {
@@ -701,10 +744,10 @@ export async function getQuotes(symbols: string[]): Promise<Quote[]> {
   ];
 }
 
-export async function getOHLCV(symbol: string, range = "1Y"): Promise<OHLCVBar[]> {
+export async function getOHLCV(symbol: string, range = "1Y", interval: OhlcvInterval = "1d"): Promise<OHLCVBar[]> {
   const upper = symbol.toUpperCase();
-  const days = Math.max(getRangeDays(range), 2);
-  const cacheKey = `history:${upper}:${days}`;
+  const days = Math.max(getRangeDays(range), 1);
+  const cacheKey = `history:${upper}:${days}:${interval}`;
   const cached = getCached(historyCache, cacheKey);
   if (cached) return cached;
 
@@ -712,24 +755,20 @@ export async function getOHLCV(symbol: string, range = "1Y"): Promise<OHLCVBar[]
     if (getProfile(upper)?.assetClass === "crypto") {
       const id = getProfile(upper)?.coinGeckoId;
       if (!id) return [];
+      const requestDays = interval === "5m" || interval === "15m" ? 1 : Math.min(days, 365);
       const payload = await fetchJson<{ prices: [number, number][]; total_volumes: [number, number][] }>(
-        `https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=${days}&interval=daily`,
+        `https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=${requestDays}`,
       );
-      const bars = payload.prices.map(([timestamp, close], index) => {
-        const volume = payload.total_volumes[index]?.[1] ?? 0;
-        const date = new Date(timestamp).toISOString().slice(0, 10);
-        return {
-          date,
-          open: round(close),
-          high: round(close),
-          low: round(close),
-          close: round(close),
-          volume: Math.round(volume),
-        };
-      });
+      const points = payload.prices.map(([timestamp, price], index) => ({
+        timestamp,
+        price,
+        volume: payload.total_volumes[index]?.[1] ?? 0,
+      }));
+      const bars = aggregatePricePoints(points, interval);
       return setCached(historyCache, cacheKey, bars, HISTORY_TTL_MS);
     }
 
+    if (interval !== "1d") return [];
     const history = await getStooqHistory(upper);
     return setCached(historyCache, cacheKey, history.slice(-days), HISTORY_TTL_MS);
   } catch {

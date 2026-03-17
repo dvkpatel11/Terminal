@@ -4,21 +4,21 @@ Read after `AGENTS.md` when starting or resuming work. Keep this file limited to
 
 ## Objective
 
-- Objective: Deliver the next roadmap tranche after news depth: live alert triggering plus notification center behavior.
-- Why it matters now: The app could store alerts, but they were not operational. A terminal should proactively surface actionable events, not just record them.
+- Objective: Deliver the next roadmap tranche after alerts: chart comparison overlays plus truthful intraday interval support.
+- Why it matters now: Workflow and alerts are in place; the next gap is deeper comparative analysis directly inside the chart workspace.
 
 ## Scope
 
-- In scope: `src/shared/schema.ts`, `src/server/{alertsEngine.ts,alertsEngine.test.ts,storage.ts,routes.ts}`, `src/client/src/lib/useAlerts.ts`, `src/client/src/components/{panels/AlertsPanel.tsx,terminal/TopBar.tsx}`.
-- Expected outcome: Alert thresholds evaluate against live quotes, triggered alerts persist trigger metadata, and users can see/enter triggered alerts from the top bar and Alerts panel.
+- In scope: `src/server/marketData.ts`, `src/server/marketData.test.ts`, `src/server/routes.ts`, `src/client/src/lib/{useFinance,chartSeries}.ts`, `src/client/src/lib/chartSeries.test.ts`, `src/client/src/components/panels/ChartPanel.tsx`, `src/client/src/pages/Terminal.tsx`.
+- Expected outcome: Users can overlay comparison symbols on charts, switch among supported intervals, and see clear messaging when intraday data is unavailable for the current provider/symbol.
 
 ## Constraints
 
-- Constraint: Reuse the existing `/api/alerts` contract, extending alert payloads compatibly with trigger metadata.
-- Constraint: Evaluate alerts truthfully from current quote data and persist the actual trigger price/time instead of synthetic notification text.
+- Constraint: Keep interval support truthful to provider capabilities; current public equity feed stays daily-only while crypto can use CoinGecko intraday granularity.
+- Constraint: Preserve chart-pane routing so symbol entry within a chart stays in chart mode instead of falling back to quote mode.
 
 ## Success Criteria
 
-- Check: `npm test` passes with alert engine coverage.
+- Check: `npm test` passes with added chart interval/normalization coverage.
 - Check: `npm run check` passes.
-- Check: Smoke tests confirm `/api/alerts` returns triggered metadata after a matching alert is created and the top-bar notification center surfaces that trigger.
+- Check: Browser smoke tests confirm crypto chart overlays and interval switching plus explicit non-crypto intraday availability messaging.
