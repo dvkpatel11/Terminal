@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 import {
   buildQuoteFromStooq,
+  extractArticleContent,
+  filterNewsItems,
   parseNewsFeed,
   parseStooqCurrent,
   parseStooqHistory,
@@ -140,5 +142,56 @@ test("parseNewsFeed normalizes rss items and infers sentiment", () => {
       publishedAt: "2026-03-17T09:00:00.000Z",
       sentiment: "negative",
     },
+  ]);
+});
+
+
+test("filterNewsItems matches query across title summary and source", () => {
+  const items = [
+    {
+      title: "Apple launches enterprise AI push",
+      summary: "New tooling targets large business deployments.",
+      url: "https://example.com/apple-ai",
+      source: "CNBC",
+      publishedAt: "2026-03-17T10:00:00.000Z",
+      sentiment: "positive" as const,
+    },
+    {
+      title: "Oil slides after inventory build",
+      summary: "Crude weakens as supply fears ease.",
+      url: "https://example.com/oil",
+      source: "Reuters",
+      publishedAt: "2026-03-17T09:00:00.000Z",
+      sentiment: "negative" as const,
+    },
+  ];
+
+  assert.deepEqual(filterNewsItems(items, "enterprise"), [items[0]]);
+  assert.deepEqual(filterNewsItems(items, "reuters"), [items[1]]);
+  assert.deepEqual(filterNewsItems(items, "crude"), [items[1]]);
+});
+
+test("extractArticleContent prefers article paragraphs and strips boilerplate", () => {
+  const article = extractArticleContent(`<!doctype html>
+    <html>
+      <head>
+        <title>Example</title>
+        <style>.hidden{display:none}</style>
+      </head>
+      <body>
+        <header>Site Header</header>
+        <article>
+          <h1>Apple expands terminal workflow</h1>
+          <p>Apple shares rose after the company detailed its new enterprise roadmap.</p>
+          <p>The update includes newsroom search, article read-through, and terminal pane workflows.</p>
+        </article>
+        <footer>Footer boilerplate</footer>
+      </body>
+    </html>`);
+
+  assert.deepEqual(article, [
+    "Apple expands terminal workflow",
+    "Apple shares rose after the company detailed its new enterprise roadmap.",
+    "The update includes newsroom search, article read-through, and terminal pane workflows.",
   ]);
 });

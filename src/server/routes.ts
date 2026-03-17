@@ -9,6 +9,7 @@ import {
   getMarketMovers,
   getMarketSentiment,
   getNews,
+  getNewsArticle,
   getOHLCV,
   getPeers,
   getQuotes,
@@ -73,7 +74,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   app.get("/api/finance/news", handleFinance(async (req) => {
     const symbol = typeof req.query.symbol === "string" ? req.query.symbol.toUpperCase() : undefined;
-    return getNews(symbol);
+    const query = typeof req.query.query === "string" ? req.query.query : undefined;
+    return getNews(symbol, query);
+  }));
+
+  app.get("/api/finance/news/read", handleFinance(async (req) => {
+    const url = String(req.query.url || "");
+    const title = String(req.query.title || "Untitled article");
+    const source = String(req.query.source || "Unknown source");
+    const publishedAt = String(req.query.publishedAt || new Date(0).toISOString());
+    const summary = typeof req.query.summary === "string" ? req.query.summary : undefined;
+
+    return getNewsArticle({
+      url,
+      title,
+      source,
+      publishedAt,
+      summary,
+    });
   }));
 
   app.get("/api/finance/economics", handleFinance(async () => getEconomicsSnapshot()));

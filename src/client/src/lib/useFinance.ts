@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Quote, OHLCVBar, NewsItem } from "./finance";
+import type { Quote, OHLCVBar, NewsItem, NewsArticle } from "./finance";
 
 // Finance data hooks — all fetched from /api/finance/* proxy
 
@@ -98,17 +98,41 @@ export function useMostActive() {
   });
 }
 
-export function useNews(symbol?: string) {
+export function useNews(symbol?: string, query?: string) {
   return useQuery<NewsItem[]>({
-    queryKey: ["/api/finance/news", symbol ?? "market"],
+    queryKey: ["/api/finance/news", symbol ?? "market", query ?? ""],
     queryFn: async () => {
-      const url = symbol ? `/api/finance/news?symbol=${symbol}` : "/api/finance/news";
+      const params = new URLSearchParams();
+      if (symbol) params.set("symbol", symbol);
+      if (query?.trim()) params.set("query", query.trim());
+      const url = params.size ? `/api/finance/news?${params.toString()}` : "/api/finance/news";
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
     refetchInterval: 60000,
     staleTime: 55000,
+  });
+}
+
+export function useNewsArticle(item?: Pick<NewsItem, "url" | "title" | "source" | "publishedAt" | "summary"> | null) {
+  return useQuery<NewsArticle>({
+    queryKey: ["/api/finance/news/read", item?.url ?? "", item?.title ?? ""],
+    queryFn: async () => {
+      if (!item) throw new Error("Missing article");
+      const params = new URLSearchParams({
+        url: item.url,
+        title: item.title,
+        source: item.source,
+        publishedAt: item.publishedAt,
+      });
+      if (item.summary) params.set("summary", item.summary);
+      const res = await fetch(`/api/finance/news/read?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch article");
+      return res.json();
+    },
+    staleTime: 5 * 60_000,
+    enabled: Boolean(item?.url),
   });
 }
 

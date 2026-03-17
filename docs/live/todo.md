@@ -8,6 +8,6 @@ Use one row per work item. Prefer `High`, `Medium`, or `Low` for priority and `P
 
 | Task | Priority | Status |
 | --- | --- | --- |
-| Add full news workflow: article body/read-through plus keyword search | High | Pending |
 | Implement live alert triggering and notification center behavior | High | Pending |
 | Extend charting with comparison overlays and intraday intervals | Medium | Pending |
+| Add benchmark/risk context to portfolio workflows | Medium | Pending |

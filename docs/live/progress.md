@@ -4,12 +4,12 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Current State
 
-- State: The terminal now supports a two-pane workspace with focused-pane navigation, Bloomberg-style command aliases, and context-preserving drill-through from broad market views into security-specific panes.
+- State: The terminal now has a fuller news workflow: searchable feeds plus an in-terminal read-through pane backed by a server-side article extraction/fallback API.
 
 ## Latest Completed Work
 
-- Completed: Added shared terminal workspace/command helper modules, rewired `Terminal.tsx` to render primary/secondary panes, added a reusable `WorkspacePane` chrome, upgraded `CommandBar` to parse commands like `AAPL GP`, and hardened keyboard/market-status helpers with tests.
-- Why it matters: The product now behaves more like a terminal workflow instead of a single-screen dashboard, which was the top roadmap recommendation after live data.
+- Completed: Extended the finance news backend with query filtering and article read-through extraction/caching, added `/api/finance/news/read`, and rebuilt `NewsPanel` into a searchable headline list plus article reader.
+- Why it matters: The product now supports the next step after seeing a headline: reading and filtering news inside the terminal instead of bouncing out to source sites immediately.
 
 ## In Progress
 
@@ -21,26 +21,16 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Next Recommended Action
 
-- Next step: Implement the next roadmap tranche: full news workflow (article read-through/search) or alert triggering, whichever should be the next user-facing priority.
+- Next step: Implement the next roadmap tranche: live alert triggering plus an in-app notification center workflow.
 
 ## Touched Files
 
-- `src/client/src/pages/Terminal.tsx`
-- `src/client/src/components/terminal/WorkspacePane.tsx`
-- `src/client/src/components/terminal/CommandBar.tsx`
-- `src/client/src/components/terminal/TopBar.tsx`
-- `src/client/src/components/terminal/Sidebar.tsx`
-- `src/client/src/components/terminal/FunctionBar.tsx`
-- `src/client/src/components/panels/MarketOverview.tsx`
-- `src/client/src/components/panels/QuotePanel.tsx`
-- `src/client/src/lib/terminalTypes.ts`
-- `src/client/src/lib/terminalCommands.ts`
-- `src/client/src/lib/terminalWorkspace.ts`
-- `src/client/src/lib/terminalChrome.ts`
-- `src/client/src/lib/terminalCommands.test.ts`
-- `src/client/src/lib/terminalWorkspace.test.ts`
-- `src/client/src/lib/terminalChrome.test.ts`
-- `src/package.json`
+- `src/server/marketData.ts`
+- `src/server/marketData.test.ts`
+- `src/server/routes.ts`
+- `src/client/src/lib/finance.ts`
+- `src/client/src/lib/useFinance.ts`
+- `src/client/src/components/panels/NewsPanel.tsx`
 - `docs/live/current-focus.md`
 - `docs/live/progress.md`
 - `docs/live/todo.md`
@@ -48,13 +38,15 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 ## Verification Status
 
 - Check: `npm test`
-- Result: Pass (21 tests, 0 failures).
+- Result: Pass (23 tests, 0 failures).
 - Check: `npm run check`
 - Result: Pass.
+- Check: Direct route checks against local dev server
+- Result: `/api/finance/news?symbol=AAPL&query=motionvfx` returned 3 matching stories and `/api/finance/news/read` returned a read-through payload for a selected CNBC story.
 - Check: Browser smoke tests via Puppeteer against local dev server
-- Result: Clicking a market row opened a secondary quote pane, the secondary close control collapsed back to one pane, and entering `MSFT GP` in `/CMD` opened a secondary chart pane for `MSFT`.
+- Result: Opening the News panel showed search, selectable headlines, and an in-terminal read-through pane with an `OPEN SOURCE` link for the selected story.
 
 ## Hand-off Note
 
-- Resume from: The terminal workflow tranche is landed; next high-ROI work is article read-through/search or a real alert engine.
-- Watch for: Command-bar UX polish and further pane-routing rules if more multi-pane behavior is added.
+- Resume from: News workflow tranche is landed; next roadmap item should be alert triggering/notification behavior.
+- Watch for: Article extraction quality varies by publisher; some sites will fall back to the known summary when the HTML is hostile or thin.

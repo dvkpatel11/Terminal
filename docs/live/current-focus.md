@@ -4,21 +4,21 @@ Read after `AGENTS.md` when starting or resuming work. Keep this file limited to
 
 ## Objective
 
-- Objective: Deliver the first terminal-workflow tranche from the roadmap: split workspace panes plus Bloomberg-style command/drill-through navigation.
-- Why it matters now: Live data exists; the next product gap is workflow density, not another isolated data widget.
+- Objective: Deliver the next roadmap tranche after workflow density: full news workflow with keyword search and article read-through.
+- Why it matters now: Live headlines existed, but the terminal still lacked the deeper research loop users expect after finding a story.
 
 ## Scope
 
-- In scope: `src/client/src/pages/Terminal.tsx`, `src/client/src/components/terminal/{WorkspacePane,CommandBar,TopBar,Sidebar,FunctionBar}.tsx`, `src/client/src/lib/{terminalTypes,terminalCommands,terminalWorkspace,terminalChrome}.ts`, related tests under `src/client/src/lib/*.test.ts`, and any panel type imports affected by the shared terminal types.
-- Expected outcome: Users can keep a broad market view open while opening quote/chart/news work in a secondary pane, and can navigate with commands like `AAPL GP` and `MRKT`.
+- In scope: `src/server/marketData.ts`, `src/server/routes.ts`, `src/server/marketData.test.ts`, `src/client/src/lib/{finance,useFinance}.ts`, `src/client/src/components/panels/NewsPanel.tsx`.
+- Expected outcome: Users can search the active news feed, select a story, and read a server-fetched article summary/body inside the terminal without leaving the app.
 
 ## Constraints
 
-- Constraint: Preserve existing panel contracts so live-data panels do not need behavioral rewrites.
-- Constraint: Keep broad context in the primary pane when opening security-specific work from market/screener/watchlist flows.
+- Constraint: Keep the existing `/api/finance/news` route surface, extending it compatibly with optional query support.
+- Constraint: When article extraction fails, degrade truthfully to the known summary instead of inventing body text.
 
 ## Success Criteria
 
-- Check: `npm test` passes with new terminal helper tests.
+- Check: `npm test` passes with added news search/read-through tests.
 - Check: `npm run check` passes.
-- Check: Browser smoke tests confirm split-pane open/close behavior and command alias execution (`MSFT GP`).
+- Check: Smoke tests confirm `/api/finance/news?query=...` filters results and `/api/finance/news/read` returns read-through content for a selected story.

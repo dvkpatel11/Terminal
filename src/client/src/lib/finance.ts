@@ -42,6 +42,15 @@ export interface NewsItem {
   sentiment?: "positive" | "negative" | "neutral";
 }
 
+export interface NewsArticle {
+  title: string;
+  source: string;
+  url: string;
+  publishedAt: string;
+  excerpt: string;
+  content: string[];
+}
+
 // Helper: format large numbers
 export function formatBig(n: number | null | undefined): string {
   if (n === null || n === undefined || !Number.isFinite(n)) return "—";

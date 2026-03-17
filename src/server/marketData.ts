@@ -41,6 +41,14 @@ export interface NewsItem {
   sentiment: "positive" | "negative" | "neutral";
 }
 
+export interface NewsArticle {
+  title: string;
+  source: string;
+  url: string;
+  publishedAt: string;
+  excerpt: string;
+  content: string[];
+}
 interface CurrentQuoteSnapshot {
   open: number;
   high: number;
@@ -86,11 +94,13 @@ const XML = new XMLParser({
 const QUOTE_TTL_MS = 60_000;
 const HISTORY_TTL_MS = 10 * 60_000;
 const NEWS_TTL_MS = 5 * 60_000;
+const ARTICLE_TTL_MS = 15 * 60_000;
 const CATALOG_FALLBACK_SOURCE = "Reference fallback";
 
 const quoteCache = new Map<string, { expiresAt: number; value: Quote }>();
 const historyCache = new Map<string, { expiresAt: number; value: OHLCVBar[] }>();
 const newsCache = new Map<string, { expiresAt: number; value: NewsItem[] }>();
+const articleCache = new Map<string, { expiresAt: number; value: NewsArticle }>();
 
 const POSITIVE_WORDS = [
   "beat", "beats", "surge", "surges", "jump", "jumps", "rally", "rallies", "gain", "gains",
@@ -216,6 +226,41 @@ function stripHtml(value: string) {
     .replace(/&quot;/g, '"')
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeSearchQuery(query?: string) {
+  return query?.trim().toLowerCase() ?? "";
+}
+
+export function extractArticleContent(html: string): string[] {
+  const preferredBlock = html.match(/<(article|main)[^>]*>[\s\S]*?<\/\1>/i)?.[0] ?? html;
+  const withoutBoilerplate = preferredBlock
+    .replace(/<(script|style|noscript|svg|form|iframe)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<(header|footer|nav|aside)[^>]*>[\s\S]*?<\/\1>/gi, " ");
+
+  const blocks = Array.from(withoutBoilerplate.matchAll(/<(h1|h2|h3|p|li)[^>]*>([\s\S]*?)<\/\1>/gi))
+    .map((match) => stripHtml(match[2]))
+    .filter((text) => text.length >= 40 || text.split(" ").length >= 4);
+
+  return uniqueBy(blocks, (text) => text).slice(0, 24);
+}
+
+export function filterNewsItems(items: NewsItem[], query?: string): NewsItem[] {
+  const normalizedQuery = normalizeSearchQuery(query);
+  if (!normalizedQuery) return items;
+
+  return items.filter((item) => {
+    const haystack = `${item.title} ${item.summary} ${item.source}`.toLowerCase();
+    return haystack.includes(normalizedQuery);
+  });
+}
+
+function sanitizeArticleUrl(url: string) {
+  const parsed = new URL(url);
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error(`Unsupported article protocol: ${parsed.protocol}`);
+  }
+  return parsed.toString();
 }
 
 function uniqueBy<T>(items: T[], key: (item: T) => string) {
@@ -762,22 +807,67 @@ async function fetchNewsFeeds(cacheKey: string, feeds: RssFeedConfig[]) {
   return setCached(newsCache, cacheKey, normalized.slice(0, 40), NEWS_TTL_MS);
 }
 
-export async function getNews(symbol?: string): Promise<NewsItem[]> {
+export async function getNews(symbol?: string, query?: string): Promise<NewsItem[]> {
+  let items: NewsItem[];
+
   if (symbol) {
     const upper = symbol.toUpperCase();
-    const items = await fetchNewsFeeds(`news:${upper}`, buildSymbolNewsFeeds(upper));
-    if (items.length) {
-      const profile = getProfile(upper);
-      const symbolTokens = [upper, profile?.name?.split(" ")[0]].filter(Boolean).map((token) => String(token).toLowerCase());
-      return items.filter((item) => {
+    const feedItems = await fetchNewsFeeds(`news:${upper}`, buildSymbolNewsFeeds(upper));
+    if (!feedItems.length) return [];
+
+    const profile = getProfile(upper);
+    const symbolTokens = [upper, profile?.name?.split(" ")[0]]
+      .filter(Boolean)
+      .map((token) => String(token).toLowerCase());
+
+    items = feedItems
+      .filter((item) => {
         const haystack = `${item.title} ${item.summary}`.toLowerCase();
         return symbolTokens.some((token) => haystack.includes(token));
-      }).slice(0, 20);
-    }
-    return [];
+      })
+      .slice(0, 20);
+  } else {
+    items = await fetchNewsFeeds("news:market", GENERAL_NEWS_FEEDS);
   }
 
-  return fetchNewsFeeds("news:market", GENERAL_NEWS_FEEDS);
+  return filterNewsItems(items, query);
+}
+
+export async function getNewsArticle(input: {
+  url: string;
+  title: string;
+  source: string;
+  publishedAt: string;
+  summary?: string;
+}): Promise<NewsArticle> {
+  const url = sanitizeArticleUrl(input.url);
+  const cacheKey = `article:${url}`;
+  const cached = getCached(articleCache, cacheKey);
+  if (cached) return cached;
+
+  try {
+    const html = await fetchText(url);
+    const content = extractArticleContent(html);
+    const article: NewsArticle = {
+      title: input.title,
+      source: input.source,
+      url,
+      publishedAt: input.publishedAt,
+      excerpt: input.summary?.trim() || content[0] || "Read-through unavailable for this source.",
+      content: content.length ? content : (input.summary ? [input.summary.trim()] : []),
+    };
+    return setCached(articleCache, cacheKey, article, ARTICLE_TTL_MS);
+  } catch {
+    const fallback: NewsArticle = {
+      title: input.title,
+      source: input.source,
+      url,
+      publishedAt: input.publishedAt,
+      excerpt: input.summary?.trim() || "Read-through unavailable for this source.",
+      content: input.summary?.trim() ? [input.summary.trim()] : [],
+    };
+    return setCached(articleCache, cacheKey, fallback, ARTICLE_TTL_MS);
+  }
 }
 
 export async function getPeers(symbol: string) {
