@@ -13,7 +13,6 @@ import AlertsPanel from "@/components/panels/AlertsPanel";
 import EconomicsPanel from "@/components/panels/EconomicsPanel";
 import PortfolioPanel from "@/components/panels/PortfolioPanel";
 import CommandBar from "@/components/terminal/CommandBar";
-import { PerplexityAttribution } from "@/components/PerplexityAttribution";
 import FunctionBar from "@/components/terminal/FunctionBar";
 
 export type ViewMode =
@@ -105,8 +104,6 @@ export default function Terminal() {
       {/* Bloomberg-style function key bar */}
       <FunctionBar onNav={handleNav} onOpenCmd={() => setCmdOpen(true)} />
 
-      {/* Attribution */}
-      <PerplexityAttribution />
     </div>
   );
 }

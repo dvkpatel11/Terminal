@@ -54,7 +54,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onOpenCmd 
       {/* Logo */}
       <div className="flex items-center gap-2 px-3 h-full border-r border-border bg-[hsl(38,95%,50%)] min-w-[140px]">
         <Terminal className="w-3.5 h-3.5 text-black" strokeWidth={2.5} />
-        <span className="font-terminal text-xs font-bold tracking-widest text-black">BLMTRM</span>
+        <span className="font-terminal text-xs font-bold tracking-widest text-black">TERMINAL</span>
       </div>
 
       {/* Nav buttons */}
