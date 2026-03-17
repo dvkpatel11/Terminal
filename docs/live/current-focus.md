@@ -4,25 +4,24 @@ Read after `AGENTS.md` when starting or resuming work. Keep this file limited to
 
 ## Objective
 
-- Objective: Make live stock-data credibility the next roadmap tranche.
-- Why it matters now: Stock quotes and charts are the product's commercial core. If equities are delayed, daily-only, or not current enough for terminal expectations, that is a higher-priority problem than additional workflow depth.
+- Objective: Land the commercially critical live-stock-data upgrade for the quote/chart/alert backbone.
+- Why it matters now: Equities are the product's commercial core. Stale or daily-only stock data undermines trust faster than missing secondary workflows.
 
 ## Scope
 
-- In scope: Reprioritize the roadmap so the next tranche is a stock-data provider strategy and freshness upgrade for quotes, charts, and alerting.
-- Expected outcome: The next implementation work should evaluate and integrate a more current stock-data backbone, with clear freshness metadata and honest UI language until that backbone is in place.
+- In scope: Replace the old non-crypto Stooq-first stock path with a more current intraday-capable provider strategy, while keeping truthful fallbacks when stronger data is unavailable.
+- Expected outcome: Equities/ETFs/indices/commodities should prefer current Yahoo Finance chart-backed quotes and OHLCV, crypto should remain on CoinGecko, and fallback paths should no longer imply live behavior when they are only delayed/reference data.
 
 ## Constraints
 
 - Constraint: Commercial impact is the primary prioritization axis; development effort is the second axis.
-- Constraint: The current public-source approach is acceptable only where it stays timely enough for the product claim. Daily-only or meaningfully delayed stock data is not sufficient for the core terminal experience.
-- Constraint: The user provided two references to inform planning:
-  - the Public APIs finance index as a source of candidate providers to evaluate,
-  - FinanceDatabase as a security-universe/reference layer, not as a live market-data feed.
-- Constraint: Do not describe a source as live unless it can actually support current intraday equity quotes/charts.
+- Constraint: The immediate implementation may use a stronger public source, but the product must stay honest about fallback quality.
+- Constraint: FinanceDatabase is a symbol/universe tool only, not a live-feed solution.
+- Constraint: This tranche improves freshness materially, but it is not the final exchange-licensed market-data answer.
 
 ## Success Criteria
 
-- Check: Roadmap ordering explicitly puts live stock-data remediation first.
-- Check: The next recommended tranche targets the quote/chart/alert backbone before lower-impact workflow additions.
-- Check: Planning notes distinguish between metadata/universe tools and actual live-data providers.
+- Check: Quotes for core equities surface `Yahoo Finance` as the current source.
+- Check: Equity intraday OHLCV works through the existing `/api/finance/ohlcv` route.
+- Check: Reference or delayed fallbacks remain visibly non-live.
+- Check: Tests, typecheck, route smoke, and browser smoke all pass.

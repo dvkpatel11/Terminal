@@ -4,7 +4,7 @@ import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, C
 import { Plus, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatPrice, pctClass } from "@/lib/finance";
-import { getAllowedIntervals, normalizeComparisonSeries, type ChartInterval } from "@/lib/chartSeries";
+import { getAllowedIntervals, normalizeComparisonSeries, supportsIntradayCharts, type ChartInterval } from "@/lib/chartSeries";
 import { useOHLCV, useQuote } from "@/lib/useFinance";
 
 interface Props {
@@ -94,18 +94,15 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
   const [compareSymbols, setCompareSymbols] = useState<string[]>([]);
   const { data: quote } = useQuote(symbol);
   const isCrypto = quote?.exchange === "CRYPTO" || symbolIsCryptoCandidate;
-  const allowedIntervals = getAllowedIntervals(isCrypto);
-  const effectiveInterval = isCrypto ? interval : "1d";
-  const effectiveRange = !isCrypto && range === "1D" ? "1M" : range;
+  const supportsIntraday = supportsIntradayCharts(quote?.quoteSource ?? "Yahoo Finance", isCrypto);
+  const allowedIntervals = getAllowedIntervals(supportsIntraday);
+  const effectiveInterval = supportsIntraday ? interval : "1d";
+  const effectiveRange = !supportsIntraday && range === "1D" ? "1M" : range;
 
   useEffect(() => {
     setSymInput(symbol);
     setCompareSymbols((current) => current.filter((entry) => entry !== symbol));
-    if (!symbolIsCryptoCandidate) {
-      setInterval("1d");
-      setRange((current) => (current === "1D" ? "1M" : current));
-    }
-  }, [symbol, symbolIsCryptoCandidate]);
+  }, [symbol]);
 
   useEffect(() => {
     if (!allowedIntervals.includes(interval)) {
@@ -203,7 +200,7 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
   const priceMax = chartData.length ? Math.max(...chartData.map((point) => point.high)) * 1.005 : 0;
   const showRSI = indicator === "RSI";
   const allowedRanges = getAllowedRanges(effectiveInterval);
-  const showIntradayNotice = !isCrypto;
+  const showIntradayNotice = !supportsIntraday;
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-[#050505]">
@@ -301,7 +298,7 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
         ))}
         {showIntradayNotice && (
           <span className="font-terminal text-[8px] tracking-widest text-muted-foreground ml-auto">
-            INTRADAY INTERVALS CURRENTLY AVAILABLE FOR CRYPTO FEEDS ONLY
+            INTRADAY DATA UNAVAILABLE FROM CURRENT SOURCE
           </span>
         )}
       </div>

@@ -4,12 +4,12 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Current State
 
-- State: The roadmap has been corrected again: live stock-data quality is now the top follow-on item. This supersedes lower-impact work because equities/alerts/charts are the most commercially sensitive surfaces.
+- State: Non-crypto quotes and charts now prefer a more current Yahoo Finance chart-backed path instead of the older Stooq-first daily path. Crypto remains on CoinGecko. Stooq/CBOE/reference paths remain as truthful fallbacks when stronger data is unavailable.
 
 ## Latest Completed Work
 
-- Completed: Incorporated the user's provider-planning guidance into the roadmap. The Public APIs finance index is now a reference list for candidate data providers to evaluate, and FinanceDatabase is explicitly treated as a security-universe/reference dataset rather than a live stock-data source.
-- Why it matters: Planning now distinguishes between tools that help identify securities and providers that can actually power current quotes/charts. That avoids solving the wrong problem.
+- Completed: Upgraded `server/marketData.ts` so equities/ETFs/indices/commodities use Yahoo Finance for quotes and OHLCV, added Yahoo chart parsing tests including duplicate-daily-session handling, and updated chart UI logic so equities can use intraday intervals when the provider supports them.
+- Why it matters: This materially improves the commercial core of the product without waiting for a full licensed-feed procurement step.
 
 ## In Progress
 
@@ -17,32 +17,38 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Blockers
 
-- Blocker: None for planning. For implementation, the likely blocker is provider suitability: the next tranche must validate which candidate source can materially improve intraday equity freshness rather than just rebrand another delayed feed.
+- Blocker: None for the shipped tranche. Strategic limitation remains: Yahoo Finance is materially fresher than the old path, but it is still a public web-backed source rather than a licensed exchange-grade feed.
 
 ## Next Recommended Action
 
-- Next step: Execute a live-stock-data roadmap tranche with this order:
-  1. evaluate candidate providers from the finance API reference list for intraday equity coverage, latency, and commercial fit,
-  2. choose a stronger quote/chart provider strategy for equities,
-  3. thread freshness/provider metadata through quotes, charts, and alerts,
-  4. keep FinanceDatabase optional for symbol discovery/enrichment only if needed.
+- Next step: Add explicit provider/freshness/delay metadata across core routes and UI surfaces so users can distinguish Yahoo current data, CoinGecko crypto data, and delayed/reference fallbacks at a glance.
+- Follow-on after that: Evaluate and integrate a stronger licensed/commercial equity feed if the product needs stricter timeliness, reliability, or redistribution certainty.
 
 ## Touched Files
 
+- `src/server/marketData.ts`
+- `src/server/marketData.test.ts`
+- `src/client/src/lib/chartSeries.ts`
+- `src/client/src/lib/chartSeries.test.ts`
+- `src/client/src/components/panels/ChartPanel.tsx`
 - `docs/live/current-focus.md`
 - `docs/live/progress.md`
 - `docs/live/todo.md`
 
 ## Verification Status
 
-- Check: Reference review
-- Result: The Public APIs finance index provides candidate providers to evaluate; it is not itself a provider decision.
-- Check: FinanceDatabase review
-- Result: FinanceDatabase explicitly positions itself as a broad instrument/reference database and explicitly says it is not meant to provide up-to-date fundamentals or stock data.
-- Check: Roadmap reprioritization
-- Result: Live stock-data remediation is now recorded as the next roadmap tranche.
+- Check: `npm test`
+- Result: Pass (43 tests, 0 failures).
+- Check: `npm run check`
+- Result: Pass.
+- Check: Direct route smoke against local dev server
+- Result: `/api/finance/quotes?symbols=AAPL,SPY` returned `Yahoo Finance` with `isLive: true`; `/api/finance/ohlcv?symbol=AAPL&range=1D&interval=5m` returned 79 intraday bars.
+- Check: Browser smoke tests via Puppeteer against local dev server
+- Result: The quote view contained `YAHOO FINANCE`, and the AAPL chart view exposed `5M`, `15M`, `1H`, and `1D` interval controls.
+- Check: Reviewer pass
+- Result: Reviewer reported no substantive issues.
 
 ## Hand-off Note
 
-- Resume from: The next roadmap item should target live stock-data strategy for equities.
-- Watch for: Do not mistake symbol/reference coverage for live-feed quality. FinanceDatabase may help with asset coverage, but it does not solve current quote/chart timeliness.
+- Resume from: Live stock-data tranche is landed.
+- Watch for: `Yahoo Finance` improves freshness meaningfully, but the next honesty gap is visibility. Users still need clearer provider/freshness cues across all surfaces, and the long-term provider strategy may still need a stronger licensed source.

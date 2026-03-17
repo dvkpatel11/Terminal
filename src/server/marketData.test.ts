@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 
 import {
   aggregatePricePoints,
-  buildQuoteFromStooq,
+  buildQuoteFromSnapshot,
   extractArticleContent,
   filterNewsItems,
   parseNewsFeed,
   parseStooqCurrent,
   parseStooqHistory,
+  parseYahooChart,
 } from "./marketData";
 
 test("aggregatePricePoints resamples five-minute points into fifteen-minute OHLCV bars", () => {
@@ -76,10 +77,59 @@ test("parseStooqHistory normalizes unavailable volume to zero", () => {
   ]);
 });
 
-test("buildQuoteFromStooq derives previous close, ranges, and reference fundamentals", () => {
-  const quote = buildQuoteFromStooq({
+test("parseYahooChart returns ordered OHLCV bars and skips null closes", () => {
+  const bars = parseYahooChart({
+    chart: {
+      result: [{
+        timestamp: [1773667740, 1773667800, 1773667860],
+        indicators: {
+          quote: [{
+            open: [252.77, 252.82, 252.81],
+            high: [252.87, 252.97, 252.83],
+            low: [252.72, 252.78, 252.8],
+            close: [252.82, 252.78, null],
+            volume: [170602, 470009, 10],
+          }],
+        },
+      }],
+      error: null,
+    },
+  }, "1m");
+
+  assert.deepEqual(bars, [
+    { date: "2026-03-16T13:29:00.000Z", open: 252.77, high: 252.87, low: 252.72, close: 252.82, volume: 170602 },
+    { date: "2026-03-16T13:30:00.000Z", open: 252.82, high: 252.97, low: 252.78, close: 252.78, volume: 470009 },
+  ]);
+});
+
+test("parseYahooChart deduplicates repeated daily timestamps for the same session", () => {
+  const bars = parseYahooChart({
+    chart: {
+      result: [{
+        timestamp: [1773667800, 1773691203],
+        indicators: {
+          quote: [{
+            open: [252.11, 252.1],
+            high: [253.89, 253.88],
+            low: [249.88, 249.88],
+            close: [252.82, 252.82],
+            volume: [32060100, 30091880],
+          }],
+        },
+      }],
+      error: null,
+    },
+  }, "1d");
+
+  assert.deepEqual(bars, [
+    { date: "2026-03-16", open: 252.1, high: 253.89, low: 249.88, close: 252.82, volume: 30091880 },
+  ]);
+});
+
+test("buildQuoteFromSnapshot derives previous close, ranges, and reference fundamentals", () => {
+  const quote = buildQuoteFromSnapshot({
     symbol: "AAPL",
-    provider: "Stooq",
+    provider: "Yahoo Finance",
     profile: {
       name: "Apple Inc.",
       exchange: "NASDAQ",
@@ -119,7 +169,7 @@ test("buildQuoteFromStooq derives previous close, ranges, and reference fundamen
   assert.equal(quote.eps, 6.5);
   assert.equal(quote.pe, 38.9);
   assert.equal(quote.marketCap, 3552016528925.62);
-  assert.equal(quote.quoteSource, "Stooq");
+  assert.equal(quote.quoteSource, "Yahoo Finance");
   assert.equal(quote.isLive, true);
 });
 

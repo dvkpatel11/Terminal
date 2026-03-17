@@ -1,9 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { getAllowedIntervals, normalizeComparisonSeries } from "./chartSeries";
+import { getAllowedIntervals, normalizeComparisonSeries, supportsIntradayCharts } from "./chartSeries";
 
-test("getAllowedIntervals enables intraday only for crypto charts", () => {
+test("supportsIntradayCharts enables equity intraday when the provider is current", () => {
+  assert.equal(supportsIntradayCharts("Yahoo Finance", false), true);
+  assert.equal(supportsIntradayCharts("Reference fallback", false), false);
+  assert.equal(supportsIntradayCharts(null, true), true);
+});
+
+test("getAllowedIntervals enables intraday when charting support is available", () => {
   assert.deepEqual(getAllowedIntervals(true), ["5m", "15m", "1h", "1d"]);
   assert.deepEqual(getAllowedIntervals(false), ["1d"]);
 });

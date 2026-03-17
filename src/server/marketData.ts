@@ -438,7 +438,168 @@ export function parseStooqHistory(csv: string): OHLCVBar[] {
     .filter((bar) => Number.isFinite(bar.close));
 }
 
-export function buildQuoteFromStooq({ symbol, provider, profile, current, history, isLive = true }: BuildQuoteInput): Quote {
+interface YahooChartMeta {
+  regularMarketPrice?: number;
+  regularMarketDayHigh?: number;
+  regularMarketDayLow?: number;
+  regularMarketVolume?: number;
+}
+
+interface YahooChartSeries {
+  open?: Array<number | null>;
+  high?: Array<number | null>;
+  low?: Array<number | null>;
+  close?: Array<number | null>;
+  volume?: Array<number | null>;
+}
+
+interface YahooChartResult {
+  meta?: YahooChartMeta;
+  timestamp?: number[];
+  indicators?: {
+    quote?: YahooChartSeries[];
+  };
+}
+
+interface YahooChartResponse {
+  chart?: {
+    result?: YahooChartResult[];
+    error?: {
+      code?: string;
+      description?: string;
+    } | null;
+  };
+}
+
+const YAHOO_FINANCE_BASE_URL = "https://query1.finance.yahoo.com";
+
+function mapRangeToYahoo(range: string) {
+  switch (range) {
+    case "1D": return "1d";
+    case "5D": return "5d";
+    case "1M": return "1mo";
+    case "3M": return "3mo";
+    case "6M": return "6mo";
+    case "2Y": return "2y";
+    case "1Y":
+    default:
+      return "1y";
+  }
+}
+
+type YahooChartInterval = OhlcvInterval | "1m";
+
+function mapIntervalToYahoo(interval: YahooChartInterval) {
+  switch (interval) {
+    case "1m": return "1m";
+    case "5m": return "5m";
+    case "15m": return "15m";
+    case "1h": return "60m";
+    case "1d":
+    default:
+      return "1d";
+  }
+}
+
+function splitSnapshotDateTime(raw: string) {
+  if (!raw.includes("T")) {
+    return { date: raw, time: "00:00:00" };
+  }
+
+  const [date, time] = raw.split("T");
+  return { date, time: time.slice(0, 8) };
+}
+
+function buildSnapshotFromBars(
+  bars: OHLCVBar[],
+  overrides: { close?: number; high?: number; low?: number; volume?: number } = {},
+): CurrentQuoteSnapshot {
+  const first = bars[0];
+  const last = bars.at(-1);
+  if (!first || !last) {
+    throw new Error("Cannot build a quote snapshot from empty bars");
+  }
+
+  const { date, time } = splitSnapshotDateTime(last.date);
+  const close = Number.isFinite(overrides.close) ? Number(overrides.close) : last.close;
+  const high = Number.isFinite(overrides.high) ? Number(overrides.high) : Math.max(...bars.map((bar) => bar.high), close);
+  const low = Number.isFinite(overrides.low) ? Number(overrides.low) : Math.min(...bars.map((bar) => bar.low), close);
+  const volume = Number.isFinite(overrides.volume)
+    ? Number(overrides.volume)
+    : Math.round(bars.reduce((sum, bar) => sum + bar.volume, 0));
+
+  return {
+    open: first.open,
+    high: round(high),
+    low: round(low),
+    close: round(close),
+    volume,
+    date,
+    time,
+  };
+}
+
+export function parseYahooChart(payload: YahooChartResponse, interval: YahooChartInterval): OHLCVBar[] {
+  const error = payload.chart?.error;
+  if (error) {
+    throw new Error(error.description ?? error.code ?? "Yahoo Finance chart error");
+  }
+
+  const result = payload.chart?.result?.[0];
+  const quote = result?.indicators?.quote?.[0];
+  const timestamps = result?.timestamp ?? [];
+  if (!result || !quote || !timestamps.length) {
+    throw new Error("Yahoo Finance returned no chart data");
+  }
+
+  const bars = timestamps.flatMap((timestamp, index) => {
+    const close = quote.close?.[index];
+    if (!Number.isFinite(close)) return [];
+
+    const open = Number.isFinite(quote.open?.[index]) ? Number(quote.open?.[index]) : Number(close);
+    const high = Number.isFinite(quote.high?.[index]) ? Number(quote.high?.[index]) : Number(close);
+    const low = Number.isFinite(quote.low?.[index]) ? Number(quote.low?.[index]) : Number(close);
+    const volume = Number.isFinite(quote.volume?.[index]) ? Number(quote.volume?.[index]) : 0;
+    const iso = new Date(timestamp * 1000).toISOString();
+
+    return [{
+      date: interval === "1d" ? iso.slice(0, 10) : iso,
+      open: round(open),
+      high: round(high),
+      low: round(low),
+      close: round(Number(close)),
+      volume: Math.round(volume),
+    } satisfies OHLCVBar];
+  });
+
+  if (interval !== "1d") return bars;
+
+  const deduped = new Map<string, OHLCVBar>();
+  for (const bar of bars) {
+    const existing = deduped.get(bar.date);
+    deduped.set(bar.date, existing ? {
+      ...bar,
+      high: Math.max(existing.high, bar.high),
+      low: Math.min(existing.low, bar.low),
+    } : bar);
+  }
+
+  return Array.from(deduped.values());
+}
+
+async function fetchYahooChart(symbol: string, range: string, interval: YahooChartInterval) {
+  const query = new URLSearchParams({
+    range: mapRangeToYahoo(range),
+    interval: mapIntervalToYahoo(interval),
+    includePrePost: "false",
+  });
+
+  return fetchJson<YahooChartResponse>(
+    `${YAHOO_FINANCE_BASE_URL}/v8/finance/chart/${encodeURIComponent(symbol)}?${query.toString()}`,
+  );
+}
+
+export function buildQuoteFromSnapshot({ symbol, provider, profile, current, history, isLive = true }: BuildQuoteInput): Quote {
   const recentHistory = history.slice(-252);
   const previousCloseBar = history.length > 1
     ? (history.at(-1)?.date === current.date ? history.at(-2) : history.at(-1))
@@ -556,9 +717,9 @@ async function getVixQuote(): Promise<Quote> {
     const last = bars.at(-1);
     if (!last) throw new Error("VIX history feed is empty");
 
-    const quote = buildQuoteFromStooq({
+    const quote = buildQuoteFromSnapshot({
       symbol: "^VIX",
-      provider: "CBOE",
+      provider: "CBOE daily",
       profile: getProfile("^VIX"),
       current: {
         open: last.open,
@@ -570,6 +731,7 @@ async function getVixQuote(): Promise<Quote> {
         time: "00:00:00",
       },
       history: bars,
+      isLive: false,
     });
 
     return setCached(quoteCache, cacheKey, quote, QUOTE_TTL_MS);
@@ -687,17 +849,55 @@ async function getStooqQuote(symbol: string): Promise<Quote> {
       fetchText(`https://stooq.com/q/l/?s=${encodeURIComponent(mapped)}&i=5`),
       getStooqHistory(symbol),
     ]);
-    const quote = buildQuoteFromStooq({
+    const quote = buildQuoteFromSnapshot({
       symbol,
-      provider: symbol === "^RUT" ? "Stooq (IWM proxy)" : "Stooq",
+      provider: symbol === "^RUT" ? "Stooq daily fallback (IWM proxy)" : "Stooq daily fallback",
       profile: getProfile(symbol),
       current: parseStooqCurrent(currentCsv),
       history,
+      isLive: false,
     });
     return setCached(quoteCache, cacheKey, quote, QUOTE_TTL_MS);
   } catch {
     const fallback = buildReferenceFallbackQuote(symbol);
     return setCached(quoteCache, cacheKey, fallback, QUOTE_TTL_MS);
+  }
+}
+
+async function getYahooQuote(symbol: string): Promise<Quote> {
+  const cacheKey = `quote:${symbol}`;
+  const cached = getCached(quoteCache, cacheKey);
+  if (cached) return cached;
+
+  try {
+    const [intradayPayload, history] = await Promise.all([
+      fetchYahooChart(symbol, "1D", "1m"),
+      getOHLCV(symbol, "1Y", "1d"),
+    ]);
+    const intradayBars = parseYahooChart(intradayPayload, "1m");
+    const sessionBars = intradayBars.length ? intradayBars : history.slice(-1);
+    if (!sessionBars.length) {
+      throw new Error(`Yahoo Finance returned no quote bars for ${symbol}`);
+    }
+
+    const meta = intradayPayload.chart?.result?.[0]?.meta;
+    const quote = buildQuoteFromSnapshot({
+      symbol,
+      provider: "Yahoo Finance",
+      profile: getProfile(symbol),
+      current: buildSnapshotFromBars(sessionBars, {
+        close: Number.isFinite(meta?.regularMarketPrice) ? Number(meta?.regularMarketPrice) : undefined,
+        high: Number.isFinite(meta?.regularMarketDayHigh) ? Number(meta?.regularMarketDayHigh) : undefined,
+        low: Number.isFinite(meta?.regularMarketDayLow) ? Number(meta?.regularMarketDayLow) : undefined,
+        volume: Number.isFinite(meta?.regularMarketVolume) ? Number(meta?.regularMarketVolume) : undefined,
+      }),
+      history,
+    });
+
+    return setCached(quoteCache, cacheKey, quote, QUOTE_TTL_MS);
+  } catch {
+    if (symbol === "^VIX") return getVixQuote();
+    return getStooqQuote(symbol);
   }
 }
 
@@ -707,10 +907,10 @@ export async function getQuotes(symbols: string[]): Promise<Quote[]> {
   const nonCryptoSymbols = uniqueSymbols.filter((symbol) => !cryptoSymbols.includes(symbol));
   const cryptoQuotes = await getCoinGeckoQuotes(cryptoSymbols);
 
-  const quotes = await Promise.all(nonCryptoSymbols.map(async (symbol) => {
-    if (symbol === "^VIX") return getVixQuote();
-    return getStooqQuote(symbol);
-  }));
+  const quotes: Quote[] = [];
+  for (const symbol of nonCryptoSymbols) {
+    quotes.push(await getYahooQuote(symbol));
+  }
 
   return [
     ...quotes,
@@ -742,11 +942,17 @@ export async function getOHLCV(symbol: string, range = "1Y", interval: OhlcvInte
       return setCached(historyCache, cacheKey, bars, HISTORY_TTL_MS);
     }
 
-    if (interval !== "1d") return [];
+    const bars = parseYahooChart(await fetchYahooChart(upper, range, interval), interval);
+    if (!bars.length) {
+      throw new Error(`Yahoo Finance returned no OHLCV data for ${upper}`);
+    }
+
+    const trimmed = interval === "1d" ? bars.slice(-days) : bars;
+    return setCached(historyCache, cacheKey, trimmed, HISTORY_TTL_MS);
+  } catch {
+    if (interval !== "1d") return cached ?? [];
     const history = await getStooqHistory(upper);
     return setCached(historyCache, cacheKey, history.slice(-days), HISTORY_TTL_MS);
-  } catch {
-    return cached ?? [];
   }
 }
 

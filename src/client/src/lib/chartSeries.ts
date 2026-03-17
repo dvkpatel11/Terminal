@@ -10,8 +10,12 @@ interface SeriesInput {
   points: SeriesPoint[];
 }
 
-export function getAllowedIntervals(isCrypto: boolean): ChartInterval[] {
-  return isCrypto ? ["5m", "15m", "1h", "1d"] : ["1d"];
+export function supportsIntradayCharts(quoteSource: string | null | undefined, isCrypto: boolean): boolean {
+  return isCrypto || Boolean(quoteSource && quoteSource !== "Reference fallback");
+}
+
+export function getAllowedIntervals(supportsIntraday: boolean): ChartInterval[] {
+  return supportsIntraday ? ["5m", "15m", "1h", "1d"] : ["1d"];
 }
 
 export function normalizeComparisonSeries(series: SeriesInput[]) {
