@@ -3,7 +3,7 @@ import {
   Bot, Filter, Star, BellRing, Globe2, Briefcase,
   ChevronRight
 } from "lucide-react";
-import type { ViewMode } from "@/pages/Terminal";
+import type { ViewMode } from "@/lib/terminalTypes";
 
 interface Props {
   view: ViewMode;

@@ -4,12 +4,12 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Current State
 
-- State: Live quote, OHLCV, screener, mover, economics snapshot, and news routes now use public providers instead of mocked payloads. The client renders provider-backed quotes/news and no longer simulates fake index ticks.
+- State: The terminal now supports a two-pane workspace with focused-pane navigation, Bloomberg-style command aliases, and context-preserving drill-through from broad market views into security-specific panes.
 
 ## Latest Completed Work
 
-- Completed: Added `server/marketData.ts` with Stooq/CoinGecko/RSS integrations, rewired `/api/finance/*` routes, tightened client quote/news handling, and fixed the repo's pre-existing typecheck blockers.
-- Why it matters: The terminal now surfaces live market/news data through the existing UX instead of synthetic placeholders, and the workspace is back to a clean test/typecheck baseline.
+- Completed: Added shared terminal workspace/command helper modules, rewired `Terminal.tsx` to render primary/secondary panes, added a reusable `WorkspacePane` chrome, upgraded `CommandBar` to parse commands like `AAPL GP`, and hardened keyboard/market-status helpers with tests.
+- Why it matters: The product now behaves more like a terminal workflow instead of a single-screen dashboard, which was the top roadmap recommendation after live data.
 
 ## In Progress
 
@@ -17,25 +17,30 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Blockers
 
-- Blocker: Public providers remain rate-limit sensitive compared with paid feeds; monitor usage before scaling traffic.
+- Blocker: None.
 
 ## Next Recommended Action
 
-- Next step: Open the terminal in a browser and spot-check a few symbols/panels (quote, news, screener, economics) to validate UX against live responses.
+- Next step: Implement the next roadmap tranche: full news workflow (article read-through/search) or alert triggering, whichever should be the next user-facing priority.
 
 ## Touched Files
 
-- `src/server/marketData.ts`
-- `src/server/routes.ts`
-- `src/shared/schema.ts`
-- `src/server/storage.ts`
-- `src/client/src/lib/finance.ts`
-- `src/client/src/lib/useFinance.ts`
+- `src/client/src/pages/Terminal.tsx`
+- `src/client/src/components/terminal/WorkspacePane.tsx`
+- `src/client/src/components/terminal/CommandBar.tsx`
+- `src/client/src/components/terminal/TopBar.tsx`
+- `src/client/src/components/terminal/Sidebar.tsx`
+- `src/client/src/components/terminal/FunctionBar.tsx`
 - `src/client/src/components/panels/MarketOverview.tsx`
-- `src/client/src/components/panels/NewsPanel.tsx`
 - `src/client/src/components/panels/QuotePanel.tsx`
-- `src/client/src/components/panels/ChartPanel.tsx`
-- `src/client/src/App.tsx`
+- `src/client/src/lib/terminalTypes.ts`
+- `src/client/src/lib/terminalCommands.ts`
+- `src/client/src/lib/terminalWorkspace.ts`
+- `src/client/src/lib/terminalChrome.ts`
+- `src/client/src/lib/terminalCommands.test.ts`
+- `src/client/src/lib/terminalWorkspace.test.ts`
+- `src/client/src/lib/terminalChrome.test.ts`
+- `src/package.json`
 - `docs/live/current-focus.md`
 - `docs/live/progress.md`
 - `docs/live/todo.md`
@@ -43,13 +48,13 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 ## Verification Status
 
 - Check: `npm test`
-- Result: Pass (8 tests, 0 failures).
+- Result: Pass (21 tests, 0 failures).
 - Check: `npm run check`
 - Result: Pass.
-- Check: Live provider smoke tests via `node --import tsx`
-- Result: `getQuotes(['AAPL'])`, `getNews('AAPL')`, and `getOHLCV('AAPL','1M')` returned live Stooq/RSS data; local `/api/finance/quotes` and `/api/finance/news` also returned live data when exercised through `server/index.ts`.
+- Check: Browser smoke tests via Puppeteer against local dev server
+- Result: Clicking a market row opened a secondary quote pane, the secondary close control collapsed back to one pane, and entering `MSFT GP` in `/CMD` opened a secondary chart pane for `MSFT`.
 
 ## Hand-off Note
 
-- Resume from: Browser-level acceptance checks and any follow-up polish on provider limits/caching if usage grows.
-- Watch for: Public feed schema/rate-limit drift, especially CoinGecko and Google News RSS changes.
+- Resume from: The terminal workflow tranche is landed; next high-ROI work is article read-through/search or a real alert engine.
+- Watch for: Command-bar UX polish and further pane-routing rules if more multi-pane behavior is added.

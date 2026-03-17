@@ -4,21 +4,21 @@ Read after `AGENTS.md` when starting or resuming work. Keep this file limited to
 
 ## Objective
 
-- Objective: Replace the mocked finance/news backend with live public-provider integrations and keep the existing terminal routes working.
-- Why it matters now: The product comparison identified mocked quotes/news as a core gap, and the user explicitly requested live feeds.
+- Objective: Deliver the first terminal-workflow tranche from the roadmap: split workspace panes plus Bloomberg-style command/drill-through navigation.
+- Why it matters now: Live data exists; the next product gap is workflow density, not another isolated data widget.
 
 ## Scope
 
-- In scope: `src/server/marketData.ts`, `src/server/routes.ts`, `src/shared/schema.ts`, `src/server/storage.ts`, `src/client/src/lib/finance.ts`, `src/client/src/lib/useFinance.ts`, `src/client/src/components/panels/{MarketOverview,NewsPanel,QuotePanel,ChartPanel}.tsx`, `src/client/src/App.tsx`.
-- Expected outcome: Quotes/ohlcv/news endpoints return live provider-backed data with truthful fallbacks, and the client renders those results without fake tick simulation.
+- In scope: `src/client/src/pages/Terminal.tsx`, `src/client/src/components/terminal/{WorkspacePane,CommandBar,TopBar,Sidebar,FunctionBar}.tsx`, `src/client/src/lib/{terminalTypes,terminalCommands,terminalWorkspace,terminalChrome}.ts`, related tests under `src/client/src/lib/*.test.ts`, and any panel type imports affected by the shared terminal types.
+- Expected outcome: Users can keep a broad market view open while opening quote/chart/news work in a secondary pane, and can navigate with commands like `AAPL GP` and `MRKT`.
 
 ## Constraints
 
-- Constraint: Keep the existing `/api/finance/*` route surface so current panels continue to work.
-- Constraint: Use public/no-key providers by default and degrade to explicit reference fallback data instead of inventing live values.
+- Constraint: Preserve existing panel contracts so live-data panels do not need behavioral rewrites.
+- Constraint: Keep broad context in the primary pane when opening security-specific work from market/screener/watchlist flows.
 
 ## Success Criteria
 
-- Check: `npm test` passes with provider parsing coverage.
+- Check: `npm test` passes with new terminal helper tests.
 - Check: `npm run check` passes.
-- Check: Live smoke tests show `/api/finance/quotes` and `/api/finance/news` returning provider-backed data for `AAPL`.
+- Check: Browser smoke tests confirm split-pane open/close behavior and command alias execution (`MSFT GP`).

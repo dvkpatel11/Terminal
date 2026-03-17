@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Bell, Zap, Terminal } from "lucide-react";
-import type { ViewMode } from "@/pages/Terminal";
+import type { ViewMode } from "@/lib/terminalTypes";
+import { getMarketStatus } from "@/lib/terminalChrome";
 
 interface Props {
   activeSymbol: string;
@@ -10,26 +11,10 @@ interface Props {
   onOpenCmd: () => void;
 }
 
-function getMarketStatus() {
-  const now = new Date();
-  // Convert to ET: UTC-5 (EST) or UTC-4 (EDT) — approximate
-  const etOffset = -5;
-  const etTime = new Date(now.getTime() + (etOffset - (-now.getTimezoneOffset() / 60)) * 60 * 60 * 1000);
-  const h = etTime.getHours();
-  const m = etTime.getMinutes();
-  const t = h * 60 + m;
-  const day = now.getDay(); // 0=Sun, 6=Sat
-  if (day === 0 || day === 6) return { label: "WEEKEND", color: "text-muted-foreground", pulse: false };
-  if (t >= 240 && t < 570) return { label: "PRE-MKT", color: "text-[hsl(38,95%,55%)]", pulse: true };
-  if (t >= 570 && t < 960) return { label: "MKT OPEN", color: "text-up", pulse: true };
-  if (t >= 960 && t < 1200) return { label: "AFTER-HRS", color: "text-[hsl(38,95%,55%)]", pulse: true };
-  return { label: "CLOSED", color: "text-muted-foreground", pulse: false };
-}
-
 export default function TopBar({ activeSymbol, view, onNav, onSymbol, onOpenCmd }: Props) {
   const [searchVal, setSearchVal] = useState("");
   const [clock, setClock] = useState(() => new Date());
-  const mktStatus = getMarketStatus();
+  const mktStatus = getMarketStatus(clock);
 
   // Live clock
   useEffect(() => {

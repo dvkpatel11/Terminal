@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuotes, useMarketGainers, useMarketLosers, useMostActive, useMarketSentiment, useNews, useIndexSparklines } from "@/lib/useFinance";
 import { formatPrice, formatPct, formatBig, pctClass, INDICES } from "@/lib/finance";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { ViewMode } from "@/pages/Terminal";
+import type { ViewMode } from "@/lib/terminalTypes";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
 
 interface Props {

@@ -2,7 +2,7 @@ import { useQuote, usePeers, useOHLCV, useNews } from "@/lib/useFinance";
 import { formatPrice, formatPct, formatBig, pctClass } from "@/lib/finance";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart as LCIcon, BarChart2, TrendingUp, TrendingDown } from "lucide-react";
-import type { ViewMode } from "@/pages/Terminal";
+import type { ViewMode } from "@/lib/terminalTypes";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
 } from "recharts";

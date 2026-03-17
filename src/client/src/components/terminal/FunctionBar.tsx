@@ -1,4 +1,4 @@
-import type { ViewMode } from "@/pages/Terminal";
+import type { ViewMode } from "@/lib/terminalTypes";
 
 interface Props {
   onNav: (v: ViewMode) => void;

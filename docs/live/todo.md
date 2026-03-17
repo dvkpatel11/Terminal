@@ -8,6 +8,6 @@ Use one row per work item. Prefer `High`, `Medium`, or `Low` for priority and `P
 
 | Task | Priority | Status |
 | --- | --- | --- |
-| Browser-smoke the quote/news/screener/economics panels against live data | Medium | Pending |
-| Decide whether to add paid-provider env support for higher-rate production usage | Medium | Pending |
-| Add alert-trigger evaluation against live quotes if alerts are meant to become active behavior | Low | Pending |
+| Add full news workflow: article body/read-through plus keyword search | High | Pending |
+| Implement live alert triggering and notification center behavior | High | Pending |
+| Extend charting with comparison overlays and intraday intervals | Medium | Pending |
