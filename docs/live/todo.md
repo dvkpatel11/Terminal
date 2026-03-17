@@ -8,6 +8,6 @@ Use one row per work item. Prefer `High`, `Medium`, or `Low` for priority and `P
 
 | Task | Priority | Status |
 | --- | --- | --- |
-| Implement live alert triggering and notification center behavior | High | Pending |
-| Extend charting with comparison overlays and intraday intervals | Medium | Pending |
+| Extend charting with comparison overlays and intraday intervals | High | Pending |
 | Add benchmark/risk context to portfolio workflows | Medium | Pending |
+| Improve alert delivery from poll-on-read to push/background evaluation | Medium | Pending |

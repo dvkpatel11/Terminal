@@ -24,7 +24,9 @@ export const alerts = pgTable("alerts", {
   condition: text("condition").notNull(),
   price: real("price").notNull(),
   triggered: boolean("triggered").default(false).notNull(),
+  triggerPrice: real("trigger_price"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  triggeredAt: timestamp("triggered_at"),
 });
 
 export const insertAlertSchema = z.object({

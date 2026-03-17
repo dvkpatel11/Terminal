@@ -10,7 +10,7 @@ export interface IStorage {
   getAlerts(): Promise<Alert[]>;
   addAlert(alert: InsertAlert): Promise<Alert>;
   deleteAlert(id: number): Promise<void>;
-  triggerAlert(id: number): Promise<void>;
+  triggerAlert(id: number, details: { triggerPrice: number; triggeredAt: Date }): Promise<void>;
 
   // Chat
   getChatMessages(): Promise<ChatMessage[]>;
@@ -63,7 +63,14 @@ export class MemStorage implements IStorage {
   }
 
   async addAlert(alert: InsertAlert): Promise<Alert> {
-    const newAlert: Alert = { ...alert, id: this.alertId++, triggered: false, createdAt: new Date() };
+    const newAlert: Alert = {
+      ...alert,
+      id: this.alertId++,
+      triggered: false,
+      triggerPrice: null,
+      createdAt: new Date(),
+      triggeredAt: null,
+    };
     this.alertsMap.set(newAlert.id, newAlert);
     return newAlert;
   }
@@ -72,10 +79,10 @@ export class MemStorage implements IStorage {
     this.alertsMap.delete(id);
   }
 
-  async triggerAlert(id: number): Promise<void> {
+  async triggerAlert(id: number, details: { triggerPrice: number; triggeredAt: Date }): Promise<void> {
     const alert = this.alertsMap.get(id);
     if (alert) {
-      this.alertsMap.set(id, { ...alert, triggered: true });
+      this.alertsMap.set(id, { ...alert, triggered: true, triggerPrice: details.triggerPrice, triggeredAt: details.triggeredAt });
     }
   }
 

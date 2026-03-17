@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useAlerts, alertsQueryKey } from "@/lib/useAlerts";
 import { BellRing, Plus, Trash2, Bell } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Alert } from "@shared/schema";
@@ -13,26 +14,20 @@ export default function AlertsPanel({ onSymbol }: Props) {
   const [price, setPrice] = useState("");
   const qc = useQueryClient();
 
-  const { data: alerts = [], isLoading } = useQuery<Alert[]>({
-    queryKey: ["/api/alerts"],
-    queryFn: async () => {
-      const res = await fetch("/api/alerts");
-      return res.json();
-    },
-  });
+  const { data: alerts = [], isLoading } = useAlerts();
 
   const addMut = useMutation({
     mutationFn: async (data: { symbol: string; condition: string; price: number }) => {
       await apiRequest("POST", "/api/alerts", data);
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["/api/alerts"] }); setSym(""); setPrice(""); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: alertsQueryKey }); setSym(""); setPrice(""); }
   });
 
   const delMut = useMutation({
     mutationFn: async (id: number) => {
       await apiRequest("DELETE", `/api/alerts/${id}`);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/alerts"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: alertsQueryKey }),
   });
 
   const handleAdd = (e: React.FormEvent) => {
@@ -141,7 +136,12 @@ export default function AlertsPanel({ onSymbol }: Props) {
                     <div className="w-2 h-2 rounded-full border border-muted-foreground shrink-0" />
                     <span className="font-terminal text-[11px] font-bold text-muted-foreground">{a.symbol}</span>
                     <span className="font-terminal text-[10px] text-muted-foreground">{a.condition === "above" ? "▲" : "▼"} ${a.price.toFixed(2)}</span>
-                    <span className="font-terminal text-[9px] text-[hsl(38,95%,55%)] ml-2">TRIGGERED</span>
+                    {a.triggerPrice !== null && (
+                      <span className="font-terminal text-[10px] text-[hsl(38,95%,55%)]">LAST ${a.triggerPrice.toFixed(2)}</span>
+                    )}
+                    <span className="font-terminal text-[9px] text-[hsl(38,95%,55%)] ml-2">
+                      {a.triggeredAt ? `TRIGGERED ${new Date(a.triggeredAt).toLocaleString()}` : "TRIGGERED"}
+                    </span>
                     <button onClick={() => delMut.mutate(a.id)} className="ml-auto opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-[hsl(0,80%,60%)] transition-all">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
