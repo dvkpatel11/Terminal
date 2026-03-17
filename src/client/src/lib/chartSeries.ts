@@ -1,3 +1,5 @@
+import type { DataFreshness } from "./finance";
+
 export type ChartInterval = "5m" | "15m" | "1h" | "1d";
 
 interface SeriesPoint {
@@ -10,13 +12,14 @@ interface SeriesInput {
   points: SeriesPoint[];
 }
 
-export function supportsIntradayCharts(quoteSource: string | null | undefined, isCrypto: boolean): boolean {
-  return isCrypto || Boolean(quoteSource && quoteSource !== "Reference fallback");
+export function supportsIntradayCharts(freshness: DataFreshness | null | undefined, isCrypto: boolean): boolean {
+  return isCrypto || freshness === "current";
 }
 
 export function getAllowedIntervals(supportsIntraday: boolean): ChartInterval[] {
   return supportsIntraday ? ["5m", "15m", "1h", "1d"] : ["1d"];
 }
+
 
 export function normalizeComparisonSeries(series: SeriesInput[]) {
   const dateMap = new Map<string, Record<string, number | string>>();

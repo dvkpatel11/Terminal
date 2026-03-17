@@ -171,6 +171,13 @@ test("buildQuoteFromSnapshot derives previous close, ranges, and reference funda
   assert.equal(quote.marketCap, 3552016528925.62);
   assert.equal(quote.quoteSource, "Yahoo Finance");
   assert.equal(quote.isLive, true);
+  assert.deepEqual(quote.status, {
+    provider: "Yahoo Finance",
+    freshness: "current",
+    asOf: "2026-03-16T21:00:17.000Z",
+    delayLabel: "Current session",
+    isFallback: false,
+  });
 });
 
 test("parseNewsFeed normalizes rss items and infers sentiment", () => {
@@ -199,18 +206,57 @@ test("parseNewsFeed normalizes rss items and infers sentiment", () => {
       summary: "Shares rally as revenue tops expectations and guidance improves.",
       url: "https://example.com/apple",
       source: "Reuters",
+      feedProvider: "Google News",
       publishedAt: "2026-03-17T10:00:00.000Z",
       sentiment: "positive",
+      status: {
+        provider: "Google News",
+        freshness: "feed",
+        asOf: "2026-03-17T10:00:00.000Z",
+        delayLabel: "Feed-based publication metadata",
+        isFallback: false,
+      },
     },
     {
       title: "Oil falls as recession fears grow",
       summary: "Demand concerns pressure crude lower in early trading.",
       url: "https://example.com/oil",
       source: "CNBC",
+      feedProvider: "Google News",
       publishedAt: "2026-03-17T09:00:00.000Z",
       sentiment: "negative",
+      status: {
+        provider: "Google News",
+        freshness: "feed",
+        asOf: "2026-03-17T09:00:00.000Z",
+        delayLabel: "Feed-based publication metadata",
+        isFallback: false,
+      },
     },
   ]);
+});
+
+test("parseNewsFeed tags feed-based items with transport metadata", () => {
+  const [item] = parseNewsFeed(`<?xml version="1.0" encoding="UTF-8"?>
+    <rss version="2.0">
+      <channel>
+        <item>
+          <title>Apple supplier expands production - Reuters</title>
+          <description>Production capacity rises ahead of the new launch cycle.</description>
+          <link>https://example.com/apple-supplier</link>
+          <pubDate>Mon, 17 Mar 2026 10:00:00 GMT</pubDate>
+        </item>
+      </channel>
+    </rss>`, "Google News");
+
+  assert.equal(item.feedProvider, "Google News");
+  assert.deepEqual(item.status, {
+    provider: "Google News",
+    freshness: "feed",
+    asOf: "2026-03-17T10:00:00.000Z",
+    delayLabel: "Feed-based publication metadata",
+    isFallback: false,
+  });
 });
 
 

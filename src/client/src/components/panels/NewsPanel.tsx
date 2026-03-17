@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Search } from "lucide-react";
+import DataStatusBadge from "@/components/data/DataStatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { NewsItem } from "@/lib/finance";
 import { useNews, useNewsArticle } from "@/lib/useFinance";
@@ -134,10 +135,11 @@ export default function NewsPanel({ symbol }: Props) {
                     <div className="min-w-0 flex-1">
                       <div className="font-terminal text-sm text-foreground leading-snug line-clamp-2">{item.title}</div>
                       <div className="font-terminal text-[11px] text-muted-foreground mt-1 leading-relaxed line-clamp-3">{item.summary}</div>
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <span className="font-terminal text-[8px] px-1.5 py-0.5 border border-border text-[hsl(38,95%,55%)]">
                           {item.source.toUpperCase()}
                         </span>
+                        <DataStatusBadge status={item.status} compact />
                         <span className="font-terminal text-[8px] text-muted-foreground">{relativeTime(item.publishedAt)}</span>
                       </div>
                     </div>
@@ -163,10 +165,11 @@ export default function NewsPanel({ symbol }: Props) {
                 <div>
                   <div className="panel-label mb-2">READ-THROUGH</div>
                   <h2 className="font-terminal text-lg text-foreground leading-tight max-w-3xl">{article?.title ?? selectedItem.title}</h2>
-                  <div className="flex items-center gap-3 mt-2">
+                  <div className="flex items-center gap-3 mt-2 flex-wrap">
                     <span className="font-terminal text-[9px] px-1.5 py-0.5 border border-border text-[hsl(38,95%,55%)]">
                       {selectedItem.source.toUpperCase()}
                     </span>
+                    <DataStatusBadge status={article?.status ?? selectedItem.status} compact showAsOf />
                     <span className="font-terminal text-[9px] text-muted-foreground">{relativeTime(selectedItem.publishedAt)}</span>
                   </div>
                 </div>

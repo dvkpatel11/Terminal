@@ -48,6 +48,7 @@ test("parseFredCalendar keeps only tracked macro events and normalizes their met
       date: "2026-03-18",
       timeCt: "7:30 AM CT",
       releaseUrl: "https://fred.stlouisfed.org/release?rid=10",
+      status: { provider: "FRED", freshness: "schedule", asOf: null, delayLabel: "Scheduled release calendar", isFallback: false },
     },
     {
       id: "326:2026-03-18:1:00 PM CT",
@@ -58,6 +59,7 @@ test("parseFredCalendar keeps only tracked macro events and normalizes their met
       date: "2026-03-18",
       timeCt: "1:00 PM CT",
       releaseUrl: "https://fred.stlouisfed.org/release?rid=326",
+      status: { provider: "FRED", freshness: "schedule", asOf: null, delayLabel: "Scheduled release calendar", isFallback: false },
     },
     {
       id: "53:2026-04-09:7:30 AM CT",
@@ -68,6 +70,7 @@ test("parseFredCalendar keeps only tracked macro events and normalizes their met
       date: "2026-04-09",
       timeCt: "7:30 AM CT",
       releaseUrl: "https://fred.stlouisfed.org/release?rid=53",
+      status: { provider: "FRED", freshness: "schedule", asOf: null, delayLabel: "Scheduled release calendar", isFallback: false },
     },
   ]);
 });
@@ -121,6 +124,7 @@ test("parseFredReleaseDetail extracts official source links and top tables", () 
         recordCount: 1475,
       },
     ],
+    status: { provider: "FRED", freshness: "schedule", asOf: null, delayLabel: "Scheduled release detail", isFallback: false },
   });
 });
 

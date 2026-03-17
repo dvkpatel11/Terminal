@@ -13,6 +13,7 @@ import {
   getNews,
   getNewsArticle,
   getOHLCV,
+  getOHLCVSeries,
   getPeers,
   getQuotes,
   getScreenerResults,
@@ -57,13 +58,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const symbols = parseSymbols(req.query.symbols);
     if (!symbols.length) return [];
     const quotes = await getQuotes(symbols);
-    return quotes.map(({ symbol, price, change, changePercent, quoteSource, isLive }) => ({
+    return quotes.map(({ symbol, price, change, changePercent, quoteSource, isLive, status }) => ({
       symbol,
       price,
       change,
       changePercent,
       quoteSource,
       isLive,
+      status,
     }));
   }));
 
@@ -77,7 +79,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const symbol = String(req.query.symbol || "AAPL").toUpperCase();
     const range = String(req.query.range || "1Y");
     const interval = String(req.query.interval || "1d") as "5m" | "15m" | "1h" | "1d";
-    return getOHLCV(symbol, range, interval);
+    return getOHLCVSeries(symbol, range, interval);
   }));
 
   app.get("/api/finance/gainers", handleFinance(async () => getMarketMovers("gainers")));
@@ -97,11 +99,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const source = String(req.query.source || "Unknown source");
     const publishedAt = String(req.query.publishedAt || new Date(0).toISOString());
     const summary = typeof req.query.summary === "string" ? req.query.summary : undefined;
+    const feedProvider = typeof req.query.feedProvider === "string" ? req.query.feedProvider : undefined;
 
     return getNewsArticle({
       url,
       title,
       source,
+      feedProvider,
       publishedAt,
       summary,
     });

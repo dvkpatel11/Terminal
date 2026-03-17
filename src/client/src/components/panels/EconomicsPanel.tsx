@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Globe2 } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 
+import DataStatusBadge from "@/components/data/DataStatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { EconomicCalendarEvent, EconomicsSnapshotMetric } from "@/lib/finance";
 import { useEconomicCalendar, useEconomicEventDetail, useEconomics } from "@/lib/useFinance";
@@ -102,13 +103,16 @@ export default function EconomicsPanel() {
       <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border bg-[#070707]">
         <Globe2 className="w-4 h-4 text-[hsl(38,95%,55%)]" />
         <span className="panel-label">MACRO ECONOMICS</span>
-        <span className="font-terminal text-[9px] text-muted-foreground ml-2">US MACRO + EVENT CALENDAR</span>
+        <span className="font-terminal text-[9px] text-muted-foreground ml-2">US MACRO + EVENT SCHEDULE</span>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
         <div className="p-4 space-y-6">
           <section>
-            <div className="panel-label mb-3">US MACRO INDICATORS</div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="panel-label">US MACRO INDICATORS</div>
+              {econ?.status && <DataStatusBadge status={econ.status} compact /> }
+            </div>
             {snapshotLoading ? (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {Array(4).fill(0).map((_, index) => <Skeleton key={index} className="h-20 bg-border" />)}
@@ -170,7 +174,7 @@ export default function EconomicsPanel() {
 
             <div className="space-y-6">
               <section>
-                <div className="panel-label mb-3">LIVE FX SNAPSHOT</div>
+                <div className="panel-label mb-3">FX SNAPSHOT</div>
                 <div className="bg-[#080808] border border-border">
                   <div className="grid grid-cols-[1fr_auto_auto] px-3 py-1.5 border-b border-border font-terminal text-[8px] text-muted-foreground">
                     <span>PAIR</span>
@@ -191,7 +195,7 @@ export default function EconomicsPanel() {
               </section>
 
               <section>
-                <div className="panel-label mb-3">LIVE COMMODITY SNAPSHOT</div>
+                <div className="panel-label mb-3">COMMODITY SNAPSHOT</div>
                 <div className="bg-[#080808] border border-border">
                   <div className="grid grid-cols-[1fr_auto_auto] px-3 py-1.5 border-b border-border font-terminal text-[8px] text-muted-foreground">
                     <span>CONTRACT</span>
@@ -214,7 +218,10 @@ export default function EconomicsPanel() {
           <section>
             <div className="flex items-center justify-between mb-3">
               <div className="panel-label">UPCOMING ECONOMIC CALENDAR</div>
-              <div className="font-terminal text-[9px] tracking-widest text-muted-foreground">NEXT 30 DAYS · {calendar.length} EVENTS</div>
+              <div className="flex items-center gap-3 flex-wrap">
+                {calendar[0]?.status && <DataStatusBadge status={calendar[0].status} compact /> }
+                <div className="font-terminal text-[9px] tracking-widest text-muted-foreground">NEXT 30 DAYS · {calendar.length} EVENTS</div>
+              </div>
             </div>
 
             <div className="min-h-[420px] border border-border bg-[#060606] flex overflow-hidden">
@@ -274,6 +281,7 @@ export default function EconomicsPanel() {
                           <span className="font-terminal text-[9px] px-1.5 py-0.5 border border-border text-[hsl(38,95%,55%)]">{categoryLabel(selectedEvent.category)}</span>
                           <span className="font-terminal text-[9px] text-muted-foreground">{formatEventDate(selectedEvent.date)} · {selectedEvent.timeCt}</span>
                           <span className={`font-terminal text-[9px] ${selectedEvent.importance === "high" ? "text-up" : "text-muted-foreground"}`}>{selectedEvent.importance.toUpperCase()} IMPACT</span>
+                          <DataStatusBadge status={eventDetail?.status ?? selectedEvent.status} compact />
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">

@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { buildDataStatus, type DataStatus } from "./dataStatus";
 import { fetchText, getCached, setCached } from "./providerUtils";
 
 export interface OHLCVBar {
@@ -33,6 +34,13 @@ export interface Quote {
   sector?: string;
   quoteSource: string;
   isLive: boolean;
+  status: DataStatus;
+}
+
+export interface OHLCVSeries {
+  bars: OHLCVBar[];
+  status: DataStatus;
+  supportsIntraday: boolean;
 }
 
 export interface NewsItem {
@@ -40,17 +48,21 @@ export interface NewsItem {
   summary: string;
   url: string;
   source: string;
+  feedProvider: string;
   publishedAt: string;
   sentiment: "positive" | "negative" | "neutral";
+  status: DataStatus;
 }
 
 export interface NewsArticle {
   title: string;
   source: string;
+  feedProvider: string;
   url: string;
   publishedAt: string;
   excerpt: string;
   content: string[];
+  status: DataStatus;
 }
 interface CurrentQuoteSnapshot {
   open: number;
@@ -80,6 +92,7 @@ interface BuildQuoteInput {
   current: CurrentQuoteSnapshot;
   history: OHLCVBar[];
   isLive?: boolean;
+  status?: DataStatus;
 }
 
 interface RssFeedConfig {
@@ -510,6 +523,12 @@ function splitSnapshotDateTime(raw: string) {
   return { date, time: time.slice(0, 8) };
 }
 
+function toSnapshotAsOf(snapshot: CurrentQuoteSnapshot) {
+  if (!snapshot.date) return null;
+  const time = snapshot.time || "00:00:00";
+  return `${snapshot.date}T${time}.000Z`;
+}
+
 function buildSnapshotFromBars(
   bars: OHLCVBar[],
   overrides: { close?: number; high?: number; low?: number; volume?: number } = {},
@@ -599,7 +618,7 @@ async function fetchYahooChart(symbol: string, range: string, interval: YahooCha
   );
 }
 
-export function buildQuoteFromSnapshot({ symbol, provider, profile, current, history, isLive = true }: BuildQuoteInput): Quote {
+export function buildQuoteFromSnapshot({ symbol, provider, profile, current, history, isLive = true, status }: BuildQuoteInput): Quote {
   const recentHistory = history.slice(-252);
   const previousCloseBar = history.length > 1
     ? (history.at(-1)?.date === current.date ? history.at(-2) : history.at(-1))
@@ -616,6 +635,12 @@ export function buildQuoteFromSnapshot({ symbol, provider, profile, current, his
   const marketCap = profile?.marketCap && profile.referencePrice
     ? profile.marketCap * (current.close / profile.referencePrice)
     : null;
+  const resolvedStatus = status ?? buildDataStatus({
+    provider,
+    freshness: isLive ? "current" : "daily",
+    asOf: toSnapshotAsOf(current),
+    isFallback: !isLive,
+  });
 
   return {
     symbol,
@@ -638,6 +663,7 @@ export function buildQuoteFromSnapshot({ symbol, provider, profile, current, his
     sector: profile?.sector,
     quoteSource: provider,
     isLive,
+    status: resolvedStatus,
   };
 }
 
@@ -664,8 +690,14 @@ export function parseNewsFeed(xml: string, fallbackSource: string): NewsItem[] {
         summary,
         url,
         source,
+        feedProvider: fallbackSource,
         publishedAt,
         sentiment: inferSentiment(`${title} ${summary}`),
+        status: buildDataStatus({
+          provider: fallbackSource,
+          freshness: "feed",
+          asOf: publishedAt,
+        }),
       };
     })
     .filter((item): item is NewsItem => Boolean(item));
@@ -732,6 +764,13 @@ async function getVixQuote(): Promise<Quote> {
       },
       history: bars,
       isLive: false,
+      status: buildDataStatus({
+        provider: "CBOE daily",
+        freshness: "daily",
+        asOf: `${last.date}T00:00:00.000Z`,
+        delayLabel: "Daily index close",
+        isFallback: true,
+      }),
     });
 
     return setCached(quoteCache, cacheKey, quote, QUOTE_TTL_MS);
@@ -774,6 +813,7 @@ async function getCoinGeckoQuotes(symbols: string[]): Promise<Map<string, Quote>
 
       const previousClose = data.usd / (1 + ((data.usd_24h_change ?? 0) / 100));
       const change = data.usd - previousClose;
+      const asOf = new Date().toISOString();
       const quote: Quote = {
         symbol,
         name: profile.name,
@@ -795,6 +835,11 @@ async function getCoinGeckoQuotes(symbols: string[]): Promise<Map<string, Quote>
         sector: profile.sector,
         quoteSource: "CoinGecko",
         isLive: true,
+        status: buildDataStatus({
+          provider: "CoinGecko",
+          freshness: "current",
+          asOf,
+        }),
       };
       results.set(symbol, setCached(quoteCache, `quote:${symbol}`, quote, QUOTE_TTL_MS));
     }
@@ -831,6 +876,11 @@ function buildReferenceFallbackQuote(symbol: string): Quote {
     sector: profile?.sector,
     quoteSource: CATALOG_FALLBACK_SOURCE,
     isLive: false,
+    status: buildDataStatus({
+      provider: CATALOG_FALLBACK_SOURCE,
+      freshness: "reference",
+      isFallback: true,
+    }),
   };
 }
 
@@ -849,13 +899,21 @@ async function getStooqQuote(symbol: string): Promise<Quote> {
       fetchText(`https://stooq.com/q/l/?s=${encodeURIComponent(mapped)}&i=5`),
       getStooqHistory(symbol),
     ]);
+    const snapshot = parseStooqCurrent(currentCsv);
     const quote = buildQuoteFromSnapshot({
       symbol,
       provider: symbol === "^RUT" ? "Stooq daily fallback (IWM proxy)" : "Stooq daily fallback",
       profile: getProfile(symbol),
-      current: parseStooqCurrent(currentCsv),
+      current: snapshot,
       history,
       isLive: false,
+      status: buildDataStatus({
+        provider: symbol === "^RUT" ? "Stooq daily fallback (IWM proxy)" : "Stooq daily fallback",
+        freshness: "daily",
+        asOf: toSnapshotAsOf(snapshot),
+        delayLabel: "Daily fallback",
+        isFallback: true,
+      }),
     });
     return setCached(quoteCache, cacheKey, quote, QUOTE_TTL_MS);
   } catch {
@@ -954,6 +1012,20 @@ export async function getOHLCV(symbol: string, range = "1Y", interval: OhlcvInte
     const history = await getStooqHistory(upper);
     return setCached(historyCache, cacheKey, history.slice(-days), HISTORY_TTL_MS);
   }
+}
+
+export async function getOHLCVSeries(symbol: string, range = "1Y", interval: OhlcvInterval = "1d"): Promise<OHLCVSeries> {
+  const upper = symbol.toUpperCase();
+  const [bars, quote] = await Promise.all([
+    getOHLCV(upper, range, interval),
+    getQuotes([upper]).then((items) => items[0] ?? buildReferenceFallbackQuote(upper)),
+  ]);
+
+  return {
+    bars,
+    status: quote.status,
+    supportsIntraday: getProfile(upper)?.assetClass === "crypto" || quote.status.freshness === "current",
+  };
 }
 
 export async function getIndexSparklines(): Promise<Record<string, number[]>> {
@@ -1056,6 +1128,7 @@ export async function getNewsArticle(input: {
   url: string;
   title: string;
   source: string;
+  feedProvider?: string;
   publishedAt: string;
   summary?: string;
 }): Promise<NewsArticle> {
@@ -1064,26 +1137,36 @@ export async function getNewsArticle(input: {
   const cached = getCached(articleCache, cacheKey);
   if (cached) return cached;
 
+  const status = buildDataStatus({
+    provider: input.feedProvider ?? input.source,
+    freshness: "feed",
+    asOf: input.publishedAt,
+  });
+
   try {
     const html = await fetchText(url);
     const content = extractArticleContent(html);
     const article: NewsArticle = {
       title: input.title,
       source: input.source,
+      feedProvider: input.feedProvider ?? input.source,
       url,
       publishedAt: input.publishedAt,
       excerpt: input.summary?.trim() || content[0] || "Read-through unavailable for this source.",
       content: content.length ? content : (input.summary ? [input.summary.trim()] : []),
+      status,
     };
     return setCached(articleCache, cacheKey, article, ARTICLE_TTL_MS);
   } catch {
     const fallback: NewsArticle = {
       title: input.title,
       source: input.source,
+      feedProvider: input.feedProvider ?? input.source,
       url,
       publishedAt: input.publishedAt,
       excerpt: input.summary?.trim() || "Read-through unavailable for this source.",
       content: input.summary?.trim() ? [input.summary.trim()] : [],
+      status,
     };
     return setCached(articleCache, cacheKey, fallback, ARTICLE_TTL_MS);
   }
@@ -1146,5 +1229,10 @@ export async function getEconomicsSnapshot() {
     usdJpy: { value: round(usdJpy, 4), prev: round(usdJpy * 0.998, 4), label: "USD/JPY", unit: "" },
     gold: { value: round(gold, 2), prev: round(gold * 0.995, 2), label: "Gold ($/oz)", unit: "" },
     oil: { value: round(oil, 2), prev: round(oil * 1.01, 2), label: "WTI Crude ($/bbl)", unit: "" },
+    status: buildDataStatus({
+      provider: "Mixed public snapshot",
+      freshness: "snapshot",
+      delayLabel: "Snapshot / mixed-source view",
+    }),
   };
 }

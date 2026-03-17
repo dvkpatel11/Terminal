@@ -1,3 +1,4 @@
+import { buildDataStatus, type DataStatus } from "./dataStatus";
 import { fetchText, getCached, setCached } from "./providerUtils";
 
 export type EconomicEventCategory = "inflation" | "labor" | "growth" | "policy" | "consumption" | "activity" | "housing";
@@ -12,6 +13,7 @@ export interface EconomicCalendarEvent {
   date: string;
   timeCt: string;
   releaseUrl: string;
+  status: DataStatus;
 }
 
 export interface EconomicReleaseTable {
@@ -36,6 +38,7 @@ export interface EconomicEventDetail {
   releaseWebsiteUrl: string | null;
   tables: EconomicReleaseTable[];
   upcomingDates: EconomicReleaseScheduleDate[];
+  status: DataStatus;
 }
 
 const FRED_BASE_URL = "https://fred.stlouisfed.org";
@@ -159,6 +162,11 @@ export function parseFredCalendar(html: string): EconomicCalendarEvent[] {
       date,
       timeCt,
       releaseUrl: `${FRED_BASE_URL}/release?rid=${releaseId}`,
+      status: buildDataStatus({
+        provider: "FRED",
+        freshness: "schedule",
+        delayLabel: "Scheduled release calendar",
+      }),
     });
   });
 
@@ -225,6 +233,11 @@ export function parseFredReleaseDetail(html: string, releaseId: number): Omit<Ec
     releaseCalendarUrl,
     releaseWebsiteUrl,
     tables,
+    status: buildDataStatus({
+      provider: "FRED",
+      freshness: "schedule",
+      delayLabel: "Scheduled release detail",
+    }),
   };
 }
 

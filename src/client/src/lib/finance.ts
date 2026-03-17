@@ -1,6 +1,16 @@
 // Finance data fetching via backend proxy to finance API
 // All calls go through /api/finance/* which the server proxies to the finance connector
 
+export type DataFreshness = "current" | "delayed" | "daily" | "reference" | "feed" | "schedule" | "snapshot";
+
+export interface DataStatus {
+  provider: string;
+  freshness: DataFreshness;
+  asOf: string | null;
+  delayLabel: string;
+  isFallback: boolean;
+}
+
 export interface Quote {
   symbol: string;
   name: string;
@@ -22,6 +32,7 @@ export interface Quote {
   sector?: string;
   quoteSource: string;
   isLive: boolean;
+  status: DataStatus;
 }
 
 export interface OHLCVBar {
@@ -33,22 +44,32 @@ export interface OHLCVBar {
   volume: number;
 }
 
+export interface OHLCVSeries {
+  bars: OHLCVBar[];
+  status: DataStatus;
+  supportsIntraday: boolean;
+}
+
 export interface NewsItem {
   title: string;
   summary: string;
   url: string;
   source: string;
+  feedProvider: string;
   publishedAt: string;
   sentiment?: "positive" | "negative" | "neutral";
+  status: DataStatus;
 }
 
 export interface NewsArticle {
   title: string;
   source: string;
+  feedProvider: string;
   url: string;
   publishedAt: string;
   excerpt: string;
   content: string[];
+  status: DataStatus;
 }
 
 export interface EconomicsSnapshotMetric {
@@ -72,6 +93,7 @@ export interface EconomicsSnapshot {
   usdJpy: EconomicsSnapshotMetric;
   gold: EconomicsSnapshotMetric;
   oil: EconomicsSnapshotMetric;
+  status: DataStatus;
 }
 
 export interface EconomicCalendarEvent {
@@ -83,6 +105,7 @@ export interface EconomicCalendarEvent {
   date: string;
   timeCt: string;
   releaseUrl: string;
+  status: DataStatus;
 }
 
 export interface EconomicEventDetail {
@@ -96,6 +119,7 @@ export interface EconomicEventDetail {
   releaseWebsiteUrl: string | null;
   tables: Array<{ title: string; url: string; recordCount: number | null }>;
   upcomingDates: Array<{ date: string; timeCt: string }>;
+  status: DataStatus;
 }
 
 export interface PortfolioPositionInput {

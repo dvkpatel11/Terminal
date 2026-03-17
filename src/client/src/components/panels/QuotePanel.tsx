@@ -1,5 +1,6 @@
 import { useQuote, usePeers, useOHLCV, useNews } from "@/lib/useFinance";
 import { formatPrice, formatPct, formatBig, pctClass } from "@/lib/finance";
+import DataStatusBadge from "@/components/data/DataStatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart as LCIcon, BarChart2, TrendingUp, TrendingDown } from "lucide-react";
 import type { ViewMode } from "@/lib/terminalTypes";
@@ -48,7 +49,7 @@ const DEFAULT_DESC = "A publicly traded company listed on major U.S. exchanges. 
 export default function QuotePanel({ symbol, onNav }: Props) {
   const { data: q, isLoading } = useQuote(symbol);
   const { data: peers } = usePeers(symbol);
-  const { data: ohlcv } = useOHLCV(symbol, "1M"); // 1-month for intraday-like chart
+  const { data: ohlcvSeries } = useOHLCV(symbol, "1M"); // 1-month overview chart
   const { data: news } = useNews(symbol);
   const analyst = getAnalystData(symbol);
 
@@ -72,7 +73,7 @@ export default function QuotePanel({ symbol, onNav }: Props) {
   const upside = q.price === 0 ? "0.0" : ((priceTarget - q.price) / q.price * 100).toFixed(1);
 
   // Build chart data from OHLCV (close prices)
-  const chartData = (ohlcv || []).map(bar => ({
+  const chartData = (ohlcvSeries?.bars ?? []).map((bar) => ({
     date: bar.date.slice(5), // MM-DD
     close: bar.close,
   }));
@@ -94,9 +95,7 @@ export default function QuotePanel({ symbol, onNav }: Props) {
               {q.sector && (
                 <span className="font-terminal text-[9px] text-[hsl(186,80%,55%)] border border-[hsl(186,80%,55%)]/30 px-1.5 py-0.5">{q.sector}</span>
               )}
-              <span className={`font-terminal text-[9px] border px-1.5 py-0.5 ${q.isLive ? "text-up border-[hsl(142,71%,45%)]/30" : "text-[hsl(38,95%,55%)] border-[hsl(38,95%,55%)]/30"}`}>
-                {q.isLive ? "LIVE" : "REF"} · {q.quoteSource.toUpperCase()}
-              </span>
+              <DataStatusBadge status={q.status} showAsOf />
             </div>
             <div className="font-terminal text-xs text-muted-foreground mt-0.5">{q.name}</div>
           </div>

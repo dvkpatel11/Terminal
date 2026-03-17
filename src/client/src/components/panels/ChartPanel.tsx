@@ -3,6 +3,7 @@ import { useQueries } from "@tanstack/react-query";
 import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from "recharts";
 import { Plus, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import DataStatusBadge from "@/components/data/DataStatusBadge";
 import { formatPrice, pctClass } from "@/lib/finance";
 import { getAllowedIntervals, normalizeComparisonSeries, supportsIntradayCharts, type ChartInterval } from "@/lib/chartSeries";
 import { useOHLCV, useQuote } from "@/lib/useFinance";
@@ -94,7 +95,7 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
   const [compareSymbols, setCompareSymbols] = useState<string[]>([]);
   const { data: quote } = useQuote(symbol);
   const isCrypto = quote?.exchange === "CRYPTO" || symbolIsCryptoCandidate;
-  const supportsIntraday = supportsIntradayCharts(quote?.quoteSource ?? "Yahoo Finance", isCrypto);
+  const supportsIntraday = supportsIntradayCharts(quote?.status.freshness ?? null, isCrypto);
   const allowedIntervals = getAllowedIntervals(supportsIntraday);
   const effectiveInterval = supportsIntraday ? interval : "1d";
   const effectiveRange = !supportsIntraday && range === "1D" ? "1M" : range;
@@ -117,7 +118,8 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
     }
   }, [effectiveInterval, effectiveRange]);
 
-  const { data: raw, isLoading } = useOHLCV(symbol, effectiveRange, effectiveInterval);
+  const { data: series, isLoading } = useOHLCV(symbol, effectiveRange, effectiveInterval);
+  const raw = series?.bars ?? [];
 
   const comparisonQueries = useQueries({
     queries: compareSymbols.map((entry) => ({
@@ -126,7 +128,8 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
         const params = new URLSearchParams({ symbol: entry, range: effectiveRange, interval: effectiveInterval });
         const res = await fetch(`/api/finance/ohlcv?${params.toString()}`);
         if (!res.ok) throw new Error("Failed to fetch comparison OHLCV");
-        return res.json() as Promise<Array<{ date: string; close: number }>>;
+        const payload = await res.json() as { bars: Array<{ date: string; close: number }> };
+        return payload.bars;
       },
       staleTime: 60_000,
       enabled: Boolean(entry),
@@ -134,7 +137,7 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
   });
 
   const chartData = useMemo(() => {
-    if (!raw) return [];
+    if (!raw.length) return [];
     const sma20 = computeSMA(raw, 20);
     const sma50 = computeSMA(raw, 50);
     const rsi = computeRSI(raw, 14);
@@ -201,6 +204,7 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
   const showRSI = indicator === "RSI";
   const allowedRanges = getAllowedRanges(effectiveInterval);
   const showIntradayNotice = !supportsIntraday;
+  const seriesStatus = series?.status ?? quote?.status ?? null;
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-[#050505]">
@@ -223,6 +227,8 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
             </span>
           </div>
         )}
+
+        {seriesStatus && <DataStatusBadge status={seriesStatus} compact showAsOf />}
 
         <div className="flex items-center gap-px ml-2">
           {RANGES.map((entry) => {
@@ -296,9 +302,9 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
             )}
           </span>
         ))}
-        {showIntradayNotice && (
+        {showIntradayNotice && seriesStatus && (
           <span className="font-terminal text-[8px] tracking-widest text-muted-foreground ml-auto">
-            INTRADAY DATA UNAVAILABLE FROM CURRENT SOURCE
+            {seriesStatus.delayLabel.toUpperCase()}
           </span>
         )}
       </div>

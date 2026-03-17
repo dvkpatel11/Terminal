@@ -3,9 +3,10 @@ import assert from "node:assert/strict";
 
 import { getAllowedIntervals, normalizeComparisonSeries, supportsIntradayCharts } from "./chartSeries";
 
-test("supportsIntradayCharts enables equity intraday when the provider is current", () => {
-  assert.equal(supportsIntradayCharts("Yahoo Finance", false), true);
-  assert.equal(supportsIntradayCharts("Reference fallback", false), false);
+test("supportsIntradayCharts enables equity intraday only for current data", () => {
+  assert.equal(supportsIntradayCharts("current", false), true);
+  assert.equal(supportsIntradayCharts("daily", false), false);
+  assert.equal(supportsIntradayCharts("reference", false), false);
   assert.equal(supportsIntradayCharts(null, true), true);
 });
 

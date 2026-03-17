@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuotes, useMarketGainers, useMarketLosers, useMostActive, useMarketSentiment, useNews, useIndexSparklines } from "@/lib/useFinance";
 import { formatPrice, formatPct, formatBig, pctClass, INDICES } from "@/lib/finance";
+import DataStatusBadge from "@/components/data/DataStatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ViewMode } from "@/lib/terminalTypes";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
@@ -149,6 +150,7 @@ export default function MarketOverview({ onSymbol, onNav }: Props) {
                         {q.change >= 0 ? "+" : ""}{q.change.toFixed(2)}
                       </span>
                     </div>
+                    {q.status && <DataStatusBadge status={q.status} compact />}
                   </>
                 ) : (
                   <>

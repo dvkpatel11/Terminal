@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Quote, OHLCVBar, NewsItem, NewsArticle, PortfolioAnalytics, PortfolioPositionInput, EconomicsSnapshot, EconomicCalendarEvent, EconomicEventDetail } from "./finance";
+import type { Quote, OHLCVSeries, NewsItem, NewsArticle, PortfolioAnalytics, PortfolioPositionInput, EconomicsSnapshot, EconomicCalendarEvent, EconomicEventDetail } from "./finance";
 
 // Finance data hooks — all fetched from /api/finance/* proxy
 
@@ -34,7 +34,7 @@ export function useQuote(symbol: string) {
 }
 
 export function useOHLCV(symbol: string, range: string = "1Y", interval: "5m" | "15m" | "1h" | "1d" = "1d") {
-  return useQuery<OHLCVBar[]>({
+  return useQuery<OHLCVSeries>({
     queryKey: ["/api/finance/ohlcv", symbol, range, interval],
     queryFn: async () => {
       const params = new URLSearchParams({ symbol, range, interval });
@@ -116,7 +116,7 @@ export function useNews(symbol?: string, query?: string) {
   });
 }
 
-export function useNewsArticle(item?: Pick<NewsItem, "url" | "title" | "source" | "publishedAt" | "summary"> | null) {
+export function useNewsArticle(item?: Pick<NewsItem, "url" | "title" | "source" | "feedProvider" | "publishedAt" | "summary"> | null) {
   return useQuery<NewsArticle>({
     queryKey: ["/api/finance/news/read", item?.url ?? "", item?.title ?? ""],
     queryFn: async () => {
@@ -125,6 +125,7 @@ export function useNewsArticle(item?: Pick<NewsItem, "url" | "title" | "source" 
         url: item.url,
         title: item.title,
         source: item.source,
+        feedProvider: item.feedProvider,
         publishedAt: item.publishedAt,
       });
       if (item.summary) params.set("summary", item.summary);
