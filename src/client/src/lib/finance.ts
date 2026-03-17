@@ -51,6 +51,53 @@ export interface NewsArticle {
   content: string[];
 }
 
+export interface EconomicsSnapshotMetric {
+  value: number;
+  prev: number;
+  label: string;
+  unit: string;
+}
+
+export interface EconomicsSnapshot {
+  gdp: EconomicsSnapshotMetric;
+  cpi: EconomicsSnapshotMetric;
+  unemployment: EconomicsSnapshotMetric;
+  fedFunds: EconomicsSnapshotMetric;
+  t10y: EconomicsSnapshotMetric;
+  t2y: EconomicsSnapshotMetric;
+  t30y: EconomicsSnapshotMetric;
+  dolllarIndex: EconomicsSnapshotMetric;
+  eurUsd: EconomicsSnapshotMetric;
+  gbpUsd: EconomicsSnapshotMetric;
+  usdJpy: EconomicsSnapshotMetric;
+  gold: EconomicsSnapshotMetric;
+  oil: EconomicsSnapshotMetric;
+}
+
+export interface EconomicCalendarEvent {
+  id: string;
+  releaseId: number;
+  title: string;
+  category: "inflation" | "labor" | "growth" | "policy" | "consumption" | "activity" | "housing";
+  importance: "high" | "medium";
+  date: string;
+  timeCt: string;
+  releaseUrl: string;
+}
+
+export interface EconomicEventDetail {
+  releaseId: number;
+  title: string;
+  category: EconomicCalendarEvent["category"];
+  importance: EconomicCalendarEvent["importance"];
+  sourceName: string;
+  sourceUrl: string | null;
+  releaseCalendarUrl: string;
+  releaseWebsiteUrl: string | null;
+  tables: Array<{ title: string; url: string; recordCount: number | null }>;
+  upcomingDates: Array<{ date: string; timeCt: string }>;
+}
+
 export interface PortfolioPositionInput {
   symbol: string;
   shares: number;

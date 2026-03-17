@@ -17,6 +17,7 @@ import {
   getQuotes,
   getScreenerResults,
 } from "./marketData";
+import { getEconomicCalendar, getEconomicEventDetail } from "./economicsData";
 import { calculatePortfolioAnalytics } from "./portfolioAnalytics";
 
 const anthropic = new Anthropic();
@@ -107,6 +108,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   }));
 
   app.get("/api/finance/economics", handleFinance(async () => getEconomicsSnapshot()));
+  app.get("/api/finance/economics/calendar", handleFinance(async () => getEconomicCalendar()));
+
+  app.get("/api/finance/economics/events/:releaseId", async (req, res) => {
+    const releaseId = Number(req.params.releaseId);
+    if (!Number.isInteger(releaseId) || releaseId <= 0) {
+      return res.status(400).json({ error: "Invalid releaseId" });
+    }
+    try {
+      res.json(await getEconomicEventDetail(releaseId));
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown economics event error";
+      res.status(502).json({ error: detail });
+    }
+  });
 
   app.get("/api/finance/peers", handleFinance(async (req) => {
     const symbol = String(req.query.symbol || "AAPL").toUpperCase();

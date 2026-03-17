@@ -1,169 +1,372 @@
-import { useEconomics } from "@/lib/useFinance";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Globe2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ExternalLink, Globe2 } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 
-// Simulated historical yield curve data
-const YIELD_CURVE = [
-  { term: "1M", yield: 5.28 },
-  { term: "3M", yield: 5.32 },
-  { term: "6M", yield: 5.25 },
-  { term: "1Y", yield: 5.09 },
-  { term: "2Y", yield: 4.89 },
-  { term: "3Y", yield: 4.76 },
-  { term: "5Y", yield: 4.65 },
-  { term: "7Y", yield: 4.60 },
-  { term: "10Y", yield: 4.52 },
-  { term: "20Y", yield: 4.68 },
-  { term: "30Y", yield: 4.72 },
-];
+import { Skeleton } from "@/components/ui/skeleton";
+import type { EconomicCalendarEvent, EconomicsSnapshotMetric } from "@/lib/finance";
+import { useEconomicCalendar, useEconomicEventDetail, useEconomics } from "@/lib/useFinance";
 
-function EconCard({ label, value, prev, unit }: { label: string; value: number; prev: number; unit: string }) {
-  const chg = value - prev;
-  const isUp = chg > 0;
+function formatMetricValue(metric: EconomicsSnapshotMetric) {
+  if (metric.unit === "%") return `${metric.value.toFixed(2)}%`;
+  if (Math.abs(metric.value) < 10) return metric.value.toFixed(4);
+  return metric.value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatDelta(metric: EconomicsSnapshotMetric) {
+  const delta = metric.value - metric.prev;
+  const sign = delta >= 0 ? "+" : "";
+  return `Δ ${sign}${delta.toFixed(metric.unit === "%" ? 2 : Math.abs(delta) < 10 ? 4 : 2)}${metric.unit}`;
+}
+
+function formatEventDate(date: string) {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    weekday: "short",
+    timeZone: "UTC",
+  }).toUpperCase();
+}
+
+function categoryLabel(category: EconomicCalendarEvent["category"]) {
+  const labels: Record<EconomicCalendarEvent["category"], string> = {
+    inflation: "INFLATION",
+    labor: "LABOR",
+    growth: "GROWTH",
+    policy: "POLICY",
+    consumption: "CONSUMPTION",
+    activity: "ACTIVITY",
+    housing: "HOUSING",
+  };
+
+  return labels[category];
+}
+
+function snapshotRows(metrics: Array<{ key: string; metric: EconomicsSnapshotMetric }>) {
+  return metrics.map(({ key, metric }) => {
+    const delta = metric.value - metric.prev;
+    return (
+      <div key={key} className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 border-b border-border/50 hover:bg-white/5">
+        <span className="font-terminal text-[10px] text-foreground">{metric.label.toUpperCase()}</span>
+        <span className="font-terminal text-[10px] tabular-nums text-right text-foreground">{formatMetricValue(metric)}</span>
+        <span className={`font-terminal text-[10px] tabular-nums text-right ${delta >= 0 ? "text-up" : "text-down"}`}>
+          {delta >= 0 ? "+" : ""}{delta.toFixed(metric.unit === "%" ? 2 : Math.abs(delta) < 10 ? 4 : 2)}
+        </span>
+      </div>
+    );
+  });
+}
+
+function EconCard({ metric }: { metric: EconomicsSnapshotMetric }) {
   return (
     <div className="bg-[#080808] border border-border p-3 hover:border-[hsl(38,95%,50%)/40%] transition-colors">
-      <div className="font-terminal text-[9px] tracking-widest text-muted-foreground mb-1">{label}</div>
-      <div className="font-terminal text-xl font-bold tabular-nums text-foreground">
-        {unit === "$" ? `$${value.toFixed(2)}` : `${value.toFixed(2)}${unit}`}
-      </div>
-      <div className={`font-terminal text-[10px] tabular-nums mt-0.5 ${isUp ? "text-up" : "text-down"}`}>
-        {isUp ? "▲" : "▼"} {Math.abs(chg).toFixed(2)}{unit} vs prior
-      </div>
+      <div className="font-terminal text-[9px] tracking-widest text-muted-foreground mb-1">{metric.label}</div>
+      <div className="font-terminal text-xl font-bold tabular-nums text-foreground">{formatMetricValue(metric)}</div>
+      <div className="font-terminal text-[10px] tabular-nums mt-1 text-muted-foreground">{formatDelta(metric)} vs prior</div>
     </div>
   );
 }
 
 export default function EconomicsPanel() {
-  const { data: econ, isLoading } = useEconomics();
+  const { data: econ, isLoading: snapshotLoading } = useEconomics();
+  const { data: calendar = [], isLoading: calendarLoading } = useEconomicCalendar();
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
-  const fxPairs = [
-    { pair: "EUR/USD", bid: 1.0820, ask: 1.0822, chg: -0.0130 },
-    { pair: "GBP/USD", bid: 1.2648, ask: 1.2650, chg: -0.0132 },
-    { pair: "USD/JPY", bid: 149.78, ask: 149.82, chg: 1.60 },
-    { pair: "USD/CHF", bid: 0.8890, ask: 0.8892, chg: 0.0050 },
-    { pair: "AUD/USD", bid: 0.6520, ask: 0.6522, chg: -0.0038 },
-    { pair: "USD/CAD", bid: 1.3620, ask: 1.3622, chg: 0.0080 },
-    { pair: "NZD/USD", bid: 0.6040, ask: 0.6042, chg: -0.0025 },
-    { pair: "USD/CNY", bid: 7.2480, ask: 7.2490, chg: 0.0120 },
-  ];
+  useEffect(() => {
+    if (!calendar.length) {
+      setSelectedEventId(null);
+      return;
+    }
+
+    if (!selectedEventId || !calendar.some((event) => event.id === selectedEventId)) {
+      setSelectedEventId(calendar[0].id);
+    }
+  }, [calendar, selectedEventId]);
+
+  const selectedEvent = useMemo(
+    () => calendar.find((event) => event.id === selectedEventId) ?? null,
+    [calendar, selectedEventId],
+  );
+  const { data: eventDetail, isLoading: detailLoading } = useEconomicEventDetail(selectedEvent?.releaseId);
+
+  const yieldCurve = useMemo(() => {
+    if (!econ) return [];
+    return [
+      { term: "2Y", yield: econ.t2y.value },
+      { term: "10Y", yield: econ.t10y.value },
+      { term: "30Y", yield: econ.t30y.value },
+    ];
+  }, [econ]);
 
   return (
-    <div className="h-full overflow-y-auto scrollbar-thin bg-[#050505]">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-[#070707] sticky top-0 z-10">
+    <div className="h-full flex flex-col overflow-hidden bg-[#050505]">
+      <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border bg-[#070707]">
         <Globe2 className="w-4 h-4 text-[hsl(38,95%,55%)]" />
         <span className="panel-label">MACRO ECONOMICS</span>
-        <span className="font-terminal text-[9px] text-muted-foreground ml-2">MARCH 2026</span>
+        <span className="font-terminal text-[9px] text-muted-foreground ml-2">US MACRO + EVENT CALENDAR</span>
       </div>
 
-      <div className="p-4 space-y-6">
-        {/* US Macro Indicators */}
-        <section>
-          <div className="panel-label mb-3">US MACRO INDICATORS</div>
-          {isLoading ? (
-            <div className="grid grid-cols-4 gap-3">
-              {Array(8).fill(0).map((_, i) => <Skeleton key={i} className="h-20 bg-border" />)}
-            </div>
-          ) : econ && (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <EconCard label={econ.gdp.label} value={econ.gdp.value} prev={econ.gdp.prev} unit="%" />
-              <EconCard label={econ.cpi.label} value={econ.cpi.value} prev={econ.cpi.prev} unit="%" />
-              <EconCard label={econ.unemployment.label} value={econ.unemployment.value} prev={econ.unemployment.prev} unit="%" />
-              <EconCard label={econ.fedFunds.label} value={econ.fedFunds.value} prev={econ.fedFunds.prev} unit="%" />
-            </div>
-          )}
-        </section>
-
-        {/* Yield Curve */}
-        <section>
-          <div className="panel-label mb-3">US TREASURY YIELD CURVE</div>
-          <div className="bg-[#080808] border border-border p-4">
-            <div className="flex items-center gap-4 mb-3">
-              {econ && (
-                <>
-                  <div className="font-terminal text-[9px]">
-                    <span className="text-muted-foreground">2Y: </span>
-                    <span className="text-foreground">{econ.t2y.value}%</span>
-                  </div>
-                  <div className="font-terminal text-[9px]">
-                    <span className="text-muted-foreground">10Y: </span>
-                    <span className="text-foreground">{econ.t10y.value}%</span>
-                  </div>
-                  <div className="font-terminal text-[9px]">
-                    <span className="text-muted-foreground">30Y: </span>
-                    <span className="text-foreground">{econ.t30y.value}%</span>
-                  </div>
-                  <div className="font-terminal text-[9px]">
-                    <span className="text-muted-foreground">SPREAD (10Y-2Y): </span>
-                    <span className={econ.t10y.value - econ.t2y.value < 0 ? "text-down" : "text-up"}>
-                      {((econ.t10y.value - econ.t2y.value) * 100).toFixed(0)}bps
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-            <ResponsiveContainer width="100%" height={160}>
-              <LineChart data={YIELD_CURVE} margin={{ top: 4, right: 4, bottom: 4, left: 32 }}>
-                <CartesianGrid strokeDasharray="2 4" stroke="hsl(0,0%,12%)" />
-                <XAxis dataKey="term" tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fill: "hsl(0,0%,45%)" }} tickLine={false} axisLine={false} />
-                <YAxis domain={[4, 5.5]} tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fill: "hsl(0,0%,45%)" }} tickLine={false} axisLine={false} tickFormatter={v => v.toFixed(1) + "%"} />
-                <Tooltip
-                  contentStyle={{ background: "#0d0d0d", border: "1px solid hsl(0,0%,13%)", fontFamily: "'JetBrains Mono',monospace", fontSize: 9 }}
-                  formatter={(v: any) => [`${v}%`, "Yield"]}
-                />
-                <Line type="monotone" dataKey="yield" stroke="hsl(38,95%,55%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(38,95%,55%)", strokeWidth: 0 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-
-        <div className="grid grid-cols-2 gap-6">
-          {/* FX Rates */}
+      <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+        <div className="p-4 space-y-6">
           <section>
-            <div className="panel-label mb-3">FX RATES</div>
-            <div className="bg-[#080808] border border-border">
-              <div className="grid grid-cols-4 px-3 py-1.5 border-b border-border font-terminal text-[8px] text-muted-foreground">
-                <span>PAIR</span><span className="text-right">BID</span><span className="text-right">ASK</span><span className="text-right">CHG</span>
+            <div className="panel-label mb-3">US MACRO INDICATORS</div>
+            {snapshotLoading ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {Array(4).fill(0).map((_, index) => <Skeleton key={index} className="h-20 bg-border" />)}
               </div>
-              {fxPairs.map(fx => (
-                <div key={fx.pair} className="grid grid-cols-4 px-3 py-2 border-b border-border/50 hover:bg-white/5">
-                  <span className="font-terminal text-[11px] font-bold text-[hsl(186,80%,55%)]">{fx.pair}</span>
-                  <span className="font-terminal text-[10px] tabular-nums text-right">{fx.bid.toFixed(4)}</span>
-                  <span className="font-terminal text-[10px] tabular-nums text-right text-muted-foreground">{fx.ask.toFixed(4)}</span>
-                  <span className={`font-terminal text-[10px] tabular-nums text-right ${fx.chg >= 0 ? "text-up" : "text-down"}`}>
-                    {fx.chg >= 0 ? "+" : ""}{fx.chg.toFixed(4)}
-                  </span>
-                </div>
-              ))}
-            </div>
+            ) : econ ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <EconCard metric={econ.gdp} />
+                <EconCard metric={econ.cpi} />
+                <EconCard metric={econ.unemployment} />
+                <EconCard metric={econ.fedFunds} />
+              </div>
+            ) : null}
           </section>
 
-          {/* Commodities */}
-          <section>
-            <div className="panel-label mb-3">COMMODITIES</div>
-            <div className="bg-[#080808] border border-border">
-              <div className="grid grid-cols-3 px-3 py-1.5 border-b border-border font-terminal text-[8px] text-muted-foreground">
-                <span>COMMODITY</span><span className="text-right">PRICE</span><span className="text-right">CHG%</span>
+          <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-6">
+            <section>
+              <div className="panel-label mb-3">US TREASURY YIELD CURVE</div>
+              <div className="bg-[#080808] border border-border p-4">
+                {snapshotLoading || !econ ? (
+                  <Skeleton className="h-48 bg-border" />
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-center gap-4 mb-3">
+                      <div className="font-terminal text-[9px]">
+                        <span className="text-muted-foreground">2Y: </span>
+                        <span className="text-foreground">{econ.t2y.value.toFixed(2)}%</span>
+                      </div>
+                      <div className="font-terminal text-[9px]">
+                        <span className="text-muted-foreground">10Y: </span>
+                        <span className="text-foreground">{econ.t10y.value.toFixed(2)}%</span>
+                      </div>
+                      <div className="font-terminal text-[9px]">
+                        <span className="text-muted-foreground">30Y: </span>
+                        <span className="text-foreground">{econ.t30y.value.toFixed(2)}%</span>
+                      </div>
+                      <div className="font-terminal text-[9px]">
+                        <span className="text-muted-foreground">SPREAD (10Y-2Y): </span>
+                        <span className={econ.t10y.value - econ.t2y.value < 0 ? "text-down" : "text-up"}>
+                          {((econ.t10y.value - econ.t2y.value) * 100).toFixed(0)}bps
+                        </span>
+                      </div>
+                    </div>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <LineChart data={yieldCurve} margin={{ top: 4, right: 4, bottom: 4, left: 16 }}>
+                        <CartesianGrid strokeDasharray="2 4" stroke="hsl(0,0%,12%)" />
+                        <XAxis dataKey="term" tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fill: "hsl(0,0%,45%)" }} tickLine={false} axisLine={false} />
+                        <YAxis tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fill: "hsl(0,0%,45%)" }} tickLine={false} axisLine={false} tickFormatter={(value) => `${value.toFixed(1)}%`} />
+                        <Tooltip
+                          contentStyle={{ background: "#0d0d0d", border: "1px solid hsl(0,0%,13%)", fontFamily: "'JetBrains Mono',monospace", fontSize: 9 }}
+                          formatter={(value: number) => [`${value.toFixed(2)}%`, "Yield"]}
+                        />
+                        <Line type="monotone" dataKey="yield" stroke="hsl(38,95%,55%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(38,95%,55%)", strokeWidth: 0 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </>
+                )}
               </div>
-              {[
-                { name: "GOLD", price: 2985.50, unit: "$/oz", chg: 0.8 },
-                { name: "SILVER", price: 32.40, unit: "$/oz", chg: -0.5 },
-                { name: "WTI CRUDE", price: 68.40, unit: "$/bbl", chg: -2.1 },
-                { name: "BRENT", price: 72.10, unit: "$/bbl", chg: -1.8 },
-                { name: "NAT GAS", price: 2.85, unit: "$/MMBtu", chg: 3.2 },
-                { name: "COPPER", price: 4.15, unit: "$/lb", chg: 0.4 },
-                { name: "WHEAT", price: 524, unit: "¢/bu", chg: -1.1 },
-                { name: "CORN", price: 418, unit: "¢/bu", chg: 0.7 },
-              ].map(c => (
-                <div key={c.name} className="grid grid-cols-3 px-3 py-2 border-b border-border/50 hover:bg-white/5">
-                  <span className="font-terminal text-[11px] font-bold text-[hsl(38,95%,55%)]">{c.name}</span>
-                  <span className="font-terminal text-[10px] tabular-nums text-right">{c.price.toLocaleString()}</span>
-                  <span className={`font-terminal text-[10px] tabular-nums text-right ${c.chg >= 0 ? "text-up" : "text-down"}`}>
-                    {c.chg >= 0 ? "▲" : "▼"}{Math.abs(c.chg)}%
-                  </span>
+            </section>
+
+            <div className="space-y-6">
+              <section>
+                <div className="panel-label mb-3">LIVE FX SNAPSHOT</div>
+                <div className="bg-[#080808] border border-border">
+                  <div className="grid grid-cols-[1fr_auto_auto] px-3 py-1.5 border-b border-border font-terminal text-[8px] text-muted-foreground">
+                    <span>PAIR</span>
+                    <span className="text-right">LAST</span>
+                    <span className="text-right">Δ</span>
+                  </div>
+                  {snapshotLoading || !econ ? (
+                    <div className="p-3 space-y-2">
+                      {Array(4).fill(0).map((_, index) => <Skeleton key={index} className="h-9 bg-border" />)}
+                    </div>
+                  ) : snapshotRows([
+                    { key: "eurusd", metric: econ.eurUsd },
+                    { key: "gbpusd", metric: econ.gbpUsd },
+                    { key: "usdjpy", metric: econ.usdJpy },
+                    { key: "dxy", metric: econ.dolllarIndex },
+                  ])}
                 </div>
-              ))}
+              </section>
+
+              <section>
+                <div className="panel-label mb-3">LIVE COMMODITY SNAPSHOT</div>
+                <div className="bg-[#080808] border border-border">
+                  <div className="grid grid-cols-[1fr_auto_auto] px-3 py-1.5 border-b border-border font-terminal text-[8px] text-muted-foreground">
+                    <span>CONTRACT</span>
+                    <span className="text-right">LAST</span>
+                    <span className="text-right">Δ</span>
+                  </div>
+                  {snapshotLoading || !econ ? (
+                    <div className="p-3 space-y-2">
+                      {Array(2).fill(0).map((_, index) => <Skeleton key={index} className="h-9 bg-border" />)}
+                    </div>
+                  ) : snapshotRows([
+                    { key: "gold", metric: econ.gold },
+                    { key: "oil", metric: econ.oil },
+                  ])}
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <div className="panel-label">UPCOMING ECONOMIC CALENDAR</div>
+              <div className="font-terminal text-[9px] tracking-widest text-muted-foreground">NEXT 30 DAYS · {calendar.length} EVENTS</div>
+            </div>
+
+            <div className="min-h-[420px] border border-border bg-[#060606] flex overflow-hidden">
+              <div className="w-[40%] min-w-[320px] border-r border-border overflow-y-auto scrollbar-thin">
+                {calendarLoading ? (
+                  <div className="p-4 space-y-3">
+                    {Array(6).fill(0).map((_, index) => <Skeleton key={index} className="h-20 bg-border" />)}
+                  </div>
+                ) : calendar.length === 0 ? (
+                  <div className="flex items-center justify-center h-40 font-terminal text-xs text-muted-foreground px-4 text-center">
+                    NO TRACKED MAJOR ECONOMIC EVENTS FOUND IN THE CURRENT WINDOW
+                  </div>
+                ) : (
+                  calendar.map((event) => {
+                    const active = event.id === selectedEventId;
+                    return (
+                      <button
+                        key={event.id}
+                        onClick={() => setSelectedEventId(event.id)}
+                        className={`w-full text-left border-b border-border/60 p-4 transition-colors ${active ? "bg-[hsl(38,95%,50%)/8%]" : "hover:bg-white/5"}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-terminal text-[8px] tracking-widest text-muted-foreground mb-1">{formatEventDate(event.date)} · {event.timeCt}</div>
+                            <div className="font-terminal text-sm text-foreground leading-snug">{event.title}</div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="font-terminal text-[8px] px-1.5 py-0.5 border border-border text-[hsl(38,95%,55%)]">{categoryLabel(event.category)}</span>
+                              <span className={`font-terminal text-[8px] px-1.5 py-0.5 border border-border ${event.importance === "high" ? "text-up" : "text-muted-foreground"}`}>
+                                {event.importance === "high" ? "HIGH" : "MEDIUM"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0 overflow-y-auto scrollbar-thin bg-[#050505]">
+                {!selectedEvent ? (
+                  <div className="h-full flex items-center justify-center font-terminal text-xs text-muted-foreground">SELECT AN EVENT TO DRILL THROUGH</div>
+                ) : detailLoading ? (
+                  <div className="p-5 space-y-3">
+                    <Skeleton className="h-7 w-2/3 bg-border" />
+                    <Skeleton className="h-4 w-40 bg-border" />
+                    <Skeleton className="h-24 w-full bg-border" />
+                    <Skeleton className="h-20 w-full bg-border" />
+                  </div>
+                ) : (
+                  <article className="p-5">
+                    <div className="flex items-start gap-3 justify-between">
+                      <div>
+                        <div className="panel-label mb-2">EVENT DETAIL</div>
+                        <h2 className="font-terminal text-lg text-foreground leading-tight max-w-3xl">{selectedEvent.title}</h2>
+                        <div className="flex items-center gap-3 mt-2 flex-wrap">
+                          <span className="font-terminal text-[9px] px-1.5 py-0.5 border border-border text-[hsl(38,95%,55%)]">{categoryLabel(selectedEvent.category)}</span>
+                          <span className="font-terminal text-[9px] text-muted-foreground">{formatEventDate(selectedEvent.date)} · {selectedEvent.timeCt}</span>
+                          <span className={`font-terminal text-[9px] ${selectedEvent.importance === "high" ? "text-up" : "text-muted-foreground"}`}>{selectedEvent.importance.toUpperCase()} IMPACT</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <a
+                          href={eventDetail?.releaseWebsiteUrl ?? selectedEvent.releaseUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border hover:border-[hsl(38,95%,50%)]/60 hover:text-[hsl(38,95%,55%)] font-terminal text-[9px] tracking-widest text-muted-foreground transition-colors"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          OFFICIAL RELEASE
+                        </a>
+                        <a
+                          href={selectedEvent.releaseUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border hover:border-[hsl(38,95%,50%)]/60 hover:text-[hsl(38,95%,55%)] font-terminal text-[9px] tracking-widest text-muted-foreground transition-colors"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          FRED PAGE
+                        </a>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-6 mt-5">
+                      <div className="space-y-4">
+                        <div className="border border-border bg-[#080808] p-4">
+                          <div className="font-terminal text-[9px] tracking-widest text-muted-foreground mb-2">SOURCE</div>
+                          <div className="font-terminal text-sm text-foreground">{eventDetail?.sourceName ?? "Federal Reserve Economic Data"}</div>
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {eventDetail?.sourceUrl && (
+                              <a
+                                href={eventDetail.sourceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-terminal text-[9px] tracking-widest text-[hsl(38,95%,55%)] hover:underline"
+                              >
+                                SOURCE PROFILE
+                              </a>
+                            )}
+                            {eventDetail?.releaseCalendarUrl && (
+                              <a
+                                href={eventDetail.releaseCalendarUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-terminal text-[9px] tracking-widest text-[hsl(38,95%,55%)] hover:underline"
+                              >
+                                FULL RELEASE CALENDAR
+                              </a>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="border border-border bg-[#080808] p-4">
+                          <div className="font-terminal text-[9px] tracking-widest text-muted-foreground mb-2">UPCOMING SCHEDULE</div>
+                          <div className="space-y-2">
+                            {(eventDetail?.upcomingDates.length ? eventDetail.upcomingDates : [{ date: selectedEvent.date, timeCt: selectedEvent.timeCt }]).map((entry) => (
+                              <div key={`${entry.date}-${entry.timeCt}`} className="flex items-center justify-between gap-3 border-b border-border/50 pb-2 last:border-b-0 last:pb-0">
+                                <span className="font-terminal text-[10px] text-foreground">{formatEventDate(entry.date)}</span>
+                                <span className="font-terminal text-[10px] text-muted-foreground">{entry.timeCt}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border border-border bg-[#080808] p-4">
+                        <div className="font-terminal text-[9px] tracking-widest text-muted-foreground mb-2">RELEASE TABLES</div>
+                        {eventDetail?.tables.length ? (
+                          <div className="space-y-3">
+                            {eventDetail.tables.map((table) => (
+                              <a
+                                key={table.url}
+                                href={table.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block border border-border/60 p-3 hover:border-[hsl(38,95%,50%)]/60 hover:bg-white/5 transition-colors"
+                              >
+                                <div className="font-terminal text-[11px] text-foreground leading-snug">{table.title}</div>
+                                <div className="font-terminal text-[9px] text-muted-foreground mt-1">
+                                  {table.recordCount !== null ? `${table.recordCount.toLocaleString()} SERIES / TABLE ROWS` : "OPEN TABLE"}
+                                </div>
+                              </a>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="font-terminal text-xs text-muted-foreground">NO TABLE METADATA AVAILABLE FOR THIS RELEASE.</div>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                )}
+              </div>
             </div>
           </section>
         </div>

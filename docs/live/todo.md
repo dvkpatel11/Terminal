@@ -8,6 +8,6 @@ Use one row per work item. Prefer `High`, `Medium`, or `Low` for priority and `P
 
 | Task | Priority | Status |
 | --- | --- | --- |
-| Expand economic workflows with calendar and event drill-down | High | Pending |
-| Add transcript / filing summarization to the research workflow | Medium | Pending |
+| Add transcript / filing summarization to the research workflow | High | Pending |
 | Explore SSE/websocket push delivery on top of background alert evaluation | Medium | Pending |
+| Broaden economics calendar coverage beyond the curated major-U.S.-macro set | Medium | Pending |

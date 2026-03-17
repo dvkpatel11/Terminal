@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Quote, OHLCVBar, NewsItem, NewsArticle, PortfolioAnalytics, PortfolioPositionInput } from "./finance";
+import type { Quote, OHLCVBar, NewsItem, NewsArticle, PortfolioAnalytics, PortfolioPositionInput, EconomicsSnapshot, EconomicCalendarEvent, EconomicEventDetail } from "./finance";
 
 // Finance data hooks — all fetched from /api/finance/* proxy
 
@@ -155,7 +155,7 @@ export function usePortfolioAnalytics(positions: PortfolioPositionInput[]) {
 }
 
 export function useEconomics() {
-  return useQuery<any>({
+  return useQuery<EconomicsSnapshot>({
     queryKey: ["/api/finance/economics"],
     queryFn: async () => {
       const res = await fetch("/api/finance/economics");
@@ -164,6 +164,33 @@ export function useEconomics() {
     },
     refetchInterval: 300000,
     staleTime: 250000,
+  });
+}
+
+export function useEconomicCalendar() {
+  return useQuery<EconomicCalendarEvent[]>({
+    queryKey: ["/api/finance/economics/calendar"],
+    queryFn: async () => {
+      const res = await fetch("/api/finance/economics/calendar");
+      if (!res.ok) throw new Error("Failed to fetch economic calendar");
+      return res.json();
+    },
+    refetchInterval: 15 * 60_000,
+    staleTime: 14 * 60_000,
+  });
+}
+
+export function useEconomicEventDetail(releaseId?: number | null) {
+  return useQuery<EconomicEventDetail>({
+    queryKey: ["/api/finance/economics/events", releaseId ?? 0],
+    queryFn: async () => {
+      if (!releaseId) throw new Error("Missing releaseId");
+      const res = await fetch(`/api/finance/economics/events/${releaseId}`);
+      if (!res.ok) throw new Error("Failed to fetch economic event detail");
+      return res.json();
+    },
+    staleTime: 60 * 60_000,
+    enabled: Boolean(releaseId),
   });
 }
 

@@ -4,21 +4,23 @@ Read after `AGENTS.md` when starting or resuming work. Keep this file limited to
 
 ## Objective
 
-- Objective: Deliver the next roadmap tranche after portfolio analytics: move alerts from poll-on-read triggering to background evaluation.
-- Why it matters now: The terminal already had alert storage and notification UI, but triggers still depended on someone reading `/api/alerts`, which is not truthful or proactive behavior.
+- Objective: Deliver the economics roadmap tranche: add a truthful economic calendar and in-terminal event drill-through.
+- Why it matters now: The economics view had macro cards but no usable event workflow, and much of its surrounding panel content was still effectively static. The terminal now needs an actual macro calendar path, not just snapshot tiles.
 
 ## Scope
 
-- In scope: `src/server/{alertMonitor.ts,alertMonitor.test.ts,index.ts,routes.ts}` plus any minimal alert-consumer adjustments needed to keep delivery truthful.
-- Expected outcome: Alerts trigger in the background on a timer, `/api/alerts` becomes a pure read endpoint again, and existing notification UI reflects already-triggered alerts without causing the trigger itself.
+- In scope: `src/server/{economicsData.ts,economicsData.test.ts,providerUtils.ts,routes.ts,marketData.ts}` and `src/client/src/{lib/finance.ts,lib/useFinance.ts,components/panels/EconomicsPanel.tsx}`.
+- Expected outcome: The economics panel keeps the macro snapshot, shows upcoming tracked macro events from a truthful public source, and lets the user drill into event metadata and official links without leaving the terminal workflow.
 
 ## Constraints
 
-- Constraint: Preserve current alert payload shape and UI semantics; delivery changes should improve trigger timing, not redesign the alert product.
-- Constraint: Keep overlap-safe background evaluation so slow provider fetches do not spawn duplicate cycles.
+- Constraint: Use public, no-key sources only. Runtime fetches to BLS schedule/feed endpoints 403 in this environment, so FRED release calendar and release pages are the primary provider.
+- Constraint: Do not invent consensus, surprise, or commentary data that the provider does not expose.
+- Constraint: Preserve `/api/finance/economics` while adding new routes for calendar and event detail.
 
 ## Success Criteria
 
-- Check: `npm test` passes with background-monitor coverage.
+- Check: `npm test` passes with economics parser coverage.
 - Check: `npm run check` passes.
-- Check: Smoke tests confirm an alert can trigger after waiting, before any `/api/alerts` read, and that the top-bar notification center surfaces the triggered result.
+- Check: Direct route smoke confirms `/api/finance/economics/calendar` returns tracked events and `/api/finance/economics/events/:releaseId` returns detail metadata with upcoming dates.
+- Check: Browser smoke confirms the economics panel shows upcoming events and selecting an event changes the right-side drill-through detail.
