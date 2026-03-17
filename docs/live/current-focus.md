@@ -4,21 +4,21 @@ Read after `AGENTS.md` when starting or resuming work. Keep this file limited to
 
 ## Objective
 
-- Objective: Deliver the next roadmap tranche after chart overlays: benchmark and risk context for portfolio workflows.
-- Why it matters now: The portfolio screen already showed positions and P&L, but it did not answer whether performance was good relative to a benchmark or what risk profile produced it.
+- Objective: Deliver the next roadmap tranche after portfolio analytics: move alerts from poll-on-read triggering to background evaluation.
+- Why it matters now: The terminal already had alert storage and notification UI, but triggers still depended on someone reading `/api/alerts`, which is not truthful or proactive behavior.
 
 ## Scope
 
-- In scope: `src/server/{portfolioAnalytics.ts,portfolioAnalytics.test.ts,marketData.ts,routes.ts}`, `src/client/src/lib/{finance,useFinance}.ts`, `src/client/src/components/panels/PortfolioPanel.tsx`.
-- Expected outcome: The portfolio screen shows benchmark-relative performance, beta, volatility, drawdown, and a benchmark comparison chart based on live historical data rather than simulated series.
+- In scope: `src/server/{alertMonitor.ts,alertMonitor.test.ts,index.ts,routes.ts}` plus any minimal alert-consumer adjustments needed to keep delivery truthful.
+- Expected outcome: Alerts trigger in the background on a timer, `/api/alerts` becomes a pure read endpoint again, and existing notification UI reflects already-triggered alerts without causing the trigger itself.
 
 ## Constraints
 
-- Constraint: Keep positions client-owned/editable and compute analytics from those positions without introducing persistence or fake history.
-- Constraint: Use daily historical data only, with explicit benchmark/risk context derived from the current public provider stack.
+- Constraint: Preserve current alert payload shape and UI semantics; delivery changes should improve trigger timing, not redesign the alert product.
+- Constraint: Keep overlap-safe background evaluation so slow provider fetches do not spawn duplicate cycles.
 
 ## Success Criteria
 
-- Check: `npm test` passes with portfolio analytics coverage.
+- Check: `npm test` passes with background-monitor coverage.
 - Check: `npm run check` passes.
-- Check: Browser and route smoke tests confirm `/api/finance/portfolio-analytics` returns benchmark/risk metrics and the portfolio panel renders benchmark/risk cards plus a 30D comparison chart.
+- Check: Smoke tests confirm an alert can trigger after waiting, before any `/api/alerts` read, and that the top-bar notification center surfaces the triggered result.

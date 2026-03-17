@@ -4,12 +4,12 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Current State
 
-- State: Portfolio workflows now include benchmark-relative and risk-aware context. The panel uses live historical data to show SPY comparison, beta, volatility, drawdown, and active return instead of a simulated portfolio chart.
+- State: Alert triggering no longer depends on reading `/api/alerts`. The server now evaluates pending alerts on a background timer and existing notification UI simply reflects already-triggered state.
 
 ## Latest Completed Work
 
-- Completed: Added a pure portfolio analytics module/tests, exposed `/api/finance/portfolio-analytics`, and rewired `PortfolioPanel` to render benchmark/risk cards and a 30D portfolio-vs-SPY comparison chart from live analytics.
-- Why it matters: The portfolio workflow now answers not just "am I up?" but also "versus what, and with what risk?" which is the next meaningful step toward a Bloomberg-like workflow.
+- Completed: Added a background alert monitor with overlap protection, removed trigger-side effects from the `/api/alerts` read route, and wired the monitor into server startup while keeping the current top-bar/alerts UI intact.
+- Why it matters: Alerts are now proactive system behavior instead of a side effect of someone opening the alerts screen, which is the right foundation for later push-style delivery.
 
 ## In Progress
 
@@ -21,16 +21,14 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Next Recommended Action
 
-- Next step: Improve alert delivery from poll-on-read to push/background evaluation, or expand economics with calendar/event drill-down depending on which workflow should get proactive/event context first.
+- Next step: Expand economics with calendar and event drill-down, or add transcript / filing summarization to the research workflow.
 
 ## Touched Files
 
-- `src/server/portfolioAnalytics.ts`
-- `src/server/portfolioAnalytics.test.ts`
+- `src/server/alertMonitor.ts`
+- `src/server/alertMonitor.test.ts`
+- `src/server/index.ts`
 - `src/server/routes.ts`
-- `src/client/src/lib/finance.ts`
-- `src/client/src/lib/useFinance.ts`
-- `src/client/src/components/panels/PortfolioPanel.tsx`
 - `docs/live/current-focus.md`
 - `docs/live/progress.md`
 - `docs/live/todo.md`
@@ -38,15 +36,17 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 ## Verification Status
 
 - Check: `npm test`
-- Result: Pass (34 tests, 0 failures).
+- Result: Pass (36 tests, 0 failures).
 - Check: `npm run check`
 - Result: Pass.
-- Check: Route smoke tests via browser fetch against local dev server
-- Result: `/api/finance/portfolio-analytics` returned `benchmarkSymbol: "SPY"`, populated risk metrics, and a 30-point comparison chart.
+- Check: Direct route smoke against local dev server
+- Result: Creating an `AAPL above 1` alert, waiting 17 seconds, and then reading `/api/alerts` returned the alert as already triggered with trigger metadata populated.
 - Check: Browser smoke tests via Puppeteer against local dev server
-- Result: Opening the Portfolio panel showed `SPY RETURN`, `BETA`, `VOLATILITY`, `MAX DRAWDOWN`, and `30D VS SPY` content.
+- Result: The top bar showed a triggered-alert badge and the notification center listed the triggered alert without needing the alerts page to be opened first.
+- Check: Reviewer pass
+- Result: Background alert delivery implementation reviewed with no substantive issues found.
 
 ## Hand-off Note
 
-- Resume from: Portfolio benchmark/risk tranche is landed; next roadmap choice is proactive alert delivery or economics event workflows.
-- Watch for: Portfolio analytics use daily data and current static holdings; there is no transaction ledger or cash-flow attribution yet.
+- Resume from: Background alert delivery tranche is landed; next roadmap choice is economics event workflows or research summarization.
+- Watch for: The monitor is still timer-based polling, not server push; later SSE/websocket delivery can build on this without reintroducing read-time triggering.

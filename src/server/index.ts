@@ -3,6 +3,9 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { getServerListenOptions } from "./listenConfig";
+import { createAlertMonitor, runAlertEvaluationCycle } from "./alertMonitor";
+import { storage } from "./storage";
+import { getQuotes } from "./marketData";
 
 const app = express();
 const httpServer = createServer(app);
@@ -93,5 +96,26 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(getServerListenOptions(port), () => {
     log(`serving on port ${port}`);
+
+  createAlertMonitor(
+    async () => runAlertEvaluationCycle({
+      loadAlerts: async () => {
+        const alerts = await storage.getAlerts();
+        return alerts.map((alert) => ({
+          id: alert.id,
+          symbol: alert.symbol,
+          condition: alert.condition as "above" | "below",
+          price: alert.price,
+          triggered: alert.triggered,
+        }));
+      },
+      fetchQuotes: async (symbols) => {
+        const quotes = await getQuotes(symbols);
+        return quotes.map((quote) => ({ symbol: quote.symbol, price: quote.price }));
+      },
+      triggerAlert: (id, details) => storage.triggerAlert(id, details),
+    }),
+    15_000,
+  );
   });
 })();

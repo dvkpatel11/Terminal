@@ -8,6 +8,6 @@ Use one row per work item. Prefer `High`, `Medium`, or `Low` for priority and `P
 
 | Task | Priority | Status |
 | --- | --- | --- |
-| Improve alert delivery from poll-on-read to push/background evaluation | High | Pending |
-| Expand economic workflows with calendar and event drill-down | Medium | Pending |
+| Expand economic workflows with calendar and event drill-down | High | Pending |
 | Add transcript / filing summarization to the research workflow | Medium | Pending |
+| Explore SSE/websocket push delivery on top of background alert evaluation | Medium | Pending |

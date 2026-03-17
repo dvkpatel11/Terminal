@@ -175,37 +175,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // ─── Alerts ────────────────────────────────────────────────────────────────
   app.get("/api/alerts", async (_req, res) => {
     const items = await storage.getAlerts();
-    const pending = items.filter((item) => !item.triggered);
-
-    if (pending.length) {
-      try {
-        const quotes = await getQuotes(pending.map((item) => item.symbol));
-        const triggered = evaluateAlerts(
-          pending.map((item) => ({
-            id: item.id,
-            symbol: item.symbol,
-            condition: item.condition as "above" | "below",
-            price: item.price,
-            triggered: item.triggered,
-          })),
-          quotes.map((quote) => ({ symbol: quote.symbol, price: quote.price })),
-        );
-
-        await Promise.all(triggered.map((item) => storage.triggerAlert(item.id, {
-          triggerPrice: item.triggerPrice,
-          triggeredAt: new Date(),
-        })));
-      } catch {
-        // Return the current alert state even when live quote evaluation fails.
-      }
-    }
-
-    const refreshed = await storage.getAlerts();
-    refreshed.sort((a, b) => {
+    items.sort((a, b) => {
       if (a.triggered !== b.triggered) return Number(a.triggered) - Number(b.triggered);
-      return +new Date(b.createdAt) - +new Date(a.createdAt);
+      const left = a.triggeredAt ?? a.createdAt;
+      const right = b.triggeredAt ?? b.createdAt;
+      return +new Date(right) - +new Date(left);
     });
-    res.json(refreshed);
+    res.json(items);
   });
 
   app.post("/api/alerts", async (req, res) => {
