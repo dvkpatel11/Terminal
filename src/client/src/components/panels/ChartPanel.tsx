@@ -188,7 +188,8 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
                   <ReferenceLine y={30} stroke="hsl(142,71%,45%)" strokeDasharray="3 3" strokeWidth={1} />
                   <Tooltip content={({ active, payload }) => {
                     if (!active || !payload?.[0]) return null;
-                    return <div className="bg-[#0d0d0d] border border-border p-1 font-terminal text-[9px]">RSI: {payload[0].value?.toFixed(1)}</div>;
+                    const value = payload[0].value;
+                    return <div className="bg-[#0d0d0d] border border-border p-1 font-terminal text-[9px]">RSI: {typeof value === "number" ? value.toFixed(1) : "—"}</div>;
                   }} />
                   <Line type="monotone" dataKey="rsi" stroke="hsl(186,80%,55%)" strokeWidth={1.5} dot={false} connectNulls />
                 </ComposedChart>

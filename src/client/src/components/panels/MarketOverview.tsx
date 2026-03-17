@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useQuotes, useMarketGainers, useMarketLosers, useMostActive, useMarketSentiment, useNews, useIndexSparklines } from "@/lib/useFinance";
 import { formatPrice, formatPct, formatBig, pctClass, INDICES } from "@/lib/finance";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -79,35 +79,6 @@ export default function MarketOverview({ onSymbol, onNav }: Props) {
   const tabData = tab === "gainers" ? gainers : tab === "losers" ? losers : active;
   const tabLoad = tab === "gainers" ? gLoad : tab === "losers" ? lLoad : aLoad;
 
-  // Live-tick state for indices (simulates real-time price movement)
-  const [liveIndices, setLiveIndices] = useState<Record<string, { price: number; changePercent: number; change: number }>>({});
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    if (!indices?.length) return;
-    // Initialize live state from fetched data
-    const init: typeof liveIndices = {};
-    indices.forEach(q => { init[q.symbol] = { price: q.price, changePercent: q.changePercent, change: q.change }; });
-    setLiveIndices(init);
-
-    // Tick every 3 seconds
-    tickRef.current = setInterval(() => {
-      setLiveIndices(prev => {
-        const next = { ...prev };
-        indices.forEach(q => {
-          const cur = prev[q.symbol] || { price: q.price, changePercent: q.changePercent, change: q.change };
-          const tick = (Math.random() - 0.499) * cur.price * 0.0008;
-          const newPrice = parseFloat((cur.price + tick).toFixed(2));
-          const newChange = parseFloat((newPrice - q.previousClose).toFixed(2));
-          const newPct = parseFloat(((newChange / q.previousClose) * 100).toFixed(2));
-          next[q.symbol] = { price: newPrice, change: newChange, changePercent: newPct };
-        });
-        return next;
-      });
-    }, 3000);
-
-    return () => { if (tickRef.current) clearInterval(tickRef.current); };
-  }, [indices]);
 
   const relativeTime = (iso: string) => {
     const diff = Date.now() - new Date(iso).getTime();
@@ -140,10 +111,9 @@ export default function MarketOverview({ onSymbol, onNav }: Props) {
         </div>
         <div className="grid grid-cols-5 gap-px bg-border flex-1">
           {INDICES.map((idx, i) => {
-            const live = liveIndices[idx.symbol];
             const q = indices?.[i];
             const sparkData = sparklines?.[idx.symbol];
-            const isUp = live ? live.changePercent >= 0 : (q?.changePercent ?? 0) >= 0;
+            const isUp = (q?.changePercent ?? 0) >= 0;
             return (
               <button
                 key={idx.symbol}
@@ -158,10 +128,10 @@ export default function MarketOverview({ onSymbol, onNav }: Props) {
                   </div>
                 </div>
 
-                {live || q ? (
+                {q ? (
                   <>
                     <div className="font-terminal text-base font-bold text-foreground tabular-nums">
-                      {formatPrice((live || q!).price)}
+                      {formatPrice(q.price)}
                     </div>
                     {/* Sparkline */}
                     {sparkData ? (
@@ -172,11 +142,11 @@ export default function MarketOverview({ onSymbol, onNav }: Props) {
                       <div className="h-9 w-full" />
                     )}
                     <div className="flex items-center gap-1.5">
-                      <span className={`font-terminal text-[10px] tabular-nums font-semibold ${pctClass((live || q!).changePercent)}`}>
-                        {(live || q!).changePercent >= 0 ? "+" : ""}{(live || q!).changePercent.toFixed(2)}%
+                      <span className={`font-terminal text-[10px] tabular-nums font-semibold ${pctClass(q.changePercent)}`}>
+                        {q.changePercent >= 0 ? "+" : ""}{q.changePercent.toFixed(2)}%
                       </span>
-                      <span className={`font-terminal text-[9px] tabular-nums ${pctClass((live || q!).change)}`}>
-                        {(live || q!).change >= 0 ? "+" : ""}{(live || q!).change.toFixed(2)}
+                      <span className={`font-terminal text-[9px] tabular-nums ${pctClass(q.change)}`}>
+                        {q.change >= 0 ? "+" : ""}{q.change.toFixed(2)}
                       </span>
                     </div>
                   </>
@@ -281,7 +251,7 @@ export default function MarketOverview({ onSymbol, onNav }: Props) {
                     <div className="font-terminal text-[8px] text-muted-foreground">{q.symbol}</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-terminal text-[11px] tabular-nums text-foreground">${q.price.toLocaleString()}</div>
+                    <div className="font-terminal text-[11px] tabular-nums text-foreground">${formatPrice(q.price)}</div>
                     <div className={`font-terminal text-[9px] tabular-nums ${isUp ? "text-up" : "text-down"}`}>
                       {isUp ? "▲" : "▼"}{Math.abs(q.changePercent).toFixed(2)}%
                     </div>

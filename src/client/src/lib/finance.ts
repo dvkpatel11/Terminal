@@ -8,7 +8,7 @@ export interface Quote {
   change: number;
   changePercent: number;
   volume: number;
-  marketCap: number;
+  marketCap: number | null;
   pe: number | null;
   eps: number | null;
   high52: number;
@@ -20,6 +20,8 @@ export interface Quote {
   avgVolume: number;
   exchange: string;
   sector?: string;
+  quoteSource: string;
+  isLive: boolean;
 }
 
 export interface OHLCVBar {
@@ -41,7 +43,8 @@ export interface NewsItem {
 }
 
 // Helper: format large numbers
-export function formatBig(n: number): string {
+export function formatBig(n: number | null | undefined): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) return "—";
   if (Math.abs(n) >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
   if (Math.abs(n) >= 1e9)  return `$${(n / 1e9).toFixed(2)}B`;
   if (Math.abs(n) >= 1e6)  return `$${(n / 1e6).toFixed(2)}M`;

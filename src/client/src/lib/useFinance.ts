@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Quote, OHLCVBar } from "./finance";
+import type { Quote, OHLCVBar, NewsItem } from "./finance";
 
 // Finance data hooks — all fetched from /api/finance/* proxy
 
@@ -99,7 +99,7 @@ export function useMostActive() {
 }
 
 export function useNews(symbol?: string) {
-  return useQuery<any[]>({
+  return useQuery<NewsItem[]>({
     queryKey: ["/api/finance/news", symbol ?? "market"],
     queryFn: async () => {
       const url = symbol ? `/api/finance/news?symbol=${symbol}` : "/api/finance/news";

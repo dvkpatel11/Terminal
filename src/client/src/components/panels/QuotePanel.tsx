@@ -35,13 +35,12 @@ function getAnalystData(symbol: string) {
 const COMPANY_DESC: Record<string, string> = {
   "AAPL": "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories. The company also sells various related services including AppleCare+, iCloud, Apple Music, Apple TV+, and the App Store.",
   "MSFT": "Microsoft Corp. develops and supports software, services, devices, and solutions. Segments include Productivity and Business Processes, Intelligent Cloud (Azure), and More Personal Computing.",
-  "NVDA": "NVIDIA Corp. provides graphics, compute and networking solutions. The GPU Technology Company serves gaming, professional visualization, data center, and automotive markets. Dominant in AI accelerator chips.",
+  "NVDA": "NVIDIA Corp. is the world's leading AI accelerator chipmaker. Its GPU, networking, and software stack power a large share of global AI training infrastructure.",
   "TSLA": "Tesla Inc. designs, develops, manufactures, leases, and sells electric vehicles, energy generation, and energy storage systems. Also develops advanced driver-assistance and full self-driving capabilities.",
   "GOOGL": "Alphabet Inc. is a holding company for Google and its subsidiaries. Offers advertising solutions, cloud computing (GCP), search, maps, YouTube, hardware devices, and various other technology services.",
   "AMZN": "Amazon.com Inc. engages in retail, cloud computing (AWS), digital streaming, and AI. AWS is the world's leading cloud platform, while retail encompasses marketplace, Prime, and logistics.",
   "META": "Meta Platforms Inc. develops products enabling people to connect, find communities, and grow businesses. Family of apps includes Facebook, Instagram, WhatsApp, and Messenger. Also investing heavily in AR/VR (Reality Labs).",
   "JPM": "JPMorgan Chase & Co. provides financial services including investment banking, commercial banking, financial transaction processing, asset management, and private banking globally.",
-  "NVDA": "NVIDIA Corp. is the world's leading AI accelerator chipmaker. H100 and Blackwell GPUs power the majority of global AI training infrastructure. Expanding into networking, software, and automotive.",
 };
 
 const DEFAULT_DESC = "A publicly traded company listed on major U.S. exchanges. Operates across multiple business segments generating revenue from products, services, and subscriptions in its respective market sector.";
@@ -67,10 +66,10 @@ export default function QuotePanel({ symbol, onNav }: Props) {
 
   if (!q) return <div className="p-6 font-terminal text-muted-foreground text-sm">No data for {symbol}</div>;
 
-  const range52Pct = ((q.price - q.low52) / (q.high52 - q.low52)) * 100;
-  const dayRangePct = ((q.price - q.dayLow) / (q.dayHigh - q.dayLow)) * 100;
+  const range52Pct = q.high52 === q.low52 ? 50 : ((q.price - q.low52) / (q.high52 - q.low52)) * 100;
+  const dayRangePct = q.dayHigh === q.dayLow ? 50 : ((q.price - q.dayLow) / (q.dayHigh - q.dayLow)) * 100;
   const priceTarget = parseFloat((q.price * (1 + analyst.targetPremium)).toFixed(2));
-  const upside = ((priceTarget - q.price) / q.price * 100).toFixed(1);
+  const upside = q.price === 0 ? "0.0" : ((priceTarget - q.price) / q.price * 100).toFixed(1);
 
   // Build chart data from OHLCV (close prices)
   const chartData = (ohlcv || []).map(bar => ({
@@ -87,7 +86,7 @@ export default function QuotePanel({ symbol, onNav }: Props) {
       <div className="border-b border-border bg-[#060606] px-6 py-4">
         <div className="flex items-start justify-between">
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <span className="font-terminal text-2xl font-bold text-[hsl(38,95%,55%)]">{q.symbol}</span>
               {q.exchange && (
                 <span className="font-terminal text-[9px] text-muted-foreground border border-border px-1.5 py-0.5">{q.exchange}</span>
@@ -95,6 +94,9 @@ export default function QuotePanel({ symbol, onNav }: Props) {
               {q.sector && (
                 <span className="font-terminal text-[9px] text-[hsl(186,80%,55%)] border border-[hsl(186,80%,55%)]/30 px-1.5 py-0.5">{q.sector}</span>
               )}
+              <span className={`font-terminal text-[9px] border px-1.5 py-0.5 ${q.isLive ? "text-up border-[hsl(142,71%,45%)]/30" : "text-[hsl(38,95%,55%)] border-[hsl(38,95%,55%)]/30"}`}>
+                {q.isLive ? "LIVE" : "REF"} · {q.quoteSource.toUpperCase()}
+              </span>
             </div>
             <div className="font-terminal text-xs text-muted-foreground mt-0.5">{q.name}</div>
           </div>
@@ -167,13 +169,13 @@ export default function QuotePanel({ symbol, onNav }: Props) {
             <div className="flex items-center justify-between py-1 border-b border-border/50">
               <span className="font-terminal text-[9px] text-muted-foreground">FROM HIGH</span>
               <span className="font-terminal text-[11px] tabular-nums text-down">
-                -{((q.high52 - q.price) / q.high52 * 100).toFixed(1)}%
+                -{q.high52 === 0 ? "0.0" : ((q.high52 - q.price) / q.high52 * 100).toFixed(1)}%
               </span>
             </div>
             <div className="flex items-center justify-between py-1 border-b border-border/50">
               <span className="font-terminal text-[9px] text-muted-foreground">FROM LOW</span>
               <span className="font-terminal text-[11px] tabular-nums text-up">
-                +{((q.price - q.low52) / q.low52 * 100).toFixed(1)}%
+                +{q.low52 === 0 ? "0.0" : ((q.price - q.low52) / q.low52 * 100).toFixed(1)}%
               </span>
             </div>
           </div>
@@ -268,7 +270,7 @@ export default function QuotePanel({ symbol, onNav }: Props) {
           <div className="mt-4 pt-3 border-t border-border">
             <div className="panel-label mb-2">RECENT NEWS</div>
             {(news || []).slice(0, 3).map((n: any, i) => (
-              <div key={i} className="py-1.5 border-b border-border/50">
+              <a key={i} href={n.url} target="_blank" rel="noreferrer" className="block py-1.5 border-b border-border/50 hover:bg-white/5">
                 <p className="font-terminal text-[9px] text-foreground leading-snug line-clamp-2">{n.title}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="font-terminal text-[8px] text-amber-500">{n.source}</span>
@@ -276,7 +278,7 @@ export default function QuotePanel({ symbol, onNav }: Props) {
                     {n.sentiment === "positive" ? "▲" : n.sentiment === "negative" ? "▼" : "●"}
                   </span>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         </div>
