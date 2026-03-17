@@ -4,12 +4,12 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Current State
 
-- State: The economics panel now combines a live macro snapshot with a truthful upcoming-event workflow. Users can browse tracked macro releases, select one, and drill into source metadata, release tables, and upcoming schedule dates from inside the terminal.
+- State: The economics calendar tranche is landed, but the product-level priority has changed. The key issue raised by the user is strategic, not cosmetic: some surfaces are still truthful-but-delayed or schedule-based rather than genuinely current, which weakens commercial value.
 
 ## Latest Completed Work
 
-- Completed: Added `server/economicsData.ts` for FRED-backed calendar/detail parsing, extracted shared provider fetch/cache helpers, added `/api/finance/economics/calendar` and `/api/finance/economics/events/:releaseId`, and rebuilt `EconomicsPanel.tsx` into a list + detail workflow while removing the worst static-panel fiction around FX/commodities/yield curve.
-- Why it matters: Macro workflow now has depth and drill-through instead of stopping at a few tiles, and the data shown in the panel is materially more truthful.
+- Completed: Reassessed roadmap priority after user feedback. Root cause captured: the economics calendar uses FRED HTML schedule/detail pages with cache TTLs and curated filtering; it is useful workflow data, but it is not a live feed.
+- Why it matters: Roadmap sequencing must now favor data credibility and timeliness over additional breadth. Commercial impact comes first.
 
 ## In Progress
 
@@ -17,40 +17,30 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Blockers
 
-- Blocker: None.
+- Blocker: No product blocker, but true real-time market-data improvements may require a provider strategy stronger than the current public-source stack.
 
 ## Next Recommended Action
 
-- Next step: Add transcript / filing summarization to the research workflow, or improve alert delivery further with SSE/websocket push on top of the background evaluator.
+- Next step: Do a focused freshness/truthfulness tranche on core market-data surfaces:
+  1. expose provider/timestamp/delay metadata in quote/chart/news/economics responses,
+  2. show stale/delayed status clearly in the UI,
+  3. audit where the product still says or implies "live" without support.
+- Follow-on after that: upgrade the highest-commercial-impact quote/alert/chart backbone to a more current provider strategy before resuming lower-impact workflow features.
 
 ## Touched Files
 
-- `src/server/economicsData.ts`
-- `src/server/economicsData.test.ts`
-- `src/server/providerUtils.ts`
-- `src/server/marketData.ts`
-- `src/server/routes.ts`
-- `src/client/src/lib/finance.ts`
-- `src/client/src/lib/useFinance.ts`
-- `src/client/src/components/panels/EconomicsPanel.tsx`
 - `docs/live/current-focus.md`
 - `docs/live/progress.md`
 - `docs/live/todo.md`
 
 ## Verification Status
 
-- Check: `npm test`
-- Result: Pass (40 tests, 0 failures).
-- Check: `npm run check`
-- Result: Pass.
-- Check: Direct route smoke against local dev server
-- Result: `/api/finance/economics/calendar` returned tracked events; `/api/finance/economics/events/:releaseId` returned source metadata, release tables, and future upcoming dates.
-- Check: Browser smoke tests via Puppeteer against local dev server
-- Result: Opening `ECON` showed upcoming events; selecting a different event updated the right-side drill-through panel and external links.
-- Check: Reviewer pass
-- Result: Economics calendar implementation reviewed with no substantive issues found.
+- Check: Codebase investigation
+- Result: Confirmed that the economics workflow is schedule scraping plus caching, not a low-latency live feed.
+- Check: Roadmap reprioritization
+- Result: Next actions now place freshness and trustworthiness ahead of transcript summarization, push UX, and economics breadth.
 
 ## Hand-off Note
 
-- Resume from: Economics calendar and event drill-through tranche is landed.
-- Watch for: The calendar intentionally tracks a curated set of major U.S. macro releases from FRED. If broader global/event coverage is added later, keep the same truthfulness standard and avoid falling back to synthetic consensus data.
+- Resume from: Strategic priority shift is recorded. The next tranche should improve freshness visibility and truthfulness on the highest-value data surfaces rather than adding more breadth.
+- Watch for: Do not let UI language outrun provider reality. If a surface is delayed, cached, or schedule-only, the product should say so clearly until a better provider is integrated.

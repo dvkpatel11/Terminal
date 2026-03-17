@@ -4,23 +4,22 @@ Read after `AGENTS.md` when starting or resuming work. Keep this file limited to
 
 ## Objective
 
-- Objective: Deliver the economics roadmap tranche: add a truthful economic calendar and in-terminal event drill-through.
-- Why it matters now: The economics view had macro cards but no usable event workflow, and much of its surrounding panel content was still effectively static. The terminal now needs an actual macro calendar path, not just snapshot tiles.
+- Objective: Re-center the roadmap on commercially important data credibility and freshness.
+- Why it matters now: A terminal that is visually rich but not reliably current loses trust immediately. The latest economics tranche is truthful about schedule metadata, but it is not a live feed, and that gap is strategically more important than additional workflow polish.
 
 ## Scope
 
-- In scope: `src/server/{economicsData.ts,economicsData.test.ts,providerUtils.ts,routes.ts,marketData.ts}` and `src/client/src/{lib/finance.ts,lib/useFinance.ts,components/panels/EconomicsPanel.tsx}`.
-- Expected outcome: The economics panel keeps the macro snapshot, shows upcoming tracked macro events from a truthful public source, and lets the user drill into event metadata and official links without leaving the terminal workflow.
+- In scope: Reprioritize upcoming work so core data timeliness and trustworthiness come before lower-impact feature breadth.
+- Expected outcome: The next roadmap slices should focus on freshness visibility, delayed-data honesty, and the highest-value live-data surfaces before transcript summarization, push UX polish, or broader economics breadth.
 
 ## Constraints
 
-- Constraint: Use public, no-key sources only. Runtime fetches to BLS schedule/feed endpoints 403 in this environment, so FRED release calendar and release pages are the primary provider.
-- Constraint: Do not invent consensus, surprise, or commentary data that the provider does not expose.
-- Constraint: Preserve `/api/finance/economics` while adding new routes for calendar and event detail.
+- Constraint: Commercial impact is the primary prioritization axis; development effort is the second axis.
+- Constraint: Public no-key sources are acceptable only when they remain timely enough for the product claim. If a surface cannot be kept current with public sources, the roadmap should either downgrade the claim visibly or prioritize a stronger provider strategy.
+- Constraint: Do not describe delayed or cached schedule data as a live feed.
 
 ## Success Criteria
 
-- Check: `npm test` passes with economics parser coverage.
-- Check: `npm run check` passes.
-- Check: Direct route smoke confirms `/api/finance/economics/calendar` returns tracked events and `/api/finance/economics/events/:releaseId` returns detail metadata with upcoming dates.
-- Check: Browser smoke confirms the economics panel shows upcoming events and selecting an event changes the right-side drill-through detail.
+- Check: Roadmap ordering explicitly reflects commercial impact first.
+- Check: Next recommended tranche addresses data freshness/trust on a core user-facing surface.
+- Check: Lower-impact items remain deferred until the product can more honestly support its terminal claims.
