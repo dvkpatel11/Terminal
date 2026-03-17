@@ -4,12 +4,12 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Current State
 
-- State: Charting now supports comparison overlays and truthful interval behavior. Crypto charts can use intraday intervals from CoinGecko-backed data, while non-crypto charts stay daily-only with explicit messaging.
+- State: Portfolio workflows now include benchmark-relative and risk-aware context. The panel uses live historical data to show SPY comparison, beta, volatility, drawdown, and active return instead of a simulated portfolio chart.
 
 ## Latest Completed Work
 
-- Completed: Added interval-aware OHLCV support with crypto resampling, introduced chart-series normalization helpers and tests, upgraded `ChartPanel` with comparison overlays and interval controls, and fixed chart-pane symbol routing so chart symbol entry stays in chart mode.
-- Why it matters: The terminal can now answer the next analytical question after opening a chart: how is this asset performing relative to another, and what does the move look like on a sub-daily timescale when the provider supports it.
+- Completed: Added a pure portfolio analytics module/tests, exposed `/api/finance/portfolio-analytics`, and rewired `PortfolioPanel` to render benchmark/risk cards and a 30D portfolio-vs-SPY comparison chart from live analytics.
+- Why it matters: The portfolio workflow now answers not just "am I up?" but also "versus what, and with what risk?" which is the next meaningful step toward a Bloomberg-like workflow.
 
 ## In Progress
 
@@ -21,18 +21,16 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Next Recommended Action
 
-- Next step: Implement the next roadmap tranche: add benchmark/risk context to portfolio workflows.
+- Next step: Improve alert delivery from poll-on-read to push/background evaluation, or expand economics with calendar/event drill-down depending on which workflow should get proactive/event context first.
 
 ## Touched Files
 
-- `src/server/marketData.ts`
-- `src/server/marketData.test.ts`
+- `src/server/portfolioAnalytics.ts`
+- `src/server/portfolioAnalytics.test.ts`
 - `src/server/routes.ts`
+- `src/client/src/lib/finance.ts`
 - `src/client/src/lib/useFinance.ts`
-- `src/client/src/lib/chartSeries.ts`
-- `src/client/src/lib/chartSeries.test.ts`
-- `src/client/src/components/panels/ChartPanel.tsx`
-- `src/client/src/pages/Terminal.tsx`
+- `src/client/src/components/panels/PortfolioPanel.tsx`
 - `docs/live/current-focus.md`
 - `docs/live/progress.md`
 - `docs/live/todo.md`
@@ -40,13 +38,15 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 ## Verification Status
 
 - Check: `npm test`
-- Result: Pass (29 tests, 0 failures).
+- Result: Pass (34 tests, 0 failures).
 - Check: `npm run check`
 - Result: Pass.
+- Check: Route smoke tests via browser fetch against local dev server
+- Result: `/api/finance/portfolio-analytics` returned `benchmarkSymbol: "SPY"`, populated risk metrics, and a 30-point comparison chart.
 - Check: Browser smoke tests via Puppeteer against local dev server
-- Result: `BTC-USD GP` opened a chart pane with crypto intraday controls, adding `ETH-USD` created a comparison overlay chip, and switching the chart symbol to `AAPL` kept the chart pane active while surfacing the non-crypto intraday availability notice.
+- Result: Opening the Portfolio panel showed `SPY RETURN`, `BETA`, `VOLATILITY`, `MAX DRAWDOWN`, and `30D VS SPY` content.
 
 ## Hand-off Note
 
-- Resume from: Chart tranche is landed; next roadmap item should be portfolio benchmark/risk context.
-- Watch for: Public-provider intraday truth is intentionally asymmetric—crypto only for now—until a reliable no-key equity intraday source is introduced.
+- Resume from: Portfolio benchmark/risk tranche is landed; next roadmap choice is proactive alert delivery or economics event workflows.
+- Watch for: Portfolio analytics use daily data and current static holdings; there is no transaction ledger or cash-flow attribution yet.

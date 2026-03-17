@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import type { Server } from "http";
+import { z } from "zod";
 import { storage } from "./storage";
 import { insertWatchlistItemSchema, insertAlertSchema } from "@shared/schema";
 import Anthropic from "@anthropic-ai/sdk";
@@ -16,6 +17,7 @@ import {
   getQuotes,
   getScreenerResults,
 } from "./marketData";
+import { calculatePortfolioAnalytics } from "./portfolioAnalytics";
 
 const anthropic = new Anthropic();
 
@@ -25,6 +27,14 @@ function parseSymbols(value: unknown) {
     .map((symbol) => symbol.trim().toUpperCase())
     .filter(Boolean);
 }
+
+const portfolioAnalyticsRequestSchema = z.object({
+  positions: z.array(z.object({
+    symbol: z.string().trim().min(1),
+    shares: z.number().positive(),
+    avgCost: z.number().positive(),
+  })).min(1),
+});
 
 // ─── Route Registration ─────────────────────────────────────────────────────
 export async function registerRoutes(httpServer: Server, app: Express): Promise<void> {
@@ -111,6 +121,37 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     });
   }));
 
+  app.post("/api/finance/portfolio-analytics", async (req, res) => {
+    const parsed = portfolioAnalyticsRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten() });
+    }
+
+    try {
+      const positions = parsed.data.positions.map((position) => ({
+        symbol: position.symbol.toUpperCase(),
+        shares: position.shares,
+        avgCost: position.avgCost,
+      }));
+      const symbols: string[] = Array.from(new Set(positions.map((position) => position.symbol)));
+      const historyEntries = await Promise.all(symbols.map(async (symbol) => ([
+        symbol,
+        (await getOHLCV(symbol, "1Y", "1d")).map((point) => ({ date: point.date, close: point.close })),
+      ] as const)));
+      const benchmark = (await getOHLCV("SPY", "1Y", "1d")).map((point) => ({ date: point.date, close: point.close }));
+
+      res.json(calculatePortfolioAnalytics({
+        positions,
+        histories: Object.fromEntries(historyEntries),
+        benchmark,
+      }));
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown portfolio analytics error";
+      res.status(502).json({ error: detail });
+    }
+  });
+
+  // ─── Watchlist ─────────────────────────────────────────────────────────────
   // ─── Watchlist ─────────────────────────────────────────────────────────────
   app.get("/api/watchlist", async (_req, res) => {
     const items = await storage.getWatchlist();

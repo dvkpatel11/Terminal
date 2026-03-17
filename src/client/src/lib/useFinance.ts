@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Quote, OHLCVBar, NewsItem, NewsArticle } from "./finance";
+import type { Quote, OHLCVBar, NewsItem, NewsArticle, PortfolioAnalytics, PortfolioPositionInput } from "./finance";
 
 // Finance data hooks — all fetched from /api/finance/* proxy
 
@@ -134,6 +134,23 @@ export function useNewsArticle(item?: Pick<NewsItem, "url" | "title" | "source" 
     },
     staleTime: 5 * 60_000,
     enabled: Boolean(item?.url),
+  });
+}
+
+export function usePortfolioAnalytics(positions: PortfolioPositionInput[]) {
+  return useQuery<PortfolioAnalytics>({
+    queryKey: ["/api/finance/portfolio-analytics", JSON.stringify(positions)],
+    queryFn: async () => {
+      const res = await fetch("/api/finance/portfolio-analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ positions }),
+      });
+      if (!res.ok) throw new Error("Failed to fetch portfolio analytics");
+      return res.json();
+    },
+    staleTime: 60_000,
+    enabled: positions.length > 0,
   });
 }
 

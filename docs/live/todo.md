@@ -8,6 +8,6 @@ Use one row per work item. Prefer `High`, `Medium`, or `Low` for priority and `P
 
 | Task | Priority | Status |
 | --- | --- | --- |
-| Add benchmark/risk context to portfolio workflows | High | Pending |
-| Improve alert delivery from poll-on-read to push/background evaluation | Medium | Pending |
+| Improve alert delivery from poll-on-read to push/background evaluation | High | Pending |
 | Expand economic workflows with calendar and event drill-down | Medium | Pending |
+| Add transcript / filing summarization to the research workflow | Medium | Pending |

@@ -51,6 +51,23 @@ export interface NewsArticle {
   content: string[];
 }
 
+export interface PortfolioPositionInput {
+  symbol: string;
+  shares: number;
+  avgCost: number;
+}
+
+export interface PortfolioAnalytics {
+  benchmarkSymbol: string;
+  portfolioReturnPct: number | null;
+  benchmarkReturnPct: number | null;
+  activeReturnPct: number | null;
+  beta: number | null;
+  annualizedVolatilityPct: number | null;
+  maxDrawdownPct: number | null;
+  chart: Array<{ date: string; portfolio: number; benchmark: number }>;
+}
+
 // Helper: format large numbers
 export function formatBig(n: number | null | undefined): string {
   if (n === null || n === undefined || !Number.isFinite(n)) return "—";
