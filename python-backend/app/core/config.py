@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(frozen=True)
 
     app_name: str = "BLMTRM Finance Service"
+    finance_api_prefix: str = "/api/finance"
 
 
 @lru_cache
