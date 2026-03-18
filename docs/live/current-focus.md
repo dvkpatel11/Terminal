@@ -4,24 +4,23 @@ Read after `AGENTS.md` when starting or resuming work. Keep this file limited to
 
 ## Objective
 
-- Objective: Land the commercially critical live-stock-data upgrade for the quote/chart/alert backbone.
-- Why it matters now: Equities are the product's commercial core. Stale or daily-only stock data undermines trust faster than missing secondary workflows.
+- Objective: Define and execute a staged migration of the finance backend to FastAPI without breaking the existing terminal client contract.
+- Why it matters now: Python gives us a stronger ecosystem for analytics, universe data, and future research workflows, but a big-bang backend rewrite would add risk without matching commercial value.
 
 ## Scope
 
-- In scope: Replace the old non-crypto Stooq-first stock path with a more current intraday-capable provider strategy, while keeping truthful fallbacks when stronger data is unavailable.
-- Expected outcome: Equities/ETFs/indices/commodities should prefer current Yahoo Finance chart-backed quotes and OHLCV, crypto should remain on CoinGecko, and fallback paths should no longer imply live behavior when they are only delayed/reference data.
+- In scope: Preserve the existing `/api/finance/*` surface, stand up a Python finance service first, and decide where `FinanceToolkit` and `FinanceDatabase` actually fit.
+- Expected outcome: The migration plan should keep the current web shell stable, use FastAPI for finance-domain services, and avoid pretending reference or fallback sources are live market feeds.
 
 ## Constraints
 
-- Constraint: Commercial impact is the primary prioritization axis; development effort is the second axis.
-- Constraint: The immediate implementation may use a stronger public source, but the product must stay honest about fallback quality.
-- Constraint: FinanceDatabase is a symbol/universe tool only, not a live-feed solution.
-- Constraint: This tranche improves freshness materially, but it is not the final exchange-licensed market-data answer.
+- Constraint: Commercial impact remains the primary prioritization axis; development effort is second.
+- Constraint: `FinanceDatabase` is a symbol/universe enrichment source, not a live market-data provider.
+- Constraint: `FinanceToolkit` is useful for analytics/fundamentals/historical workflows, but it is not by itself a terminal-grade live-feed replacement.
+- Constraint: Preserve the current `/api/finance/*` contract during cutover where reasonable; prefer Node→Python proxying over simultaneous frontend and backend contract churn.
 
 ## Success Criteria
 
-- Check: Quotes for core equities surface `Yahoo Finance` as the current source.
-- Check: Equity intraday OHLCV works through the existing `/api/finance/ohlcv` route.
-- Check: Reference or delayed fallbacks remain visibly non-live.
-- Check: Tests, typecheck, route smoke, and browser smoke all pass.
+- Check: The just-landed freshness metadata tranche remains verified and honest across quotes, charts, news, and economics.
+- Check: A staged FastAPI migration plan is explicit about which routes move first, which ones stay in Node temporarily, and which data providers remain separate from Python library adapters.
+- Check: The next implementation step can begin without ambiguity about provider roles, cutover order, or rollback strategy.

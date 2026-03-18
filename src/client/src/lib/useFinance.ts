@@ -116,19 +116,28 @@ export function useNews(symbol?: string, query?: string) {
   });
 }
 
-export function useNewsArticle(item?: Pick<NewsItem, "url" | "title" | "source" | "feedProvider" | "publishedAt" | "summary"> | null) {
+type NewsArticleRequest = Pick<NewsItem, "url" | "title" | "source" | "feedProvider" | "publishedAt" | "summary">;
+
+export function buildNewsArticleParams(item: NewsArticleRequest) {
+  const params = new URLSearchParams({
+    url: item.url,
+    title: item.title,
+    source: item.source,
+    publishedAt: item.publishedAt,
+  });
+
+  if (item.feedProvider) params.set("feedProvider", item.feedProvider);
+  if (item.summary) params.set("summary", item.summary);
+
+  return params;
+}
+
+export function useNewsArticle(item?: NewsArticleRequest | null) {
   return useQuery<NewsArticle>({
     queryKey: ["/api/finance/news/read", item?.url ?? "", item?.title ?? ""],
     queryFn: async () => {
       if (!item) throw new Error("Missing article");
-      const params = new URLSearchParams({
-        url: item.url,
-        title: item.title,
-        source: item.source,
-        feedProvider: item.feedProvider,
-        publishedAt: item.publishedAt,
-      });
-      if (item.summary) params.set("summary", item.summary);
+      const params = buildNewsArticleParams(item);
       const res = await fetch(`/api/finance/news/read?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch article");
       return res.json();
