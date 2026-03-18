@@ -12,6 +12,7 @@ dependencies = [
   "uvicorn",
   "httpx",
   "pydantic",
+  "pydantic-settings",
   "pytest",
   "financetoolkit",
   "financedatabase",

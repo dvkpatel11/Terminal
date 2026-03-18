@@ -1,10 +1,10 @@
 from functools import lru_cache
 
-from pydantic import BaseModel, ConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseModel):
-    model_config = ConfigDict(frozen=True)
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(frozen=True)
 
     app_name: str = "BLMTRM Finance Service"
 
