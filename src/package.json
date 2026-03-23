@@ -9,7 +9,10 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "test": "node --import tsx --test server/*.test.ts client/src/lib/*.test.ts",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "video:studio": "remotion studio src/remotion/index.ts",
+    "video:render": "remotion render BLMTRMTerminalDemo out/blmtrm-demo.mp4",
+    "video:compositions": "remotion compositions"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.79.0",
@@ -80,6 +83,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@remotion/cli": "4.0.438",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.18",
     "@types/connect-pg-simple": "^7.0.3",
@@ -96,6 +100,7 @@
     "drizzle-kit": "^0.31.8",
     "esbuild": "^0.25.0",
     "postcss": "^8.4.47",
+    "remotion": "4.0.438",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.5",
     "typescript": "5.6.3",

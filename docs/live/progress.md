@@ -4,23 +4,24 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Current State
 
-- State: The provider/freshness visibility tranche is landed. Quotes, OHLCV, news, and economics payloads now carry explicit `status` metadata, and the terminal UI renders those truthfulness cues across core surfaces.
+- State: The provider/freshness visibility tranche remains landed and verified, and a new Remotion-based 60-second product demo video now exists under `src/` without changing the live app runtime.
 
 ## Latest Completed Work
 
-- Completed: Added shared `DataStatus`/`DataFreshness` modeling, threaded `status` through finance and economics responses, wrapped `/api/finance/ohlcv` in an `OHLCVSeries` response, and rendered badges/timestamps in quote, chart, market overview, news, and economics panels.
-- Completed: Fixed a review-found bug in `client/src/lib/useFinance.ts` so optional `feedProvider` and `summary` fields are omitted from `/api/finance/news/read` query strings instead of being serialized as the literal string `undefined`, and added `client/src/lib/useFinance.test.ts` coverage.
-- Completed: Wrote and reviewer-checked the staged FastAPI migration plan at `docs/superpowers/plans/2026-03-18-fastapi-finance-service-migration.md`. The plan keeps Node as the temporary shell, preserves `/api/finance/*`, stages low-risk route families first, and keeps `FinanceToolkit`/`FinanceDatabase` behind explicit adapter boundaries.
-- Why it matters: Users can now tell the difference between current Yahoo-backed quotes, feed-based news, schedule/snapshot economics, and fallback/reference data without the UI overstating freshness. The next implementation step now has an explicit cutover order, rollback path, and provider boundary.
+- Completed: Added a self-contained Remotion setup in `src/` with a scripted 1920x1080, 30fps, 60-second composition (`BLMTRMTerminalDemo`) covering intro, market overview, single-name analysis, research workflow, risk workflow, AI workflow, and closing CTA.
+- Completed: Added Remotion CLI scripts to preview/list/render the composition and rendered the final MP4 to `src/out/blmtrm-demo.mp4`.
+- Completed: Added shared terminal-video styling and reusable composition helpers so the demo stays deterministic and does not depend on localhost/browser capture at render time.
+- Why it matters: We now have a polished product demo artifact for blmtrm that can be rendered locally on demand while keeping the actual terminal application untouched.
 
 ## In Progress
 
-- Work item: No active implementation. The next step is to execute Chunk 1 of the FastAPI finance-service migration plan.
+- Work item: No active implementation. The migration plan remains the next product-engineering step after this demo deliverable.
 
 ## Blockers
 
-- Blocker: None for the landed tranche.
+- Blocker: None for the Remotion demo or the landed freshness tranche.
 - Strategic limitation: Yahoo Finance remains a public web-backed source, not a licensed exchange-grade market-data feed.
+- Tooling note: Remotion warns that workspace `zod` is on 3.x while Remotion prefers 4.3.6, but composition listing, still rendering, and full video rendering all succeeded in the current setup.
 
 ## Next Recommended Action
 
@@ -29,43 +30,32 @@ Read after `docs/live/current-focus.md` to recover the latest state, continuity,
 
 ## Touched Files
 
-- `src/server/dataStatus.ts`
-- `src/server/dataStatus.test.ts`
-- `src/server/marketData.ts`
-- `src/server/marketData.test.ts`
-- `src/server/economicsData.ts`
-- `src/server/economicsData.test.ts`
-- `src/server/routes.ts`
-- `src/client/src/lib/finance.ts`
-- `src/client/src/lib/useFinance.ts`
-- `src/client/src/lib/useFinance.test.ts`
-- `src/client/src/lib/chartSeries.ts`
-- `src/client/src/lib/chartSeries.test.ts`
-- `src/client/src/components/data/DataStatusBadge.tsx`
-- `src/client/src/components/panels/QuotePanel.tsx`
-- `src/client/src/components/panels/ChartPanel.tsx`
-- `src/client/src/components/panels/NewsPanel.tsx`
-- `src/client/src/components/panels/EconomicsPanel.tsx`
-- `src/client/src/components/panels/MarketOverview.tsx`
-- `docs/live/current-focus.md`
+- `src/package.json`
+- `src/package-lock.json`
+- `src/remotion/index.ts`
+- `src/remotion/Root.tsx`
+- `src/remotion/DemoVideo.tsx`
+- `src/remotion/terminal.css`
+- `src/out/blmtrm-demo.mp4`
+- `src/out/blmtrm-mid.png`
+- `src/remotion-assets/market-overview.png`
 - `docs/live/progress.md`
-- `docs/live/todo.md`
-- `docs/superpowers/plans/2026-03-18-fastapi-finance-service-migration.md`
 
 ## Verification Status
 
-- Check: `npm test`
-- Result: Pass (48 tests, 0 failures).
+- Check: `npm run video:compositions`
+- Result: Pass. `BLMTRMTerminalDemo` listed at 30 fps, 1920x1080, 1800 frames (60.00 sec).
+- Check: `npm run video:render`
+- Result: Pass. Final video rendered to `src/out/blmtrm-demo.mp4` (16.1 MB).
 - Check: `npm run check`
-- Result: Pass.
-- Check: Direct route smoke against local dev server
-- Result: `/api/finance/quotes?symbols=AAPL`, `/api/finance/ohlcv?symbol=AAPL&range=1D&interval=5m`, `/api/finance/news?symbol=AAPL`, `/api/finance/economics`, and `/api/finance/economics/calendar` all returned truthful `status` metadata; OHLCV returned 21 bars in the verification run.
-- Check: Browser smoke tests via Puppeteer against local dev server
-- Result: Market overview, quote, chart, news, and economics views all displayed the expected provider/freshness badges and `AS OF` timestamps where applicable.
-- Check: Reviewer pass
-- Result: Initial reviewer found the `feedProvider=undefined` bug in `useFinance.ts`; after the fix and new test coverage, a second reviewer pass reported no substantive issues.
+- Result: Pass. TypeScript completed cleanly after the Remotion additions.
+- Check: `npx remotion still BLMTRMTerminalDemo out/blmtrm-mid.png --frame=900`
+- Result: Pass. Midpoint still rendered successfully for visual verification.
+- Check: Rendered still review
+- Result: `src/out/blmtrm-mid.png` shows the research workflow scene with branded dark-terminal styling, news/screener/economics panels, and polished presentation.
 
 ## Hand-off Note
 
-- Resume from: `docs/superpowers/plans/2026-03-18-fastapi-finance-service-migration.md` is ready for execution; Chunk 1 is the next concrete step.
-- Watch for: The first Python cut must preserve `/api/finance/*` contract parity and honest freshness semantics. `FinanceDatabase` remains reference/universe only, and live-market routes should stay on Node until the Python provider layer can match them truthfully.
+- Resume from: `docs/superpowers/plans/2026-03-18-fastapi-finance-service-migration.md` is still the next concrete engineering step; the video work is complete and self-contained under `src/remotion/`.
+- Deliverable: Final demo video is at `src/out/blmtrm-demo.mp4`; rerender with `npm run video:render` from `src/` when the script or visuals change.
+- Watch for: If future Remotion work starts failing around validation/types, resolve the `zod` 3.x vs 4.x warning before expanding the video toolchain.
