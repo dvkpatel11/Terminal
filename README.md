@@ -19,6 +19,68 @@
 
 ---
 
+## Demo
+
+<p align="center">
+  <img src="screenshots/blmtrm-demo.gif" alt="BLMTRM Terminal Demo" width="960" />
+</p>
+
+---
+
+## Screenshots
+
+### Market Overview
+<p align="center">
+  <img src="screenshots/01-market-overview.png" alt="Market Overview" width="960" />
+</p>
+
+### Interactive Charts
+<p align="center">
+  <img src="screenshots/02-chart-view.png" alt="Chart View" width="960" />
+</p>
+
+### News Feed
+<p align="center">
+  <img src="screenshots/03-news-view.png" alt="News View" width="960" />
+</p>
+
+### AI Financial Agent
+<p align="center">
+  <img src="screenshots/04-ai-agent.png" alt="AI Agent" width="960" />
+</p>
+
+### Stock Screener
+<p align="center">
+  <img src="screenshots/05-screener.png" alt="Screener" width="960" />
+</p>
+
+### Economics Dashboard
+<p align="center">
+  <img src="screenshots/06-economics.png" alt="Economics" width="960" />
+</p>
+
+### Portfolio Analytics
+<p align="center">
+  <img src="screenshots/07-portfolio.png" alt="Portfolio" width="960" />
+</p>
+
+### Command Bar
+<p align="center">
+  <img src="screenshots/08-command-bar.png" alt="Command Bar" width="960" />
+</p>
+
+### Watchlist
+<p align="center">
+  <img src="screenshots/09-watchlist.png" alt="Watchlist" width="960" />
+</p>
+
+### Price Alerts
+<p align="center">
+  <img src="screenshots/10-alerts.png" alt="Alerts" width="960" />
+</p>
+
+---
+
 ## What is BLMTRM?
 
 BLMTRM is a full-stack financial terminal that brings the power of a Bloomberg-style workstation to your browser. It features:
