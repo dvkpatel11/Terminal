@@ -5,7 +5,7 @@
 <h1 align="center">BLMTRM</h1>
 
 <p align="center">
-  A hacker-style Bloomberg Terminal clone — real-time market data, charts, news, economics, portfolio analytics, and an AI-powered financial agent.
+  A hacker-style Terminal clone — real-time market data, charts, news, economics, portfolio analytics, and an AI-powered financial agent.
 </p>
 
 <p align="center">
