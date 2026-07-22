@@ -219,12 +219,6 @@
     font-feature-settings: "tnum" 1, "kern" 1;
   }
 
-  /* Tabular numbers for all financial data */
-  .tabular-nums {
-    font-variant-numeric: tabular-nums lining-nums;
-    font-feature-settings: "tnum" 1;
-  }
-
   /* Focus-visible ring for keyboard accessibility */
   :focus-visible {
     outline: 2px solid hsl(186 45% 50% / 0.6);
@@ -310,9 +304,6 @@
   .text-down {
     color: hsl(0 80% 55%);
   }
-  .text-flat {
-    color: hsl(0 0% 55%);
-  }
   .text-amber {
     color: hsl(38 45% 55%);
   }
@@ -345,21 +336,11 @@
 
   /* ── Ticker flash animations ── */
   .ticker-flash-up {
-    animation: flashUp 0.4s ease-out;
+    animation: flash-up 0.4s ease-out;
   }
 
   .ticker-flash-down {
-    animation: flashDown 0.4s ease-out;
-  }
-
-  @keyframes flashUp {
-    0% { background-color: hsl(142 71% 45% / 0.3); }
-    100% { background-color: transparent; }
-  }
-
-  @keyframes flashDown {
-    0% { background-color: hsl(0 80% 50% / 0.3); }
-    100% { background-color: transparent; }
+    animation: flash-down 0.4s ease-out;
   }
 
   /* ── Scrollbar styling ── */
