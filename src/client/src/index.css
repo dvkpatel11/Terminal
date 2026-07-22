@@ -462,6 +462,8 @@
   .text-positive-muted { color: hsl(var(--color-positive-muted)); }
   .text-negative-muted { color: hsl(var(--color-negative-muted)); }
 
+  .bg-positive { background-color: hsl(var(--color-positive)); }
+  .bg-negative { background-color: hsl(var(--color-negative)); }
   .bg-positive-muted { background-color: hsl(var(--color-positive-muted)); }
   .bg-negative-muted { background-color: hsl(var(--color-negative-muted)); }
   .bg-flat-muted { background-color: hsl(var(--color-flat-muted)); }

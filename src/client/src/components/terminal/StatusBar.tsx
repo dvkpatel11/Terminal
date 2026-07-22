@@ -18,6 +18,12 @@ function useApiHealth() {
   });
 }
 
+function latencyClass(ms: number) {
+  if (ms < 100) return "text-positive";
+  if (ms <= 300) return "text-flat";
+  return "text-negative";
+}
+
 export default function StatusBar() {
   const { data: health } = useApiHealth();
   const [clock, setClock] = useState(() => new Date());
@@ -28,27 +34,28 @@ export default function StatusBar() {
   }, []);
 
   const timeStr = clock.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  const isLive = health?.ok;
 
   return (
-    <footer className="flex items-center justify-between h-6 px-3 bg-gradient-to-b from-[#0a0a0a] to-[#070707] border-t border-border/40 shrink-0 font-terminal text-[9px] tracking-[0.12em] shadow-[0_-1px_2px_rgba(0,0,0,0.3)] relative z-10">
+    <footer className="flex items-center justify-between h-6 px-3 bg-gradient-to-b from-[#0a0a0a] to-[#070707] border-t border-border/40 shrink-0 text-data-xs font-terminal tabular-nums tracking-wide shadow-[0_-1px_2px_rgba(0,0,0,0.3)] relative z-10">
       <div className="flex items-center gap-3.5 min-w-0">
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className={`w-1.5 h-1.5 rounded-full ${health?.ok ? "bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.4)]" : "bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.4)]"}`} />
-          <span className={health?.ok ? "text-green-400/90" : "text-red-400/90"}>
-            {health?.ok ? "LIVE" : "DOWN"}
+          <span className={`w-1.5 h-1.5 rounded-full ${isLive ? "bg-positive animate-pulse" : "bg-negative"}`} />
+          <span className={isLive ? "text-positive" : "text-negative"}>
+            {isLive ? "LIVE" : "DOWN"}
           </span>
         </div>
 
         {health?.latency != null && (
           <>
             <span className="text-muted-foreground/30">|</span>
-            <span className="text-muted-foreground/40 tabular-nums shrink-0">{health.latency}ms</span>
+            <span className={`${latencyClass(health.latency)} shrink-0`}>{health.latency}ms</span>
           </>
         )}
       </div>
 
       <div className="flex items-center gap-1.5">
-        <div className="text-muted-foreground/60 tabular-nums tracking-wide shrink-0 ml-1">{timeStr}</div>
+        <div className="text-muted-foreground/60 shrink-0 ml-1">{timeStr}</div>
       </div>
     </footer>
   );
