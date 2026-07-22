@@ -284,21 +284,63 @@
     @apply font-terminal text-[11px] tabular-nums text-right text-foreground;
   }
 
-  /* Data table */
+  /* ── Financial Data Table ────────────────────────────────────────────── */
+
   .data-table {
-    @apply w-full;
+    @apply w-full border-collapse;
+    font-size: var(--text-terminal-base); /* 12px */
+  }
+
+  .data-table thead {
+    @apply sticky top-0 z-10;
   }
 
   .data-table th {
-    @apply text-left py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider;
+    @apply text-left font-terminal font-semibold text-muted-foreground uppercase;
+    font-size: var(--text-terminal-sm); /* 11px */
+    letter-spacing: 0.05em;
+    padding: var(--space-15) var(--space-2); /* 6px 8px */
+    border-bottom: 1px solid hsl(var(--border-data));
+    background-color: var(--surface-2);
   }
 
   .data-table td {
-    @apply py-2;
+    @apply font-terminal tabular-nums;
+    padding: var(--space-1) var(--space-2); /* 4px 8px */
+    border-bottom: 1px solid hsl(var(--border-subtle));
   }
 
-  .data-table tr {
-    @apply border-b border-border/20 hover:bg-white/[0.02] cursor-pointer;
+  .data-table tbody tr {
+    @apply transition-colors duration-100;
+  }
+
+  .data-table tbody tr:hover {
+    background-color: var(--surface-data-hover);
+  }
+
+  .data-table tbody tr:active {
+    background-color: var(--surface-data-active);
+  }
+
+  /* Right-align numeric columns */
+  .data-table td.num,
+  .data-table th.num {
+    @apply text-right;
+  }
+
+  /* Sentiment-colored cells */
+  .data-table td.positive { @apply text-positive; }
+  .data-table td.negative { @apply text-negative; }
+  .data-table td.flat { @apply text-flat; }
+
+  /* Compact variant for dense views */
+  .data-table.compact td {
+    padding: var(--space-05) var(--space-15); /* 2px 6px */
+  }
+
+  /* Striped variant */
+  .data-table.striped tbody tr:nth-child(even) {
+    background-color: var(--surface-data);
   }
 }
 
