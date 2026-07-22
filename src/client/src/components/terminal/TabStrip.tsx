@@ -1,6 +1,7 @@
 import { X, type LucideIcon } from "lucide-react";
 import type { ViewMode } from "@/lib/terminalTypes";
-import { PANEL_REGISTRY, ALL_VIEW_MODES } from "@/lib/panelRegistry";
+import { PANEL_REGISTRY, ALL_VIEW_MODES, type PanelCategory } from "@/lib/panelRegistry";
+import { cn } from "@/lib/utils";
 
 interface Tab {
   id: string;
@@ -19,9 +20,23 @@ function isValidView(view: string): view is ViewMode {
   return ALL_VIEW_MODES.includes(view as ViewMode);
 }
 
+const CATEGORY_BORDER: Record<PanelCategory, string> = {
+  market: "border-market",
+  macro: "border-macro",
+  intel: "border-intel",
+  symbol: "border-market",
+  system: "border-intel",
+};
+
+const CATEGORY_TEXT: Record<PanelCategory, string> = {
+  market: "text-market",
+  macro: "text-macro",
+  intel: "text-intel",
+  symbol: "text-market",
+  system: "text-intel",
+};
+
 export default function TabStrip({ tabs, activeTabId, onSelect, onClose }: Props) {
-  // Tab strip is for symbol/security panes only. Global views are switched
-  // in-place from the TopBar and must not appear as closable tabs here.
   const validTabs = tabs.filter(
     (tab) => isValidView(tab.view) && PANEL_REGISTRY[tab.view]?.isSecurityView,
   );
@@ -43,7 +58,7 @@ export default function TabStrip({ tabs, activeTabId, onSelect, onClose }: Props
         if (!meta) return null;
 
         const active = tab.id === activeTabId;
-        const isMarket = !meta.isSecurityView;
+        const category: PanelCategory = meta.category;
         const label = tab.symbol ? `${meta.code} ${tab.symbol}` : meta.code;
         const Icon = meta.icon as LucideIcon;
 
@@ -54,15 +69,12 @@ export default function TabStrip({ tabs, activeTabId, onSelect, onClose }: Props
             aria-selected={active}
             aria-controls={`panel-${tab.id}`}
             onClick={() => onSelect(tab.id)}
-            className={`group relative flex items-center gap-1.5 px-3 h-full font-terminal text-[9px] tracking-[0.1em] border-r border-border/30 transition-all duration-150 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan focus-visible:ring-inset ${
+            className={cn(
+              "group relative flex items-center gap-1.5 px-2.5 h-full text-data-sm font-terminal border-r border-border/30 transition-colors duration-150 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan focus-visible:ring-inset",
               active
-                ? isMarket
-                  ? "bg-gradient-to-b from-[#0e1a28] to-[#0a1220] text-[hsl(195,80%,65%)] border-b-2 border-b-[hsl(195,80%,55%)] shadow-[0_1px_0_hsl(195,80%,55%/0.15)]"
-                  : "bg-gradient-to-b from-[#111] to-[#0a0a0a] text-[hsl(186,45%,62%)] border-b-2 border-b-[hsl(186,45%,50%)] shadow-[0_1px_0_hsl(186,45%,50%/0.15)]"
-                : isMarket
-                  ? "text-[hsl(195,50%,50%)] hover:text-[hsl(195,70%,65%)] hover:bg-white/[0.03]"
-                  : "text-muted-foreground/60 hover:text-foreground/80 hover:bg-white/[0.03]"
-            }`}
+                ? cn("border-b-2", CATEGORY_BORDER[category], CATEGORY_TEXT[category])
+                : "border-b-2 border-transparent text-muted-foreground hover:text-foreground",
+            )}
           >
             <Icon className="w-3 h-3 shrink-0 opacity-70" />
             <span>{label}</span>
@@ -70,9 +82,9 @@ export default function TabStrip({ tabs, activeTabId, onSelect, onClose }: Props
               <span
                 role="button"
                 onClick={(e) => { e.stopPropagation(); onClose(tab.id); }}
-                className="ml-1 opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-foreground/80 transition-opacity duration-150"
+                className="ml-1 opacity-0 group-hover:opacity-100 text-flat hover:text-negative transition-opacity duration-150"
               >
-                <X className="w-2.5 h-2.5" />
+                <X className="w-3.5 h-3.5" />
               </span>
             )}
           </button>
