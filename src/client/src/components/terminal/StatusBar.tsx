@@ -37,7 +37,7 @@ export default function StatusBar() {
   const isLive = health?.ok;
 
   return (
-    <footer className="flex items-center justify-between h-6 px-3 bg-gradient-to-b from-[#0a0a0a] to-[#070707] border-t border-border/40 shrink-0 text-data-xs font-terminal tabular-nums tracking-wide shadow-[0_-1px_2px_rgba(0,0,0,0.3)] relative z-10">
+    <footer className="flex items-center justify-between h-6 px-3 bg-gradient-to-b from-surface-2 to-surface-1 border-t border-border/40 shrink-0 text-data-xs font-terminal tabular-nums tracking-wide shadow-[0_-1px_2px_rgba(0,0,0,0.3)] relative z-10">
       <div className="flex items-center gap-3.5 min-w-0">
         <div className="flex items-center gap-1.5 shrink-0">
           <span className={`w-1.5 h-1.5 rounded-full ${isLive ? "bg-positive animate-pulse" : "bg-negative"}`} />
