@@ -41,42 +41,42 @@ interface NavGroup {
 const CATEGORY_THEME: Record<PanelCategory, { label: string; color: string; restingBg: string; activeBg: string; activeBorder: string; glow: string }> = {
   market: {
     label: "MARKET",
-    color: "text-[hsl(186_80%_70%)]",
-    restingBg: "bg-[hsl(186_60%_50%/0.06)]",
-    activeBg: "bg-[hsl(186_60%_50%/0.14)]",
-    activeBorder: "border-b-[hsl(186_60%_50%)]",
+    color: "text-market",
+    restingBg: "bg-market-muted",
+    activeBg: "bg-market-muted/14",
+    activeBorder: "border-b-market",
     glow: "shadow-[0_1px_0_hsl(186_60%_50%/0.25)]",
   },
   macro: {
     label: "MACRO",
-    color: "text-[hsl(38_70%_65%)]",
-    restingBg: "bg-[hsl(38_50%_50%/0.06)]",
-    activeBg: "bg-[hsl(38_50%_50%/0.14)]",
-    activeBorder: "border-b-[hsl(38_50%_50%)]",
+    color: "text-macro",
+    restingBg: "bg-macro-muted",
+    activeBg: "bg-macro-muted/14",
+    activeBorder: "border-b-macro",
     glow: "shadow-[0_1px_0_hsl(38_50%_50%/0.25)]",
   },
   intel: {
     label: "INTEL",
-    color: "text-[hsl(265_70%_70%)]",
-    restingBg: "bg-[hsl(265_50%_50%/0.06)]",
-    activeBg: "bg-[hsl(265_50%_50%/0.14)]",
-    activeBorder: "border-b-[hsl(265_50%_50%)]",
+    color: "text-intel",
+    restingBg: "bg-intel-muted",
+    activeBg: "bg-intel-muted/14",
+    activeBorder: "border-b-intel",
     glow: "shadow-[0_1px_0_hsl(265_50%_50%/0.25)]",
   },
   symbol: {
     label: "SYMBOL",
-    color: "text-[hsl(186_80%_70%)]",
-    restingBg: "bg-[hsl(186_60%_50%/0.06)]",
-    activeBg: "bg-[hsl(186_60%_50%/0.14)]",
-    activeBorder: "border-b-[hsl(186_60%_50%)]",
+    color: "text-market",
+    restingBg: "bg-market-muted",
+    activeBg: "bg-market-muted/14",
+    activeBorder: "border-b-market",
     glow: "shadow-[0_1px_0_hsl(186_60%_50%/0.25)]",
   },
   system: {
     label: "SYSTEM",
-    color: "text-[hsl(265_70%_70%)]",
-    restingBg: "bg-[hsl(265_50%_50%/0.06)]",
-    activeBg: "bg-[hsl(265_50%_50%/0.14)]",
-    activeBorder: "border-b-[hsl(265_50%_50%)]",
+    color: "text-intel",
+    restingBg: "bg-intel-muted",
+    activeBg: "bg-intel-muted/14",
+    activeBorder: "border-b-intel",
     glow: "shadow-[0_1px_0_hsl(265_50%_50%/0.25)]",
   },
 };
@@ -205,7 +205,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
       <div className="flex items-center h-10">
         <div className="flex items-center gap-2 px-3 h-full border-r border-border/70 bg-gradient-to-b from-[hsl(186,45%,52%)] to-[hsl(186,45%,46%)] min-w-[120px] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
           <Terminal className="w-3.5 h-3.5 text-black/90" strokeWidth={2.5} />
-          {!compact && <span className="font-terminal text-[10px] font-bold tracking-[0.2em] text-black/90">MONITOR</span>}
+          {!compact && <span className="font-terminal text-data-xs font-bold tracking-[0.2em] text-black/90">MONITOR</span>}
         </div>
 
         {/* Global nav tabs — color coded by category, scrollable */}
@@ -219,7 +219,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
                   <button
                     key={tab.view}
                     onClick={() => onNav(tab.view)}
-                    className={`flex items-center gap-1.5 px-2.5 h-full font-terminal text-[9px] tracking-[0.12em] transition-all duration-150 border-b-[1.5px] shrink-0 ${
+                    className={`flex items-center gap-1.5 px-2.5 h-full font-terminal text-data-sm tracking-[0.12em] transition-colors duration-150 border-b-[1.5px] shrink-0 ${
                       isActive
                         ? `${group.color} ${group.activeBg} border-b-current ${group.glow}`
                         : `${group.color}/60 ${group.restingBg} border-b-transparent hover:brightness-125`
@@ -243,15 +243,15 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
             className="flex items-center gap-1.5 px-3 h-full hover:bg-white/[0.03] transition-colors duration-150 border-l border-border/70"
             data-testid="active-symbol"
           >
-            {!compact && <span className="font-terminal text-[8px] tracking-[0.15em] text-muted-foreground/50">ACTIVE</span>}
-            <span className="font-terminal text-[11px] font-bold text-[hsl(186_45%_60%)]">{activeSymbol}</span>
+            {!compact && <span className="font-terminal text-data-xs tracking-[0.15em] text-muted-foreground/50">ACTIVE</span>}
+            <span className="font-terminal text-data-md font-bold text-[hsl(186_45%_60%)]">{activeSymbol}</span>
             <ChevronDown className={`w-3 h-3 text-muted-foreground/50 transition-transform duration-150 ${symbolDropdownOpen ? "rotate-180" : ""}`} />
           </button>
 
           {symbolDropdownOpen && (
             <div className="absolute right-0 top-full mt-0 w-[260px] bg-[#0c0c0c] border border-border/70 shadow-[0_8px_32px_rgba(0,0,0,0.6)] z-50 rounded-b-sm">
               <div className="px-3 py-2 border-b border-border/50 bg-gradient-to-b from-[#111] to-[#0c0c0c]">
-                <div className="font-terminal text-[9px] tracking-[0.15em] text-[hsl(186_45%_60%)]">
+                <div className="font-terminal text-data-xs tracking-[0.15em] text-[hsl(186_45%_60%)]">
                   {activeSymbol ? `${activeSymbol} FUNCTIONS` : "NO SYMBOL SET"}
                 </div>
               </div>
@@ -266,7 +266,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
                         onNav(item.view);
                       }}
                       disabled={!activeSymbol}
-                      className={`w-full flex items-center gap-3 px-3.5 py-2 font-terminal text-[10px] text-left transition-colors duration-150 ${
+                      className={`w-full flex items-center gap-3 px-3.5 py-2 font-terminal text-data-xs text-left transition-colors duration-150 ${
                         isActive
                           ? "text-[hsl(186_45%_60%)] bg-[hsl(186_45%_50%/0.06)]"
                           : activeSymbol
@@ -275,10 +275,10 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
                       }`}
                     >
                       <item.icon className="w-3.5 h-3.5 shrink-0 opacity-70" />
-                      <span className="font-bold tracking-[0.12em] text-[9px] w-10 opacity-90">{item.code}</span>
+                      <span className="font-bold tracking-[0.12em] text-data-xs w-10 opacity-90">{item.code}</span>
                       <span className="flex-1">{item.label}</span>
                       {activeSymbol && (
-                        <span className="text-[8px] text-[hsl(186_45%_55%)] border border-[hsl(186_45%_55%)]/20 px-1.5 py-0.5 rounded-sm">
+                        <span className="text-data-xs text-[hsl(186_45%_55%)] border border-[hsl(186_45%_55%)]/20 px-1.5 py-0.5 rounded-sm">
                           {activeSymbol}
                         </span>
                       )}
@@ -320,7 +320,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         <div ref={layoutsRef} className="relative h-full">
           <button
             onClick={() => setLayoutsOpen((v) => !v)}
-            className="flex items-center justify-center h-full px-3 hover:bg-white/[0.03] text-muted-foreground hover:text-[hsl(186_45%_60%)] transition-colors duration-150 border-l border-border/70 font-terminal text-[8px] tracking-[0.15em]"
+            className="flex items-center justify-center h-full px-3 hover:bg-white/[0.03] text-muted-foreground hover:text-[hsl(186_45%_60%)] transition-colors duration-150 border-l border-border/70 font-terminal text-data-xs tracking-[0.15em]"
             title="Apply layout"
             data-testid="layouts-trigger"
           >
@@ -335,7 +335,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
                     useWorkspaceStore.getState().applyLayout(layout.id);
                     setLayoutsOpen(false);
                   }}
-                  className="w-full flex items-center px-3.5 py-2 font-terminal text-[10px] text-left text-muted-foreground/80 hover:text-foreground hover:bg-white/[0.03] transition-colors duration-150"
+                  className="w-full flex items-center px-3.5 py-2 font-terminal text-data-xs text-left text-muted-foreground/80 hover:text-foreground hover:bg-white/[0.03] transition-colors duration-150"
                 >
                   {layout.label}
                 </button>
@@ -356,8 +356,8 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
 
         {/* Clock */}
         <div className="flex flex-col items-end justify-center px-3.5 h-full font-terminal border-l border-border/70">
-          <span className="text-[10px] text-foreground/90 tabular-nums tracking-wide">{timeStr}</span>
-          {!compact && <span className="text-[8px] text-muted-foreground/60 tracking-wider">{dateStr}</span>}
+          <span className="text-data-sm font-terminal tabular-nums text-foreground/90 tracking-wide">{timeStr}</span>
+          {!compact && <span className="text-data-xs font-terminal tabular-nums text-muted-foreground/60 tracking-wider">{dateStr}</span>}
         </div>
 
         {/* Market status — rightmost */}
@@ -368,7 +368,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
               <div className={`w-1.5 h-1.5 rounded-full ${mktStatus.color === "text-up" ? "bg-[hsl(142,71%,45%)]" : "bg-[hsl(186,45%,50%)]"}`} />
             </div>
           )}
-          <span className={`font-terminal text-[9px] tracking-[0.18em] font-semibold ${mktStatus.color}`}>{mktStatus.label}</span>
+          <span className={`font-terminal text-data-sm tracking-[0.18em] font-semibold ${mktStatus.color}`}>{mktStatus.label}</span>
         </div>
       </div>
 
