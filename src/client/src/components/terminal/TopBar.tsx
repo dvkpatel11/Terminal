@@ -203,7 +203,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
     <header className="flex flex-col bg-gradient-to-b from-[#0e0e0e] to-[#090909] border-b border-border shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
       {/* Row 1: Branding | Global Nav | Market Status | spacer | Terminal Icon | Bell | Clock */}
       <div className="flex items-center h-10">
-        <div className="flex items-center gap-2 px-3 h-full border-r border-border/70 bg-gradient-to-b from-[hsl(186,45%,52%)] to-[hsl(186,45%,46%)] min-w-[120px] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
+        <div className="flex items-center gap-2 px-3 h-full border-r border-border/70 bg-gradient-to-b from-market/90 to-market/70 min-w-[120px] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
           <Terminal className="w-3.5 h-3.5 text-black/90" strokeWidth={2.5} />
           {!compact && <span className="font-terminal text-data-xs font-bold tracking-[0.2em] text-black/90">MONITOR</span>}
         </div>
@@ -244,14 +244,14 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
             data-testid="active-symbol"
           >
             {!compact && <span className="font-terminal text-data-xs tracking-[0.15em] text-muted-foreground/50">ACTIVE</span>}
-            <span className="font-terminal text-data-md font-bold text-[hsl(186_45%_60%)]">{activeSymbol}</span>
+            <span className="font-terminal text-data-md font-bold text-market">{activeSymbol}</span>
             <ChevronDown className={`w-3 h-3 text-muted-foreground/50 transition-transform duration-150 ${symbolDropdownOpen ? "rotate-180" : ""}`} />
           </button>
 
           {symbolDropdownOpen && (
             <div className="absolute right-0 top-full mt-0 w-[260px] bg-[#0c0c0c] border border-border/70 shadow-[0_8px_32px_rgba(0,0,0,0.6)] z-50 rounded-b-sm">
               <div className="px-3 py-2 border-b border-border/50 bg-gradient-to-b from-[#111] to-[#0c0c0c]">
-                <div className="font-terminal text-data-xs tracking-[0.15em] text-[hsl(186_45%_60%)]">
+                <div className="font-terminal text-data-xs tracking-[0.15em] text-market">
                   {activeSymbol ? `${activeSymbol} FUNCTIONS` : "NO SYMBOL SET"}
                 </div>
               </div>
@@ -268,7 +268,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
                       disabled={!activeSymbol}
                       className={`w-full flex items-center gap-3 px-3.5 py-2 font-terminal text-data-xs text-left transition-colors duration-150 ${
                         isActive
-                          ? "text-[hsl(186_45%_60%)] bg-[hsl(186_45%_50%/0.06)]"
+                          ? "text-market bg-market/6"
                           : activeSymbol
                             ? "text-muted-foreground/70 hover:text-foreground/90 hover:bg-white/[0.03]"
                             : "text-muted-foreground/30 cursor-default"
@@ -278,7 +278,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
                       <span className="font-bold tracking-[0.12em] text-data-xs w-10 opacity-90">{item.code}</span>
                       <span className="flex-1">{item.label}</span>
                       {activeSymbol && (
-                        <span className="text-data-xs text-[hsl(186_45%_55%)] border border-[hsl(186_45%_55%)]/20 px-1.5 py-0.5 rounded-sm">
+                        <span className="text-data-xs text-market border border-market/20 px-1.5 py-0.5 rounded-sm">
                           {activeSymbol}
                         </span>
                       )}
@@ -293,7 +293,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         {/* Terminal icon → command palette */}
         <button
           onClick={onCommandBarOpen}
-          className="flex items-center justify-center w-10 h-full hover:bg-white/[0.03] text-muted-foreground hover:text-[hsl(186_45%_60%)] transition-colors duration-150 border-l border-border/70"
+          className="flex items-center justify-center w-10 h-full hover:bg-white/[0.03] text-muted-foreground hover:text-market transition-colors duration-150 border-l border-border/70"
           title="Command Palette (Ctrl+Space)"
           data-testid="cmd-palette-trigger"
         >
@@ -304,12 +304,12 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         <div ref={notificationsRef} className="relative h-full">
           <button
             onClick={() => setAlertConfigOpen(true)}
-            className="relative flex items-center justify-center w-11 h-full hover:bg-white/[0.03] text-muted-foreground hover:text-[hsl(186_45%_60%)] transition-colors duration-150"
+            className="relative flex items-center justify-center w-11 h-full hover:bg-white/[0.03] text-muted-foreground hover:text-market transition-colors duration-150"
             data-testid="nav-alerts"
           >
             <Bell className="w-3.5 h-3.5" />
             {triggeredAlerts.length > 0 && (
-              <span className="absolute top-2 right-2 min-w-[14px] h-[14px] px-1 rounded-full bg-[hsl(0,80%,55%)] text-[7px] leading-[14px] text-white font-terminal text-center shadow-[0_0_6px_rgba(239,68,68,0.4)]">
+              <span className="absolute top-2 right-2 min-w-[14px] h-[14px] px-1 rounded-full bg-negative text-[7px] leading-[14px] text-white font-terminal text-center shadow-[0_0_6px_rgba(239,68,68,0.4)]">
                 {triggeredAlerts.length}
               </span>
             )}
@@ -320,7 +320,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         <div ref={layoutsRef} className="relative h-full">
           <button
             onClick={() => setLayoutsOpen((v) => !v)}
-            className="flex items-center justify-center h-full px-3 hover:bg-white/[0.03] text-muted-foreground hover:text-[hsl(186_45%_60%)] transition-colors duration-150 border-l border-border/70 font-terminal text-data-xs tracking-[0.15em]"
+            className="flex items-center justify-center h-full px-3 hover:bg-white/[0.03] text-muted-foreground hover:text-market transition-colors duration-150 border-l border-border/70 font-terminal text-data-xs tracking-[0.15em]"
             title="Apply layout"
             data-testid="layouts-trigger"
           >
@@ -347,7 +347,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         {/* Settings gear */}
         <button
           onClick={() => onConfigOpenChange(true)}
-          className="flex items-center justify-center w-10 h-full hover:bg-white/[0.03] text-muted-foreground hover:text-[hsl(186_45%_60%)] transition-colors duration-150 border-l border-border/70"
+          className="flex items-center justify-center w-10 h-full hover:bg-white/[0.03] text-muted-foreground hover:text-market transition-colors duration-150 border-l border-border/70"
           title="Settings (Ctrl+,)"
           data-testid="settings-gear"
         >
@@ -364,8 +364,8 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         <div className="flex items-center gap-1.5 px-3 h-full border-l border-border/70">
           {mktStatus.pulse && (
             <div className="relative w-1.5 h-1.5">
-              <div className={`absolute inset-0 rounded-full ${mktStatus.color === "text-up" ? "bg-[hsl(142,71%,45%)]" : "bg-[hsl(186,45%,50%)]"} animate-ping opacity-75`} />
-              <div className={`w-1.5 h-1.5 rounded-full ${mktStatus.color === "text-up" ? "bg-[hsl(142,71%,45%)]" : "bg-[hsl(186,45%,50%)]"}`} />
+              <div className={`absolute inset-0 rounded-full ${mktStatus.color === "text-up" ? "bg-positive" : "bg-market"} animate-ping opacity-75`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${mktStatus.color === "text-up" ? "bg-positive" : "bg-market"}`} />
             </div>
           )}
           <span className={`font-terminal text-data-sm tracking-[0.18em] font-semibold ${mktStatus.color}`}>{mktStatus.label}</span>
