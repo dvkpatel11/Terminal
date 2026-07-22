@@ -52,7 +52,7 @@ export default function TabStrip({ tabs, activeTabId, onSelect, onClose }: Props
   if (sorted.length === 0) return null;
 
   return (
-    <div className="flex items-center h-7 bg-gradient-to-b from-[#0c0c0c] to-[#080808] border-b border-border/40 overflow-x-auto scrollbar-thin shrink-0" role="tablist" aria-label="Panel tabs">
+    <div className="flex items-center h-7 bg-gradient-to-b from-surface-2 to-surface-1 border-b border-border/40 overflow-x-auto scrollbar-thin shrink-0" role="tablist" aria-label="Panel tabs">
       {sorted.map((tab) => {
         const meta = PANEL_REGISTRY[tab.view];
         if (!meta) return null;
