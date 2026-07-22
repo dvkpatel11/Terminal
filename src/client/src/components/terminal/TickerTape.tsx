@@ -60,7 +60,7 @@ export default function TickerTape({ onSymbol }: Props) {
 
   return (
     <div
-      className="h-6 bg-gradient-to-b from-[#070707] to-[#040404] border-b border-border/30 overflow-hidden relative shrink-0"
+      className="h-6 bg-gradient-to-b from-surface-1 to-surface-0 border-b border-border/30 overflow-hidden relative shrink-0"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       title={paused ? "Scrolling paused — move away to resume" : "Hover to pause"}
@@ -77,7 +77,7 @@ export default function TickerTape({ onSymbol }: Props) {
             <button
               key={`${q.symbol}-${i}`}
               onClick={() => onSymbol(q.symbol)}
-              className="flex items-center gap-2 px-3.5 h-6 border-r border-border/25 hover:bg-white/[0.03] group cursor-pointer transition-colors duration-150"
+              className="flex items-center gap-2 px-3.5 h-6 border-r border-border/25 hover:bg-white/5 group cursor-pointer transition-colors duration-150"
             >
               <span className="text-data-sm font-terminal font-semibold text-market">
                 {q.symbol.replace("^", "").replace("=F", "").replace("-USD", "")}
