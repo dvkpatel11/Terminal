@@ -235,22 +235,40 @@
 @layer components {
   /* Panel shell — wraps every panel */
   .panel-shell {
-    @apply h-full flex flex-col overflow-hidden bg-surface-0;
+    @apply flex flex-col h-full bg-surface-0 overflow-hidden;
   }
 
   /* Panel header — label bar at top of panel */
   .panel-header {
-    @apply flex items-center justify-between px-3 py-1.5 border-b border-border/50 bg-surface-2;
+    @apply flex items-center px-3 py-1.5 bg-surface-2 border-b border-border shrink-0;
+    min-height: 28px; /* slightly taller for 11px text */
   }
 
   /* Panel label — uppercase monospace title in header */
   .panel-label {
-    @apply text-xs font-terminal font-semibold tracking-[0.18em] uppercase text-muted-foreground/80;
+    @apply font-terminal text-data-sm font-semibold tracking-[0.15em] text-muted-foreground uppercase;
   }
 
   /* Panel card — section within a panel */
   .panel-card {
-    @apply bg-surface-1 border border-border/50;
+    @apply bg-surface-1 border border-border rounded;
+  }
+
+  /* Panel data section - for tables and dense data */
+  .panel-data {
+    @apply bg-surface-0 overflow-auto;
+    font-size: var(--text-terminal-base); /* 12px base for data */
+  }
+
+  /* Panel metric row - for KPI displays */
+  .panel-metric {
+    @apply flex items-baseline justify-between py-1;
+  }
+  .panel-metric-label {
+    @apply text-data-xs text-muted-foreground font-terminal;
+  }
+  .panel-metric-value {
+    @apply text-data-md font-terminal tabular-nums font-semibold;
   }
 
   /* KV row — key-value pair */

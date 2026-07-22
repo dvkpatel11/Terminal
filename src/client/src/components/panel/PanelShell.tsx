@@ -5,19 +5,18 @@ interface Props {
   label: string;
   extra?: string;
   className?: string;
-  headerClassName?: string;
   children: ReactNode;
   headerRight?: ReactNode;
 }
 
-export default function PanelShell({ label, extra, className, headerClassName, children, headerRight }: Props) {
+export default function PanelShell({ label, extra, className, children, headerRight }: Props) {
   return (
     <div className={cn("panel-shell", className)}>
-      <div className={cn("panel-header", headerClassName)}>
+      <header className="panel-header">
         <span className="panel-label">{label}</span>
-        {extra && <span className="font-terminal text-[9px] text-muted-foreground">{extra}</span>}
-        {headerRight}
-      </div>
+        {extra && <span className="ml-2 text-data-xs text-muted-foreground">{extra}</span>}
+        {headerRight && <div className="ml-auto">{headerRight}</div>}
+      </header>
       <div className="flex-1 min-h-0 overflow-hidden">{children}</div>
     </div>
   );
