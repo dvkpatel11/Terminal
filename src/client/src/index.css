@@ -88,6 +88,65 @@
   --muted-border: hsl(var(--muted));
   --accent-border: hsl(var(--accent));
   --destructive-border: hsl(var(--destructive));
+
+  /* ── Financial Terminal Token System ────────────────────────────────── */
+
+  /* Typography Scale (financial density) */
+  --text-terminal-xs: 0.625rem;   /* 10px - chrome only: ticker, status bar */
+  --text-terminal-sm: 0.6875rem;  /* 11px - panel labels, table headers */
+  --text-terminal-base: 0.75rem;  /* 12px - panel body, table cells */
+  --text-terminal-md: 0.8125rem;  /* 13px - PRIMARY body text (Bloomberg standard) */
+  --text-terminal-lg: 0.875rem;   /* 14px - emphasis, section headers */
+  --text-terminal-xl: 1rem;       /* 16px - panel titles, chart labels */
+
+  /* Semantic financial colors */
+  --color-positive: 142 71% 45%;       /* Green - price up, gain */
+  --color-positive-muted: 142 40% 18%; /* Green tint - positive background */
+  --color-negative: 0 80% 55%;         /* Red - price down, loss */
+  --color-negative-muted: 0 50% 15%;   /* Red tint - negative background */
+  --color-flat: 0 0% 55%;              /* Gray - unchanged */
+  --color-flat-muted: 0 0% 12%;        /* Gray tint - neutral background */
+
+  /* Category accent colors (refined) */
+  --color-market: 186 45% 50%;         /* Cyan - market views */
+  --color-market-muted: 186 30% 14%;   /* Cyan tint */
+  --color-macro: 38 70% 55%;           /* Amber - macro views */
+  --color-macro-muted: 38 40% 14%;     /* Amber tint */
+  --color-intel: 265 55% 55%;          /* Purple - intelligence views */
+  --color-intel-muted: 265 30% 14%;    /* Purple tint */
+
+  /* Alert/Status semantic colors */
+  --color-alert-critical: 0 80% 55%;   /* Red - critical alerts */
+  --color-alert-warning: 38 80% 55%;   /* Amber - warnings */
+  --color-alert-info: 186 45% 50%;     /* Cyan - informational */
+  --color-alert-success: 142 71% 45%;  /* Green - success/confirmed */
+
+  /* Surface refinements for data density */
+  --surface-data: #0d0d0d;             /* Data table backgrounds */
+  --surface-data-hover: #141414;        /* Table row hover */
+  --surface-data-active: #1a1a1a;       /* Table row selected */
+
+  /* Border system */
+  --border-subtle: 0 0% 12%;           /* Default dividers */
+  --border-data: 0 0% 16%;             /* Table borders */
+  --border-focus: 186 45% 50%;         /* Focus rings */
+
+  /* Spacing scale (4px base) */
+  --space-px: 1px;
+  --space-05: 0.125rem;   /* 2px */
+  --space-1: 0.25rem;     /* 4px */
+  --space-15: 0.375rem;   /* 6px */
+  --space-2: 0.5rem;      /* 8px */
+  --space-25: 0.625rem;   /* 10px */
+  --space-3: 0.75rem;     /* 12px */
+  --space-4: 1rem;        /* 16px */
+  --space-5: 1.25rem;     /* 20px */
+  --space-6: 1.5rem;      /* 24px */
+  --space-8: 2rem;        /* 32px */
+
+  /* Transitions */
+  --transition-color: 150ms ease;
+  --transition-transform: 150ms ease-out;
 }
 
 /* Terminal is always dark */
@@ -401,12 +460,53 @@
   .border.active-elevate-2:not(.no-active-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* Tabular numerals for price alignment */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Financial data text sizing */
+  .text-data { font-size: var(--text-terminal-base); }      /* 12px */
+  .text-data-md { font-size: var(--text-terminal-md); }     /* 13px */
+  .text-data-lg { font-size: var(--text-terminal-lg); }     /* 14px */
+  .text-data-xs { font-size: var(--text-terminal-xs); }     /* 10px */
+  .text-data-sm { font-size: var(--text-terminal-sm); }     /* 11px */
+
+  /* Financial sentiment utilities */
+  .text-positive { color: hsl(var(--color-positive)); }
+  .text-negative { color: hsl(var(--color-negative)); }
+  .text-flat { color: hsl(var(--color-flat)); }
+  .text-positive-muted { color: hsl(var(--color-positive-muted)); }
+  .text-negative-muted { color: hsl(var(--color-negative-muted)); }
+
+  .bg-positive-muted { background-color: hsl(var(--color-positive-muted)); }
+  .bg-negative-muted { background-color: hsl(var(--color-negative-muted)); }
+  .bg-flat-muted { background-color: hsl(var(--color-flat-muted)); }
+
+  .border-positive { border-color: hsl(var(--color-positive)); }
+  .border-negative { border-color: hsl(var(--color-negative)); }
+
+  /* Category accent utilities */
+  .text-market { color: hsl(var(--color-market)); }
+  .text-macro { color: hsl(var(--color-macro)); }
+  .text-intel { color: hsl(var(--color-intel)); }
+  .bg-market-muted { background-color: hsl(var(--color-market-muted)); }
+  .bg-macro-muted { background-color: hsl(var(--color-macro-muted)); }
+  .bg-intel-muted { background-color: hsl(var(--color-intel-muted)); }
+
+  /* Price change flash animation */
+  @keyframes flash-up {
+    0% { background-color: hsl(var(--color-positive-muted)); }
+    100% { background-color: transparent; }
+  }
+  @keyframes flash-down {
+    0% { background-color: hsl(var(--color-negative-muted)); }
+    100% { background-color: transparent; }
+  }
+  .flash-up { animation: flash-up 0.6s ease-out; }
+  .flash-down { animation: flash-down 0.6s ease-out; }
 }
 
-/* P4 readability: bump the smallest panel body text to >=10px.
-   Scoped to the workspace (<main>) so the dense terminal chrome — ticker tape,
-   status bar, sidebar, command palette — keeps its Bloomberg-style 8-9px.
-   Within panels, true metadata at 8-9px also becomes 10px, which is still
-   legible and avoids the eye-strain of sub-9px body copy. */
-main .text-\[8px\] { font-size: 10px !important; }
-main .text-\[9px\] { font-size: 10px !important; }
+
