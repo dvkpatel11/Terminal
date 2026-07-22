@@ -43,11 +43,11 @@ export default function AlertsPanel({ onSymbol }: Props) {
     <div className="h-full flex flex-col overflow-hidden bg-[#050505]">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-[#070707] shrink-0">
-        <BellRing className="w-4 h-4 text-[hsl(38,95%,55%)]" />
+        <BellRing className="w-4 h-4 text-[hsl(186,45%,55%)]" />
         <span className="panel-label">PRICE ALERTS</span>
         <span className="font-terminal text-[9px] text-[hsl(142,71%,45%)] ml-2">{active.length} ACTIVE</span>
         {triggered.length > 0 && (
-          <span className="font-terminal text-[9px] text-[hsl(38,95%,55%)] ml-1">{triggered.length} TRIGGERED</span>
+          <span className="font-terminal text-[9px] text-[hsl(186,45%,55%)] ml-1">{triggered.length} TRIGGERED</span>
         )}
       </div>
 
@@ -58,7 +58,7 @@ export default function AlertsPanel({ onSymbol }: Props) {
           value={sym}
           onChange={e => setSym(e.target.value.toUpperCase())}
           placeholder="TICKER"
-          className="w-20 bg-[#0d0d0d] border border-border px-2 py-1.5 font-terminal text-[10px] focus:outline-none focus:border-[hsl(38,95%,50%)/50%]"
+          className="w-20 bg-[#0d0d0d] border border-border px-2 py-1.5 font-terminal text-[10px] focus:outline-none focus:border-[hsl(186,45%,50%)/50%]"
           data-testid="alert-sym-input"
         />
         <select
@@ -76,13 +76,13 @@ export default function AlertsPanel({ onSymbol }: Props) {
           onChange={e => setPrice(e.target.value)}
           placeholder="0.00"
           step="0.01"
-          className="w-24 bg-[#0d0d0d] border border-border px-2 py-1.5 font-terminal text-[10px] focus:outline-none focus:border-[hsl(38,95%,50%)/50%]"
+          className="w-24 bg-[#0d0d0d] border border-border px-2 py-1.5 font-terminal text-[10px] focus:outline-none focus:border-[hsl(186,45%,50%)/50%]"
           data-testid="alert-price-input"
         />
         <button
           type="submit"
           disabled={!sym.trim() || !price || addMut.isPending}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-[hsl(38,95%,50%)/15%] border border-[hsl(38,95%,50%)/40%] font-terminal text-[10px] text-[hsl(38,95%,55%)] hover:bg-[hsl(38,95%,50%)/25%] disabled:opacity-40 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-[hsl(186,45%,50%)/15%] border border-[hsl(186,45%,50%)/40%] font-terminal text-[10px] text-[hsl(186,45%,55%)] hover:bg-[hsl(186,45%,50%)/25%] disabled:opacity-40 transition-colors"
           data-testid="alert-add-btn"
         >
           <Plus className="w-3 h-3" /> CREATE ALERT
@@ -108,7 +108,7 @@ export default function AlertsPanel({ onSymbol }: Props) {
                 {active.map(a => (
                   <div key={a.id} className="flex items-center gap-3 px-4 py-3 border-b border-border/50 hover:bg-white/5 group" data-testid={`alert-${a.id}`}>
                     <div className="w-2 h-2 rounded-full bg-[hsl(142,71%,45%)] animate-pulse shrink-0" />
-                    <button onClick={() => onSymbol(a.symbol)} className="font-terminal text-[11px] font-bold text-[hsl(38,95%,55%)] hover:underline">
+                    <button onClick={() => onSymbol(a.symbol)} className="font-terminal text-[11px] font-bold text-[hsl(186,45%,55%)] hover:underline">
                       {a.symbol}
                     </button>
                     <span className={`font-terminal text-[10px] ${a.condition === "above" ? "text-up" : "text-down"}`}>
@@ -128,7 +128,7 @@ export default function AlertsPanel({ onSymbol }: Props) {
             )}
             {triggered.length > 0 && (
               <div>
-                <div className="px-4 py-2 font-terminal text-[9px] tracking-widest text-[hsl(38,95%,55%)] border-b border-border bg-[#0a0a0a]">
+                <div className="px-4 py-2 font-terminal text-[9px] tracking-widest text-[hsl(186,45%,55%)] border-b border-border bg-[#0a0a0a]">
                   TRIGGERED
                 </div>
                 {triggered.map(a => (
@@ -137,9 +137,9 @@ export default function AlertsPanel({ onSymbol }: Props) {
                     <span className="font-terminal text-[11px] font-bold text-muted-foreground">{a.symbol}</span>
                     <span className="font-terminal text-[10px] text-muted-foreground">{a.condition === "above" ? "▲" : "▼"} ${a.price.toFixed(2)}</span>
                     {a.triggerPrice !== null && (
-                      <span className="font-terminal text-[10px] text-[hsl(38,95%,55%)]">LAST ${a.triggerPrice.toFixed(2)}</span>
+                      <span className="font-terminal text-[10px] text-[hsl(186,45%,55%)]">LAST ${a.triggerPrice.toFixed(2)}</span>
                     )}
-                    <span className="font-terminal text-[9px] text-[hsl(38,95%,55%)] ml-2">
+                    <span className="font-terminal text-[9px] text-[hsl(186,45%,55%)] ml-2">
                       {a.triggeredAt ? `TRIGGERED ${new Date(a.triggeredAt).toLocaleString()}` : "TRIGGERED"}
                     </span>
                     <button onClick={() => delMut.mutate(a.id)} className="ml-auto opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-[hsl(0,80%,60%)] transition-all">

@@ -13,20 +13,9 @@ interface Props {
   onSymbol: (sym: string) => void;
 }
 
-const DEFAULT_POSITIONS: Position[] = [
-  { id: 1, symbol: "AAPL", shares: 50, avgCost: 185.2 },
-  { id: 2, symbol: "MSFT", shares: 25, avgCost: 380.4 },
-  { id: 3, symbol: "NVDA", shares: 20, avgCost: 620 },
-  { id: 4, symbol: "TSLA", shares: 30, avgCost: 220.5 },
-  { id: 5, symbol: "META", shares: 15, avgCost: 480 },
-  { id: 6, symbol: "GOOGL", shares: 10, avgCost: 165 },
-  { id: 7, symbol: "JPM", shares: 40, avgCost: 215 },
-  { id: 8, symbol: "XOM", shares: 35, avgCost: 105 },
-];
-
 const ALLOCATION_COLORS = [
-  "hsl(38,95%,55%)",
-  "hsl(186,80%,55%)",
+  "hsl(186,45%,55%)",
+  "hsl(38,30%,55%)",
   "hsl(142,71%,45%)",
   "hsl(265,70%,65%)",
   "hsl(0,80%,55%)",
@@ -41,11 +30,11 @@ function formatMetric(value: number | null | undefined, suffix = "") {
 }
 
 export default function PortfolioPanel({ onSymbol }: Props) {
-  const [positions, setPositions] = useState<Position[]>(DEFAULT_POSITIONS);
+  const [positions, setPositions] = useState<Position[]>([]);
   const [addSym, setAddSym] = useState("");
   const [addShares, setAddShares] = useState("");
   const [addCost, setAddCost] = useState("");
-  const [nextId, setNextId] = useState(DEFAULT_POSITIONS.length + 1);
+  const [nextId, setNextId] = useState(1);
 
   const analyticsPositions = useMemo<PortfolioPositionInput[]>(() => {
     return positions.map(({ symbol, shares, avgCost }) => ({ symbol, shares, avgCost }));
@@ -112,7 +101,7 @@ export default function PortfolioPanel({ onSymbol }: Props) {
     <div className="h-full overflow-y-auto scrollbar-thin bg-[#050505]">
       <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-[#070707] sticky top-0 z-10">
         <div className="flex items-center gap-2">
-          <Briefcase className="w-4 h-4 text-[hsl(38,95%,55%)]" />
+          <Briefcase className="w-4 h-4 text-[hsl(186,45%,55%)]" />
           <span className="panel-label">PORTFOLIO</span>
         </div>
         <div className="text-right">
@@ -129,7 +118,7 @@ export default function PortfolioPanel({ onSymbol }: Props) {
           <input value={addSym} onChange={(event) => setAddSym(event.target.value.toUpperCase())} placeholder="TICKER" className="w-20 bg-[#0d0d0d] border border-border px-2 py-1 font-terminal text-[10px] focus:outline-none" />
           <input type="number" value={addShares} onChange={(event) => setAddShares(event.target.value)} placeholder="SHARES" className="w-20 bg-[#0d0d0d] border border-border px-2 py-1 font-terminal text-[10px] focus:outline-none" />
           <input type="number" value={addCost} onChange={(event) => setAddCost(event.target.value)} placeholder="AVG COST" step="0.01" className="w-24 bg-[#0d0d0d] border border-border px-2 py-1 font-terminal text-[10px] focus:outline-none" />
-          <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 bg-[hsl(38,95%,50%)/15%] border border-[hsl(38,95%,50%)/40%] font-terminal text-[10px] text-[hsl(38,95%,55%)] hover:bg-[hsl(38,95%,50%)/25%]">
+          <button type="submit" className="flex items-center gap-1.5 px-3 py-1.5 bg-[hsl(186,45%,50%)/15%] border border-[hsl(186,45%,50%)/40%] font-terminal text-[10px] text-[hsl(186,45%,55%)] hover:bg-[hsl(186,45%,50%)/25%]">
             <Plus className="w-3 h-3" /> ADD
           </button>
         </form>
@@ -167,8 +156,8 @@ export default function PortfolioPanel({ onSymbol }: Props) {
                   <XAxis dataKey="date" tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, fill: "hsl(0,0%,45%)" }} tickLine={false} axisLine={false} interval={4} />
                   <YAxis tick={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, fill: "hsl(0,0%,45%)" }} tickLine={false} axisLine={false} />
                   <Tooltip contentStyle={{ background: "#0d0d0d", border: "1px solid hsl(0,0%,13%)", fontFamily: "monospace", fontSize: 9 }} />
-                  <Line type="monotone" dataKey="portfolio" stroke="hsl(38,95%,55%)" strokeWidth={1.7} dot={false} name="Portfolio" />
-                  <Line type="monotone" dataKey="benchmark" stroke="hsl(186,80%,55%)" strokeWidth={1.5} dot={false} name={analytics.benchmarkSymbol} />
+                  <Line type="monotone" dataKey="portfolio" stroke="hsl(186,45%,55%)" strokeWidth={1.7} dot={false} name="Portfolio" />
+                  <Line type="monotone" dataKey="benchmark" stroke="hsl(38,30%,55%)" strokeWidth={1.5} dot={false} name={analytics.benchmarkSymbol} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -194,7 +183,14 @@ export default function PortfolioPanel({ onSymbol }: Props) {
               <span key={heading + index} className={index > 0 ? 'text-right' : ''}>{heading}</span>
             ))}
           </div>
-          {positionsWithValue.map((position) => {
+           {positionsWithValue.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10">
+              <Briefcase className="w-6 h-6 text-muted-foreground/30 mb-2" />
+              <span className="font-terminal text-[10px] text-muted-foreground/50 tracking-wider">NO POSITIONS</span>
+              <span className="font-terminal text-[8px] text-muted-foreground/30 mt-1">ADD A POSITION ABOVE TO TRACK YOUR PORTFOLIO</span>
+            </div>
+          ) : (
+            positionsWithValue.map((position) => {
             const weightPct = totalValue > 0 ? (position.value / totalValue) * 100 : 0;
             return (
               <div
@@ -202,7 +198,7 @@ export default function PortfolioPanel({ onSymbol }: Props) {
                 className="grid grid-cols-[2fr_1fr_1fr_1fr_1.5fr_1.5fr_1.5fr_1fr_auto] px-3 py-2.5 border-b border-border/50 hover:bg-white/5 group items-center cursor-pointer"
                 onClick={() => onSymbol(position.symbol)}
               >
-                <span className="font-terminal text-[11px] font-bold text-[hsl(38,95%,55%)]">{position.symbol}</span>
+                <span className="font-terminal text-[11px] font-bold text-[hsl(186,45%,55%)]">{position.symbol}</span>
                 <span className="font-terminal text-[10px] tabular-nums text-right">{position.shares}</span>
                 <span className="font-terminal text-[10px] tabular-nums text-right text-muted-foreground">${formatPrice(position.avgCost)}</span>
                 <span className="font-terminal text-[10px] tabular-nums text-right">${formatPrice(position.currentPrice)}</span>
@@ -219,7 +215,7 @@ export default function PortfolioPanel({ onSymbol }: Props) {
                 </button>
               </div>
             );
-          })}
+          }))}
         </div>
       </div>
     </div>

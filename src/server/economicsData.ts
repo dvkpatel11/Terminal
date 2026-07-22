@@ -1,5 +1,6 @@
 import { buildDataStatus, type DataStatus } from "./dataStatus";
 import { fetchText, getCached, setCached } from "./providerUtils";
+import { extendedStorage } from "./storage";
 
 export type EconomicEventCategory = "inflation" | "labor" | "growth" | "policy" | "consumption" | "activity" | "housing";
 export type EconomicEventImportance = "high" | "medium";
@@ -48,6 +49,26 @@ const DETAIL_TTL_MS = 60 * 60_000;
 
 const calendarCache = new Map<string, { expiresAt: number; value: EconomicCalendarEvent[] }>();
 const detailCache = new Map<string, { expiresAt: number; value: EconomicEventDetail }>();
+
+// ─── Database Persistence Helpers ─────────────────────────────────────────────
+async function persistEconomicEventsToDb(events: EconomicCalendarEvent[]): Promise<void> {
+  if (!extendedStorage || !events.length) return;
+  try {
+    for (const event of events.slice(0, 20)) {
+      await extendedStorage.persistEconomicEvent({
+        releaseId: event.releaseId,
+        title: event.title,
+        category: event.category,
+        importance: event.importance,
+        date: event.date,
+        timeCt: event.timeCt,
+        releaseUrl: event.releaseUrl,
+      });
+    }
+  } catch (e) {
+    console.error("Failed to persist economic events:", e);
+  }
+}
 
 const TRACKED_RELEASES: Array<{
   pattern: RegExp;
@@ -259,7 +280,12 @@ export async function getEconomicCalendar(now = new Date()) {
   if (cached) return cached;
 
   const html = await fetchText(`${FRED_BASE_URL}/releases/calendar?vs=${start}&ve=${end}`);
-  return setCached(calendarCache, cacheKey, parseFredCalendar(html), CALENDAR_TTL_MS);
+  const events = parseFredCalendar(html);
+  
+  // Persist to database (fire and forget)
+  persistEconomicEventsToDb(events).catch(() => {});
+  
+  return setCached(calendarCache, cacheKey, events, CALENDAR_TTL_MS);
 }
 
 export async function getEconomicEventDetail(releaseId: number, now = new Date()): Promise<EconomicEventDetail> {

@@ -1,6 +1,8 @@
 import { XMLParser } from "fast-xml-parser";
 import { buildDataStatus, type DataStatus } from "./dataStatus";
 import { fetchText, getCached, setCached } from "./providerUtils";
+import { fetchOpenBBFundamentals, fetchOpenBBOptions, fetchOpenBBYieldCurve } from "./openbbProvider";
+import { extendedStorage } from "./storage";
 
 export interface OHLCVBar {
   date: string;
@@ -32,6 +34,7 @@ export interface Quote {
   avgVolume: number;
   exchange: string;
   sector?: string;
+  assetClass?: string;
   quoteSource: string;
   isLive: boolean;
   status: DataStatus;
@@ -52,6 +55,7 @@ export interface NewsItem {
   publishedAt: string;
   sentiment: "positive" | "negative" | "neutral";
   status: DataStatus;
+  image?: string;
 }
 
 export interface NewsArticle {
@@ -120,9 +124,118 @@ const ARTICLE_TTL_MS = 15 * 60_000;
 const CATALOG_FALLBACK_SOURCE = "Reference fallback";
 
 const quoteCache = new Map<string, { expiresAt: number; value: Quote }>();
+// 52-week ranges change slowly — cache for an hour to limit CoinGecko calls.
+const cryptoRangeCache = new Map<string, { expiresAt: number; value: { high: number; low: number } }>();
+const CRYPTO_RANGE_TTL_MS = 60 * 60_000;
 const historyCache = new Map<string, { expiresAt: number; value: OHLCVBar[] }>();
 const newsCache = new Map<string, { expiresAt: number; value: NewsItem[] }>();
 const articleCache = new Map<string, { expiresAt: number; value: NewsArticle }>();
+
+// ─── Database Persistence Helpers ─────────────────────────────────────────────
+async function persistQuoteToDb(quote: Quote): Promise<void> {
+  if (!extendedStorage) return;
+  try {
+    const instrument = await extendedStorage.getInstrumentBySymbol(quote.symbol);
+    if (!instrument) return;
+    await extendedStorage.persistQuote({
+      instrumentId: instrument.id,
+      symbol: quote.symbol,
+      price: quote.price,
+      open: quote.open,
+      high: quote.dayHigh,
+      low: quote.dayLow,
+      close: quote.price,
+      volume: quote.volume,
+      change: quote.change,
+      changePercent: quote.changePercent,
+      marketCap: quote.marketCap,
+      pe: quote.pe,
+      eps: quote.eps,
+      high52: quote.high52,
+      low52: quote.low52,
+      quoteSource: quote.quoteSource,
+      isLive: quote.isLive,
+    });
+  } catch (e) {
+    console.error(`Failed to persist quote for ${quote.symbol}:`, e);
+  }
+}
+
+async function persistOhlcvToDb(symbol: string, bars: OHLCVBar[], interval: OhlcvInterval): Promise<void> {
+  if (!extendedStorage || !bars.length) return;
+  try {
+    const instrument = await extendedStorage.getInstrumentBySymbol(symbol);
+    if (!instrument) return;
+    
+    const lastBar = bars[bars.length - 1];
+    const existing = await extendedStorage.getOhlcvHistory(instrument.id, interval, 1);
+    const lastExistingDate = existing[0]?.date;
+    
+    const newBars = lastExistingDate
+      ? bars.filter(bar => bar.date > lastExistingDate)
+      : bars.slice(-30);
+    
+    if (newBars.length > 0) {
+      await extendedStorage.persistOhlcvBars(newBars.map(bar => ({
+        instrumentId: instrument.id,
+        symbol,
+        date: bar.date,
+        interval,
+        open: bar.open,
+        high: bar.high,
+        low: bar.low,
+        close: bar.close,
+        volume: bar.volume,
+      })));
+    }
+  } catch (e) {
+    console.error(`Failed to persist OHLCV for ${symbol}:`, e);
+  }
+}
+
+async function persistNewsToDb(items: NewsItem[]): Promise<void> {
+  if (!extendedStorage || !items.length) return;
+  try {
+    for (const item of items.slice(0, 10)) {
+      const existing = await extendedStorage.getRecentNews(1);
+      if (existing[0]?.url === item.url) continue;
+      
+      const persisted = await extendedStorage.persistNewsItem({
+        title: item.title,
+        summary: item.summary,
+        url: item.url,
+        source: item.source,
+        feedProvider: item.feedProvider,
+        publishedAt: item.publishedAt,
+        sentiment: item.sentiment,
+        image: item.image,
+      });
+      
+      if (persisted) {
+        const symbols = extractSymbolsFromNews(item.title, item.summary);
+        for (const sym of symbols) {
+          const instrument = await extendedStorage.getInstrumentBySymbol(sym);
+          if (instrument) {
+            await extendedStorage.linkNewsToInstrument(persisted.id, instrument.id);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Failed to persist news:", e);
+  }
+}
+
+function extractSymbolsFromNews(title: string, summary: string): string[] {
+  const text = `${title} ${summary}`.toUpperCase();
+  const symbols: string[] = [];
+  for (const sym of Object.keys(PROFILE_CATALOG)) {
+    if (text.includes(sym) || text.includes(PROFILE_CATALOG[sym].name.toUpperCase().split(" ")[0])) {
+      symbols.push(sym);
+    }
+  }
+  return symbols.slice(0, 5);
+}
 
 const POSITIVE_WORDS = [
   "beat", "beats", "surge", "surges", "jump", "jumps", "rally", "rallies", "gain", "gains",
@@ -175,16 +288,47 @@ const PROFILE_CATALOG: Record<string, InstrumentProfile> = {
   SPY: { name: "SPDR S&P 500 ETF", exchange: "ARCA", sector: "ETF", referencePrice: 581, assetClass: "etf" },
   QQQ: { name: "Invesco QQQ Trust", exchange: "NASDAQ", sector: "ETF", referencePrice: 492, assetClass: "etf" },
   IWM: { name: "iShares Russell 2000 ETF", exchange: "ARCA", sector: "ETF", referencePrice: 249, assetClass: "etf" },
+  DIA: { name: "SPDR Dow Jones Industrial Average ETF", exchange: "ARCA", sector: "ETF", referencePrice: 432, assetClass: "etf" },
+  XLK: { name: "Technology Select Sector SPDR Fund", exchange: "ARCA", sector: "Technology", referencePrice: 220, assetClass: "etf" },
+  XLV: { name: "Health Care Select Sector SPDR Fund", exchange: "ARCA", sector: "Healthcare", referencePrice: 145, assetClass: "etf" },
+  XLF: { name: "Financial Select Sector SPDR Fund", exchange: "ARCA", sector: "Financial Services", referencePrice: 44, assetClass: "etf" },
+  XLE: { name: "Energy Select Sector SPDR Fund", exchange: "ARCA", sector: "Energy", referencePrice: 88, assetClass: "etf" },
+  XLI: { name: "Industrial Select Sector SPDR Fund", exchange: "ARCA", sector: "Industrials", referencePrice: 118, assetClass: "etf" },
+  XLC: { name: "Communication Services Select SPDR Fund", exchange: "ARCA", sector: "Communication Services", referencePrice: 85, assetClass: "etf" },
+  XLP: { name: "Consumer Staples Select Sector SPDR Fund", exchange: "ARCA", sector: "Consumer Defensive", referencePrice: 80, assetClass: "etf" },
+  XLU: { name: "Utilities Select Sector SPDR Fund", exchange: "ARCA", sector: "Utilities", referencePrice: 74, assetClass: "etf" },
+  XLRE: { name: "Real Estate Select Sector SPDR Fund", exchange: "ARCA", sector: "Real Estate", referencePrice: 42, assetClass: "etf" },
+  XLB: { name: "Materials Select Sector SPDR Fund", exchange: "ARCA", sector: "Basic Materials", referencePrice: 88, assetClass: "etf" },
+  XLY: { name: "Consumer Discretionary Select Sector SPDR Fund", exchange: "ARCA", sector: "Consumer Cyclical", referencePrice: 195, assetClass: "etf" },
   "^GSPC": { name: "S&P 500", exchange: "INDEX", sector: "Index", referencePrice: 5780, assetClass: "index" },
-  "^DJI": { name: "Dow Jones", exchange: "INDEX", sector: "Index", referencePrice: 43250, assetClass: "index" },
+  "^DJI": { name: "Dow Jones Industrial Average", exchange: "INDEX", sector: "Index", referencePrice: 43250, assetClass: "index" },
   "^IXIC": { name: "NASDAQ Composite", exchange: "INDEX", sector: "Index", referencePrice: 18450, assetClass: "index" },
   "^RUT": { name: "Russell 2000", exchange: "INDEX", sector: "Index", referencePrice: 2180, assetClass: "index" },
-  "^VIX": { name: "CBOE Volatility Index", exchange: "CBOE", sector: "Index", referencePrice: 17.5, assetClass: "index" },
+  "^VIX": { name: "CBOE Volatility Index", exchange: "CBOE", sector: "Volatility", referencePrice: 17.5, assetClass: "index" },
+  "^NYA": { name: "NYSE Composite", exchange: "INDEX", sector: "Index", referencePrice: 19800, assetClass: "index" },
+  "^FTSE": { name: "FTSE 100", exchange: "INDEX", sector: "Index", referencePrice: 8200, assetClass: "index" },
+  "^GDAXI": { name: "DAX", exchange: "INDEX", sector: "Index", referencePrice: 18500, assetClass: "index" },
+  "^N225": { name: "Nikkei 225", exchange: "INDEX", sector: "Index", referencePrice: 39500, assetClass: "index" },
   "GC=F": { name: "Gold Futures", exchange: "COMEX", sector: "Commodity", referencePrice: 2985, assetClass: "commodity" },
   "CL=F": { name: "Crude Oil WTI", exchange: "NYMEX", sector: "Commodity", referencePrice: 68.4, assetClass: "commodity" },
+  "ADA-USD": { name: "Cardano USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "cardano" },
+  "AUDUSD": { name: "Australian Dollar / US Dollar", exchange: "FX", sector: "Forex", assetClass: "forex" },
+  "AVAX-USD": { name: "Avalanche USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "avalanche-2" },
   "BTC-USD": { name: "Bitcoin USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "bitcoin" },
+  "DOGE-USD": { name: "Dogecoin USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "dogecoin" },
+  "DOT-USD": { name: "Polkadot USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "polkadot" },
   "ETH-USD": { name: "Ethereum USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "ethereum" },
+  "EURUSD": { name: "Euro / US Dollar", exchange: "FX", sector: "Forex", assetClass: "forex" },
+  "GBPUSD": { name: "British Pound / US Dollar", exchange: "FX", sector: "Forex", assetClass: "forex" },
+  "LINK-USD": { name: "Chainlink USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "chainlink" },
+  "LTC-USD": { name: "Litecoin USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "litecoin" },
+  "MATIC-USD": { name: "Polygon USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "matic-network" },
+  "NZDUSD": { name: "New Zealand Dollar / US Dollar", exchange: "FX", sector: "Forex", assetClass: "forex" },
   "SOL-USD": { name: "Solana USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "solana" },
+  "UNI-USD": { name: "Uniswap USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "uniswap" },
+  "USDCAD": { name: "US Dollar / Canadian Dollar", exchange: "FX", sector: "Forex", assetClass: "forex" },
+  "USDCHF": { name: "US Dollar / Swiss Franc", exchange: "FX", sector: "Forex", assetClass: "forex" },
+  "USDJPY": { name: "US Dollar / Japanese Yen", exchange: "FX", sector: "Forex", assetClass: "forex" },
   "XRP-USD": { name: "XRP USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "ripple" },
 };
 
@@ -210,8 +354,48 @@ const PEER_MAP: Record<string, string[]> = {
 const GENERAL_NEWS_FEEDS: RssFeedConfig[] = [
   { url: "https://www.cnbc.com/id/100003114/device/rss/rss.html", fallbackSource: "CNBC" },
   { url: "https://www.coindesk.com/arc/outboundfeeds/rss/", fallbackSource: "CoinDesk" },
+  { url: "https://finance.yahoo.com/news/rssindex", fallbackSource: "Yahoo Finance" },
   { url: buildGoogleNewsSearchUrl("stock market OR federal reserve OR earnings OR inflation OR bitcoin when:2d"), fallbackSource: "Google News" },
 ];
+
+function getAllUniqueSources(): RssFeedConfig[] {
+  const seen = new Map<string, RssFeedConfig>();
+  for (const feed of GENERAL_NEWS_FEEDS) {
+    if (!seen.has(feed.fallbackSource)) seen.set(feed.fallbackSource, feed);
+  }
+  return Array.from(seen.values());
+}
+
+export async function testNewsSource(url: string): Promise<{ ok: boolean; latency: number; statusCode: number }> {
+  const start = Date.now();
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    return { ok: response.ok, latency: Date.now() - start, statusCode: response.status };
+  } catch {
+    return { ok: false, latency: Date.now() - start, statusCode: 0 };
+  }
+}
+
+export async function getNewsSourceStatuses() {
+  const sources = getAllUniqueSources();
+  const results = await Promise.allSettled(sources.map(async (source) => {
+    const test = await testNewsSource(source.url);
+    return { name: source.fallbackSource, url: source.url, ...test };
+  }));
+  return results.map((r, i) =>
+    r.status === "fulfilled" ? r.value : { name: sources[i].fallbackSource, url: sources[i].url, ok: false, latency: 0, statusCode: 0 }
+  );
+}
+
+export async function fetchNewsSourceContent(url: string): Promise<{ ok: boolean; statusCode: number; body: string }> {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    const text = await response.text();
+    return { ok: response.ok, statusCode: response.status, body: text.slice(0, 2000) };
+  } catch (e) {
+    return { ok: false, statusCode: 0, body: e instanceof Error ? e.message : String(e) };
+  }
+}
 
 function round(value: number, digits = 2) {
   const factor = 10 ** digits;
@@ -368,8 +552,12 @@ function mapToStooqSymbol(symbol: string) {
   if (upper === "^RUT") return "iwm.us";
   if (upper === "GC=F") return "gc.f";
   if (upper === "CL=F") return "cl.f";
+  if (upper === "AUDUSD") return "audusd";
   if (upper === "EURUSD") return "eurusd";
   if (upper === "GBPUSD") return "gbpusd";
+  if (upper === "NZDUSD") return "nzdusd";
+  if (upper === "USDCAD") return "usdcad";
+  if (upper === "USDCHF") return "usdchf";
   if (upper === "USDJPY") return "usdjpy";
   if (upper.endsWith("-USD")) return null;
   if (upper.startsWith("^")) return upper.toLowerCase();
@@ -395,13 +583,15 @@ function getRangeDays(range: string) {
 }
 
 
-async function fetchJson<T>(url: string) {
-  const response = await fetch(url, {
+async function fetchJson<T>(url: string, timeoutMs?: number) {
+  const init: RequestInit = {
     headers: {
       "User-Agent": "blmtrm/1.0",
       Accept: "application/json,text/plain;q=0.9,*/*;q=0.8",
     },
-  });
+  };
+  if (timeoutMs) init.signal = AbortSignal.timeout(timeoutMs);
+  const response = await fetch(url, init);
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status} ${response.statusText} for ${url}`);
   }
@@ -661,6 +851,7 @@ export function buildQuoteFromSnapshot({ symbol, provider, profile, current, his
     avgVolume,
     exchange: profile?.exchange ?? "UNKNOWN",
     sector: profile?.sector,
+    assetClass: profile?.assetClass,
     quoteSource: provider,
     isLive,
     status: resolvedStatus,
@@ -685,6 +876,12 @@ export function parseNewsFeed(xml: string, fallbackSource: string): NewsItem[] {
       const publishedAt = new Date(String(item?.pubDate ?? item?.published ?? item?.updated ?? Date.now())).toISOString();
       if (!title || !url) return null;
 
+      const mediaContent = item?.["media:content"];
+      const enclosure = item?.enclosure;
+      const imageUrl = typeof mediaContent?.url === "string" ? mediaContent.url
+        : typeof enclosure?.url === "string" ? enclosure.url
+        : undefined;
+
       return {
         title,
         summary,
@@ -698,6 +895,7 @@ export function parseNewsFeed(xml: string, fallbackSource: string): NewsItem[] {
           freshness: "feed",
           asOf: publishedAt,
         }),
+        ...(imageUrl ? { image: imageUrl } : {}),
       };
     })
     .filter((item): item is NewsItem => Boolean(item));
@@ -780,6 +978,33 @@ async function getVixQuote(): Promise<Quote> {
   }
 }
 
+/**
+ * Fetch the real 52-week high/low for a CoinGecko id from its 1y daily
+ * market chart. CoinGecko's simple/price endpoint does not expose this.
+ */
+async function getCryptoYearRange(id: string, attempt = 0): Promise<{ high: number; low: number } | null> {
+  const cacheKey = `range:${id}`;
+  const cached = getCached(cryptoRangeCache, cacheKey);
+  if (cached) return cached;
+  if (attempt >= 3) return null;
+
+  try {
+    const url = `https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=365&interval=daily`;
+    const data = await fetchJson<{ prices: [number, number][] }>(url, 8000);
+    const prices = (data.prices ?? [])
+      .map((point) => point?.[1])
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+    if (!prices.length) return null;
+    const range = { high: round(Math.max(...prices)), low: round(Math.min(...prices)) };
+    return setCached(cryptoRangeCache, cacheKey, range, CRYPTO_RANGE_TTL_MS);
+  } catch {
+    // CoinGecko free tier rate-limits; back off and retry so the 52w
+    // range populates once the limit resets (it is cached for an hour).
+    await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
+    return getCryptoYearRange(id, attempt + 1);
+  }
+}
+
 async function getCoinGeckoQuotes(symbols: string[]): Promise<Map<string, Quote>> {
   const results = new Map<string, Quote>();
   const requested = symbols.filter((symbol) => getProfile(symbol)?.coinGeckoId);
@@ -794,11 +1019,11 @@ async function getCoinGeckoQuotes(symbols: string[]): Promise<Map<string, Quote>
 
   if (!uncached.length) return results;
 
-  try {
-    const ids = uncached
-      .map((symbol) => getProfile(symbol)?.coinGeckoId)
-      .filter((id): id is string => Boolean(id));
+  const ids = uncached
+    .map((symbol) => getProfile(symbol)?.coinGeckoId)
+    .filter((id): id is string => Boolean(id));
 
+  try {
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(",")}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`;
     const payload = await fetchJson<Record<string, { usd: number; usd_market_cap?: number; usd_24h_vol?: number; usd_24h_change?: number }>>(url);
 
@@ -814,6 +1039,9 @@ async function getCoinGeckoQuotes(symbols: string[]): Promise<Map<string, Quote>
       const previousClose = data.usd / (1 + ((data.usd_24h_change ?? 0) / 100));
       const change = data.usd - previousClose;
       const asOf = new Date().toISOString();
+      // 52w range is refreshed in the background (see below) to keep the
+      // quote request fast; use the cached value if we already have one.
+      const range = id ? getCached(cryptoRangeCache, `range:${id}`) : undefined;
       const quote: Quote = {
         symbol,
         name: profile.name,
@@ -824,8 +1052,8 @@ async function getCoinGeckoQuotes(symbols: string[]): Promise<Map<string, Quote>
         marketCap: data.usd_market_cap ?? null,
         pe: null,
         eps: null,
-        high52: round(data.usd),
-        low52: round(data.usd),
+        high52: range?.high ?? 0,
+        low52: range?.low ?? 0,
         open: round(previousClose),
         previousClose: round(previousClose),
         dayHigh: round(data.usd),
@@ -842,6 +1070,15 @@ async function getCoinGeckoQuotes(symbols: string[]): Promise<Map<string, Quote>
         }),
       };
       results.set(symbol, setCached(quoteCache, `quote:${symbol}`, quote, QUOTE_TTL_MS));
+    }
+
+    // Background: populate 52w ranges without blocking this response.
+    // Sequential (not a parallel burst) to stay under CoinGecko's rate limit.
+    let chain: Promise<unknown> = Promise.resolve();
+    for (const id of ids) {
+      if (!getCached(cryptoRangeCache, `range:${id}`)) {
+        chain = chain.then(() => getCryptoYearRange(id).catch(() => {}));
+      }
     }
   } catch {
     for (const symbol of uncached) {
@@ -902,16 +1139,16 @@ async function getStooqQuote(symbol: string): Promise<Quote> {
     const snapshot = parseStooqCurrent(currentCsv);
     const quote = buildQuoteFromSnapshot({
       symbol,
-      provider: symbol === "^RUT" ? "Stooq daily fallback (IWM proxy)" : "Stooq daily fallback",
+      provider: symbol === "^RUT" ? "Stooq delayed (IWM proxy)" : "Stooq delayed",
       profile: getProfile(symbol),
       current: snapshot,
       history,
       isLive: false,
       status: buildDataStatus({
-        provider: symbol === "^RUT" ? "Stooq daily fallback (IWM proxy)" : "Stooq daily fallback",
-        freshness: "daily",
+        provider: symbol === "^RUT" ? "Stooq delayed (IWM proxy)" : "Stooq delayed",
+        freshness: "delayed",
         asOf: toSnapshotAsOf(snapshot),
-        delayLabel: "Daily fallback",
+        delayLabel: "15-min delayed via Stooq",
         isFallback: true,
       }),
     });
@@ -970,10 +1207,15 @@ export async function getQuotes(symbols: string[]): Promise<Quote[]> {
     quotes.push(await getYahooQuote(symbol));
   }
 
-  return [
+  const allQuotes = [
     ...quotes,
     ...cryptoSymbols.map((symbol) => cryptoQuotes.get(symbol) ?? buildReferenceFallbackQuote(symbol)),
   ];
+
+  // Persist quotes to database (fire and forget)
+  Promise.all(allQuotes.map(persistQuoteToDb)).catch(() => {});
+
+  return allQuotes;
 }
 
 export async function getOHLCV(symbol: string, range = "1Y", interval: OhlcvInterval = "1d"): Promise<OHLCVBar[]> {
@@ -984,6 +1226,8 @@ export async function getOHLCV(symbol: string, range = "1Y", interval: OhlcvInte
   if (cached) return cached;
 
   try {
+    let bars: OHLCVBar[];
+    
     if (getProfile(upper)?.assetClass === "crypto") {
       const id = getProfile(upper)?.coinGeckoId;
       if (!id) return [];
@@ -996,17 +1240,19 @@ export async function getOHLCV(symbol: string, range = "1Y", interval: OhlcvInte
         price,
         volume: payload.total_volumes[index]?.[1] ?? 0,
       }));
-      const bars = aggregatePricePoints(points, interval);
-      return setCached(historyCache, cacheKey, bars, HISTORY_TTL_MS);
+      bars = aggregatePricePoints(points, interval);
+    } else {
+      const rawBars = parseYahooChart(await fetchYahooChart(upper, range, interval), interval);
+      if (!rawBars.length) {
+        throw new Error(`Yahoo Finance returned no OHLCV data for ${upper}`);
+      }
+      bars = interval === "1d" ? rawBars.slice(-days) : rawBars;
     }
 
-    const bars = parseYahooChart(await fetchYahooChart(upper, range, interval), interval);
-    if (!bars.length) {
-      throw new Error(`Yahoo Finance returned no OHLCV data for ${upper}`);
-    }
+    // Persist to database (fire and forget)
+    persistOhlcvToDb(upper, bars, interval).catch(() => {});
 
-    const trimmed = interval === "1d" ? bars.slice(-days) : bars;
-    return setCached(historyCache, cacheKey, trimmed, HISTORY_TTL_MS);
+    return setCached(historyCache, cacheKey, bars, HISTORY_TTL_MS);
   } catch {
     if (interval !== "1d") return cached ?? [];
     const history = await getStooqHistory(upper);
@@ -1029,11 +1275,23 @@ export async function getOHLCVSeries(symbol: string, range = "1Y", interval: Ohl
 }
 
 export async function getIndexSparklines(): Promise<Record<string, number[]>> {
-  const symbols = ["^GSPC", "^DJI", "^IXIC", "^RUT", "^VIX"];
+  const symbols = [
+    "^GSPC", "^DJI", "^IXIC", "^RUT", "^GSPTSE", "^BVSP",
+    "^FTSE", "^GDAXI", "^FCHI", "^STOXX50E", "^SSMI",
+    "^N225", "^HSI", "000001.SS", "^BSESN", "^AXJO", "^KS11",
+    "BTC-USD",
+  ];
   const result: Record<string, number[]> = {};
-  for (const symbol of symbols) {
-    const bars = await getOHLCV(symbol, "3M");
-    result[symbol] = bars.slice(-30).map((bar) => bar.close);
+  const entries = await Promise.allSettled(
+    symbols.map(async (symbol) => {
+      const bars = await getOHLCV(symbol, "3M");
+      return { symbol, data: bars.slice(-30).map((bar) => bar.close) };
+    }),
+  );
+  for (const entry of entries) {
+    if (entry.status === "fulfilled" && entry.value.data.length > 0) {
+      result[entry.value.symbol] = entry.value.data;
+    }
   }
   return result;
 }
@@ -1079,6 +1337,10 @@ function buildSymbolNewsFeeds(symbol: string): RssFeedConfig[] {
       url: "https://www.cnbc.com/id/100003114/device/rss/rss.html",
       fallbackSource: "CNBC",
     },
+    {
+      url: `https://finance.yahoo.com/rss/headline?s=${symbol}`,
+      fallbackSource: "Yahoo Finance",
+    },
   ];
 }
 
@@ -1121,7 +1383,12 @@ export async function getNews(symbol?: string, query?: string): Promise<NewsItem
     items = await fetchNewsFeeds("news:market", GENERAL_NEWS_FEEDS);
   }
 
-  return filterNewsItems(items, query);
+  const filtered = filterNewsItems(items, query);
+  
+  // Persist news to database (fire and forget)
+  persistNewsToDb(filtered).catch(() => {});
+
+  return filtered;
 }
 
 export async function getNewsArticle(input: {
@@ -1236,3 +1503,81 @@ export async function getEconomicsSnapshot() {
     }),
   };
 }
+
+export async function getFundamentals(symbol: string) {
+  const cacheKey = `fundamentals:${symbol.toUpperCase()}`;
+  const cached = getCached(fundamentalsCache, cacheKey);
+  if (cached) return cached;
+
+  try {
+    const data = await fetchOpenBBFundamentals(symbol);
+    const camel: Record<string, any> = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (k === "income_statement") {
+        camel["incomeStatement"] = v;
+      } else {
+        camel[k] = v;
+      }
+    }
+    camel.status = buildDataStatus({ provider: "OpenBB", freshness: "reference" });
+    return setCached(fundamentalsCache, cacheKey, camel, 5 * 60_000);
+  } catch (error) {
+    console.error(`OpenBB fundamentals error for ${symbol}:`, error);
+    return {
+      status: buildDataStatus({ provider: "OpenBB", freshness: "reference", isFallback: true }),
+    };
+  }
+}
+
+export async function getOptionsChain(symbol: string) {
+  const cacheKey = `options:${symbol.toUpperCase()}`;
+  const cached = getCached(optionsCache, cacheKey);
+  if (cached) return cached;
+
+  try {
+    const data = await fetchOpenBBOptions(symbol);
+    const contracts = (data.contracts ?? []).map((c: Record<string, any>) => ({
+      symbol: c.symbol,
+      expiration: c.expiration,
+      strike: c.strike,
+      optionType: c.option_type,
+      bid: c.bid,
+      ask: c.ask,
+      lastPrice: c.last_price,
+      change: c.change,
+      changePercent: c.change_percent,
+      volume: c.volume,
+      openInterest: c.open_interest,
+      impliedVolatility: c.implied_volatility,
+      inTheMoney: c.in_the_money,
+    }));
+    const result = {
+      underlyingPrice: data.underlying_price,
+      contracts,
+      status: buildDataStatus({ provider: "OpenBB", freshness: "reference" }),
+    };
+    return setCached(optionsCache, cacheKey, result, 5 * 60_000);
+  } catch (error) {
+    console.error(`OpenBB options error for ${symbol}:`, error);
+    return { underlyingPrice: 0, contracts: [], status: buildDataStatus({ provider: "OpenBB", freshness: "reference", isFallback: true }) };
+  }
+}
+
+export async function getYieldCurve() {
+  const cacheKey = "yield-curve";
+  const cached = getCached(yieldCurveCache, cacheKey);
+  if (cached) return cached;
+
+  try {
+    const data = await fetchOpenBBYieldCurve();
+    return setCached(yieldCurveCache, cacheKey, data, 60 * 60_000); // 1 hour cache
+  } catch (error) {
+    console.error("OpenBB yield curve error:", error);
+    return [];
+  }
+}
+
+// Caches for new data types
+const fundamentalsCache = new Map<string, { expiresAt: number; value: any }>();
+const optionsCache = new Map<string, { expiresAt: number; value: any }>();
+const yieldCurveCache = new Map<string, { expiresAt: number; value: any }>();

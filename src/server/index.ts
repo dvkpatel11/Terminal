@@ -1,11 +1,16 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { getServerListenOptions } from "./listenConfig";
-import { createAlertMonitor, runAlertEvaluationCycle } from "./alertMonitor";
+import { createAlertMonitor, runAlertEvaluationCycle, runSymbolCycle } from "./alertMonitor";
 import { storage } from "./storage";
 import { getQuotes } from "./marketData";
+import { startOpenBBServer } from "./openbbProvider";
+import { createQuoteBus, type QuoteBus } from "./realtime/quoteBus";
+import { startFinnhub, type CryptoSymbolMap } from "./realtime/finnhubWs";
+import { startBinance, type BinanceSymbolMap } from "./realtime/binanceWs";
 
 const app = express();
 const httpServer = createServer(app);
@@ -64,7 +69,81 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await registerRoutes(httpServer, app);
+  startOpenBBServer();
+
+  // ── Realtime quote bus + Finnhub WebSocket ──
+  // The bus is the single source of truth for live prices. Finnhub
+  // streams ticks into it; the alert engine reads from it (no poll), and
+  // the client WS (attached in registerRoutes) broadcasts deltas.
+  const bus = createQuoteBus();
+  let finnhubStop: (() => void) | null = null;
+
+  // Finnhub free tier caps the stream at ~25 symbols. Crypto is covered by
+  // the keyless Binance WS, so we only stream a curated equity set here.
+  const FINNHUB_EQUITIES = [
+    "AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "META", "BRK-B",
+    "JPM", "BAC", "GS", "MS", "V", "MA", "XOM", "CVX", "UNH", "JNJ",
+    "KO", "PEP", "WMT", "HD", "DIS", "NFLX", "AMD",
+  ];
+
+  const FINNHUB_CRYPTO: CryptoSymbolMap = {};
+
+  if (process.env.FINNHUB_API_KEY) {
+    finnhubStop = startFinnhub({
+      bus,
+      token: process.env.FINNHUB_API_KEY,
+      equitySymbols: FINNHUB_EQUITIES,
+      cryptoMap: FINNHUB_CRYPTO,
+    }).stop;
+  } else {
+    console.warn("[finnhub] FINNHUB_API_KEY not set — alerts fall back to 15s poll");
+  }
+
+  // Binance public WS: genuinely realtime crypto with NO API key. Always on.
+  const BINANCE_CRYPTO: BinanceSymbolMap = {
+    "BTC-USD": "btcusdt",
+    "ETH-USD": "ethusdt",
+    "SOL-USD": "solusdt",
+    "XRP-USD": "xrpusdt",
+  };
+  const binanceStop = startBinance({ bus, symbolMap: BINANCE_CRYPTO }).stop;
+
+  // Alerts: evaluate against live bus prices when available, else the
+  // existing polling provider. On a live tick, fire responsively.
+  const alertDeps = {
+    loadAlerts: async () => {
+      const alerts = await storage.getAlerts();
+      return alerts.map((alert) => ({
+        id: alert.id,
+        symbol: alert.symbol,
+        condition: alert.condition as "above" | "below",
+        price: alert.price,
+        triggered: alert.triggered,
+      }));
+    },
+    fetchQuotes: async (symbols: string[]) => {
+      const fromBus = bus.getQuotes(symbols);
+      const busSet = new Set(fromBus.map((q) => q.symbol));
+      const missing = symbols.filter((s) => !busSet.has(s.toUpperCase()));
+      const fromNet = missing.length
+        ? (await getQuotes(missing)).map((q) => ({ symbol: q.symbol, price: q.price }))
+        : [];
+      return [...fromBus, ...fromNet];
+    },
+    triggerAlert: (id: number, details: { triggerPrice: number; triggeredAt: Date }) =>
+      storage.triggerAlert(id, details),
+  };
+
+  const lastSymbolCycle = new Map<string, number>();
+  const busUnsub = bus.subscribe((update) => {
+    const now = Date.now();
+    const last = lastSymbolCycle.get(update.symbol) ?? 0;
+    if (now - last < 1000) return; // throttle: max 1 eval/sec/symbol
+    lastSymbolCycle.set(update.symbol, now);
+    void runSymbolCycle(alertDeps, update.symbol, update.price);
+  });
+
+  await registerRoutes(httpServer, app, bus);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -97,25 +176,15 @@ app.use((req, res, next) => {
   httpServer.listen(getServerListenOptions(port), () => {
     log(`serving on port ${port}`);
 
-  createAlertMonitor(
-    async () => runAlertEvaluationCycle({
-      loadAlerts: async () => {
-        const alerts = await storage.getAlerts();
-        return alerts.map((alert) => ({
-          id: alert.id,
-          symbol: alert.symbol,
-          condition: alert.condition as "above" | "below",
-          price: alert.price,
-          triggered: alert.triggered,
-        }));
-      },
-      fetchQuotes: async (symbols) => {
-        const quotes = await getQuotes(symbols);
-        return quotes.map((quote) => ({ symbol: quote.symbol, price: quote.price }));
-      },
-      triggerAlert: (id, details) => storage.triggerAlert(id, details),
-    }),
-    15_000,
-  );
+    createAlertMonitor(async () => runAlertEvaluationCycle(alertDeps), 15_000);
   });
+
+  const shutdown = () => {
+    finnhubStop?.();
+    binanceStop();
+    busUnsub();
+    httpServer.close(() => process.exit(0));
+  };
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 })();

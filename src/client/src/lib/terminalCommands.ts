@@ -1,39 +1,11 @@
 import type { ViewMode } from "./terminalTypes";
+import { VIEW_ALIASES } from "./panelRegistry";
 
 export interface ParsedTerminalCommand {
   raw: string;
   symbol?: string;
   view: ViewMode;
 }
-
-const VIEW_ALIASES: Record<string, ViewMode> = {
-  MRKT: "market",
-  MARKET: "market",
-  DES: "quote",
-  QUOTE: "quote",
-  GP: "chart",
-  CHRT: "chart",
-  CHART: "chart",
-  NEWS: "news",
-  N: "news",
-  AI: "agent",
-  AGENT: "agent",
-  EQS: "screener",
-  SCRN: "screener",
-  SCREENER: "screener",
-  WATCH: "watchlist",
-  WLT: "watchlist",
-  WATCHLIST: "watchlist",
-  ALRT: "alerts",
-  MON: "alerts",
-  ALERTS: "alerts",
-  ECON: "economics",
-  ECST: "economics",
-  ECONOMICS: "economics",
-  PORT: "portfolio",
-  PRTU: "portfolio",
-  PORTFOLIO: "portfolio",
-};
 
 export function getCommandAliasView(token: string | undefined): ViewMode | null {
   if (!token) return null;
@@ -45,16 +17,29 @@ export function parseTerminalCommand(input: string): ParsedTerminalCommand | nul
   if (!raw) return null;
 
   const tokens = raw.split(" ");
-  const singleTokenView = getCommandAliasView(tokens[0]);
-  if (tokens.length === 1 && singleTokenView) {
-    return { raw, view: singleTokenView };
+
+  // Single token: could be a command (CC, INTEL) or a symbol (AAPL)
+  if (tokens.length === 1) {
+    const view = getCommandAliasView(tokens[0]);
+    if (view) return { raw, view };
+    return { raw, symbol: tokens[0], view: "intel" };
   }
 
+  // Two tokens: try SYMBOL CODE, then CODE SYMBOL
   const [first, second] = tokens;
+
+  // Try SYMBOL CODE (e.g., "AAPL GP")
   const secondView = getCommandAliasView(second);
   if (secondView) {
     return { raw, symbol: first, view: secondView };
   }
 
-  return { raw, symbol: first, view: "quote" };
+  // Try CODE SYMBOL (e.g., "GP AAPL")
+  const firstView = getCommandAliasView(first);
+  if (firstView) {
+    return { raw, symbol: second, view: firstView };
+  }
+
+  // Default: treat first as symbol
+  return { raw, symbol: first, view: "intel" };
 }

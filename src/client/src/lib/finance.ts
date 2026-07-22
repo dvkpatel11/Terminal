@@ -30,9 +30,13 @@ export interface Quote {
   avgVolume: number;
   exchange: string;
   sector?: string;
+  assetClass?: string;
   quoteSource: string;
   isLive: boolean;
   status: DataStatus;
+  ma_50d?: number;
+  ma_200d?: number;
+  currency?: string;
 }
 
 export interface OHLCVBar {
@@ -59,6 +63,7 @@ export interface NewsItem {
   publishedAt: string;
   sentiment?: "positive" | "negative" | "neutral";
   status: DataStatus;
+  image?: string;
 }
 
 export interface NewsArticle {
@@ -169,11 +174,24 @@ export function pctClass(n: number): string {
 
 // Major indices tickers
 export const INDICES = [
-  { symbol: "^GSPC", label: "S&P 500" },
-  { symbol: "^DJI",  label: "DOW" },
-  { symbol: "^IXIC", label: "NASDAQ" },
-  { symbol: "^RUT",  label: "RUSSELL 2K" },
-  { symbol: "^VIX",  label: "VIX" },
+  { symbol: "^GSPC",    label: "S&P 500",       region: "Americas" },
+  { symbol: "^DJI",     label: "DOW",           region: "Americas" },
+  { symbol: "^IXIC",    label: "NASDAQ",        region: "Americas" },
+  { symbol: "^RUT",     label: "RUSSELL 2K",    region: "Americas" },
+  { symbol: "^GSPTSE",  label: "S&P/TSX",       region: "Americas" },
+  { symbol: "^BVSP",    label: "BOVESPA",       region: "Americas" },
+  { symbol: "^FTSE",    label: "FTSE 100",      region: "EMEA" },
+  { symbol: "^GDAXI",   label: "DAX",           region: "EMEA" },
+  { symbol: "^FCHI",    label: "CAC 40",        region: "EMEA" },
+  { symbol: "^STOXX50E", label: "EURO STOXX 50", region: "EMEA" },
+  { symbol: "^SSMI",    label: "SMI",           region: "EMEA" },
+  { symbol: "^N225",    label: "NIKKEI 225",    region: "Asia-Pac" },
+  { symbol: "^HSI",     label: "HANG SENG",     region: "Asia-Pac" },
+  { symbol: "000001.SS", label: "SHANGHAI",     region: "Asia-Pac" },
+  { symbol: "^BSESN",   label: "SENSEX",        region: "Asia-Pac" },
+  { symbol: "^AXJO",    label: "ASX 200",       region: "Asia-Pac" },
+  { symbol: "^KS11",    label: "KOSPI",         region: "Asia-Pac" },
+  { symbol: "BTC-USD",  label: "BTC-USD",       region: "Crypto" },
 ];
 
 // Ticker tape symbols
@@ -182,6 +200,47 @@ export const TAPE_SYMBOLS = [
   "JPM","BAC","GS","MS","V","MA","PYPL",
   "XOM","CVX","COP","SLB",
   "^GSPC","^DJI","^IXIC","GC=F","CL=F","BTC-USD","ETH-USD",
+];
+
+// GICS Sector ETFs (SPDR Select Sector)
+export const SECTOR_ETFS = [
+  { symbol: "XLK", label: "Technology", sector: "Technology" },
+  { symbol: "XLV", label: "Health Care", sector: "Healthcare" },
+  { symbol: "XLF", label: "Financials", sector: "Financial Services" },
+  { symbol: "XLE", label: "Energy", sector: "Energy" },
+  { symbol: "XLI", label: "Industrials", sector: "Industrials" },
+  { symbol: "XLC", label: "Comm Services", sector: "Communication Services" },
+  { symbol: "XLP", label: "Consumer Staples", sector: "Consumer Defensive" },
+  { symbol: "XLU", label: "Utilities", sector: "Utilities" },
+  { symbol: "XLRE", label: "Real Estate", sector: "Real Estate" },
+  { symbol: "XLB", label: "Materials", sector: "Basic Materials" },
+  { symbol: "XLY", label: "Consumer Disc.", sector: "Consumer Cyclical" },
+];
+
+// Key assets for market scorecard
+export const SCORECARD_ASSETS = [
+  { symbol: "^GSPC", label: "S&P 500", category: "equity" },
+  { symbol: "^IXIC", label: "Nasdaq 100", category: "equity" },
+  { symbol: "^RUT", label: "Russell 2000", category: "equity" },
+  { symbol: "^FTSE", label: "FTSE 100", category: "equity" },
+  { symbol: "^GDAXI", label: "DAX", category: "equity" },
+  { symbol: "^N225", label: "Nikkei 225", category: "equity" },
+  { symbol: "DX-Y.NYB", label: "DXY (Dollar)", category: "fx" },
+  { symbol: "GC=F", label: "Gold", category: "commodity" },
+  { symbol: "CL=F", label: "WTI Crude", category: "commodity" },
+  { symbol: "SI=F", label: "Silver", category: "commodity" },
+  { symbol: "HG=F", label: "Copper", category: "commodity" },
+  { symbol: "BTC-USD", label: "Bitcoin", category: "crypto" },
+  { symbol: "^VIX", label: "VIX", category: "volatility" },
+  { symbol: "^TNX", label: "US 10Y Yield", category: "rates" },
+  { symbol: "^TYX", label: "US 30Y Yield", category: "rates" },
+];
+
+// VIX term structure symbols
+export const VIX_TERMS = [
+  { symbol: "^VIX", label: "VIX (Spot)", tenor: "spot" },
+  { symbol: "^VIX2", label: "VIX (2M)", tenor: "2m" },
+  { symbol: "^VIX3M", label: "VIX (3M)", tenor: "3m" },
 ];
 
 // Screener default filters

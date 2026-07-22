@@ -35,11 +35,11 @@ export default function ScreenerPanel({ onSymbol }: Props) {
   };
 
   const SortHeader = ({ field, label }: { field: SortField; label: string }) => (
-    <th className="text-left py-2 px-3 cursor-pointer hover:text-[hsl(38,95%,55%)] select-none" onClick={() => toggleSort(field)}>
+    <th className="text-left py-2 px-3 cursor-pointer hover:text-[hsl(186,45%,55%)] select-none" onClick={() => toggleSort(field)}>
       <div className="flex items-center gap-1">
         <span className="font-terminal text-[9px] tracking-wider">{label}</span>
         {sortField === field && (
-          <span className="text-[hsl(38,95%,55%)]">{sortDir === "desc" ? "▼" : "▲"}</span>
+          <span className="text-[hsl(186,45%,55%)]">{sortDir === "desc" ? "▼" : "▲"}</span>
         )}
       </div>
     </th>
@@ -54,9 +54,9 @@ export default function ScreenerPanel({ onSymbol }: Props) {
           <span className="panel-label">FILTERS</span>
           <div className="ml-2 flex items-center gap-2">
             <label className="font-terminal text-[9px] text-muted-foreground">MIN P/E</label>
-            <input value={minPe} onChange={e => setMinPe(e.target.value)} className="w-14 bg-[#0d0d0d] border border-border px-2 py-0.5 font-terminal text-[10px] focus:outline-none focus:border-[hsl(38,95%,50%)/50%]" placeholder="—" />
+            <input value={minPe} onChange={e => setMinPe(e.target.value)} className="w-14 bg-[#0d0d0d] border border-border px-2 py-0.5 font-terminal text-[10px] focus:outline-none focus:border-[hsl(186,45%,50%)/50%]" placeholder="—" />
             <label className="font-terminal text-[9px] text-muted-foreground">MAX P/E</label>
-            <input value={maxPe} onChange={e => setMaxPe(e.target.value)} className="w-14 bg-[#0d0d0d] border border-border px-2 py-0.5 font-terminal text-[10px] focus:outline-none focus:border-[hsl(38,95%,50%)/50%]" placeholder="—" />
+            <input value={maxPe} onChange={e => setMaxPe(e.target.value)} className="w-14 bg-[#0d0d0d] border border-border px-2 py-0.5 font-terminal text-[10px] focus:outline-none focus:border-[hsl(186,45%,50%)/50%]" placeholder="—" />
           </div>
           <span className="ml-auto font-terminal text-[9px] text-muted-foreground">{sorted.length} RESULTS</span>
         </div>
@@ -64,7 +64,7 @@ export default function ScreenerPanel({ onSymbol }: Props) {
           {["All", ...SCREENER_SECTORS].map(s => (
             <button key={s} onClick={() => setSector(s)}
               className={`px-2.5 py-1 font-terminal text-[9px] whitespace-nowrap border-r border-border transition-colors ${
-                sector === s ? "bg-[hsl(38,95%,50%)/15%] text-[hsl(38,95%,55%)]" : "text-muted-foreground hover:text-foreground"
+                sector === s ? "bg-[hsl(186,45%,50%)/15%] text-[hsl(186,45%,55%)]" : "text-muted-foreground hover:text-foreground"
               }`}>
               {s.toUpperCase()}
             </button>
@@ -100,7 +100,7 @@ export default function ScreenerPanel({ onSymbol }: Props) {
                   className="border-b border-border/50 hover:bg-white/5 cursor-pointer"
                   data-testid={`screener-row-${s.symbol}`}
                 >
-                  <td className="py-2 px-3 font-terminal text-[11px] font-bold text-[hsl(38,95%,55%)]">{s.symbol}</td>
+                  <td className="py-2 px-3 font-terminal text-[11px] font-bold text-[hsl(186,45%,55%)]">{s.symbol}</td>
                   <td className="py-2 px-3 font-terminal text-[10px] text-muted-foreground max-w-[180px] truncate">{s.name}</td>
                   <td className="py-2 px-3 font-terminal text-[11px] tabular-nums">${formatPrice(s.price)}</td>
                   <td className={`py-2 px-3 font-terminal text-[11px] tabular-nums font-semibold ${pctClass(s.changePercent)}`}>
@@ -109,7 +109,7 @@ export default function ScreenerPanel({ onSymbol }: Props) {
                   <td className="py-2 px-3 font-terminal text-[11px] tabular-nums">{formatBig(s.marketCap)}</td>
                   <td className="py-2 px-3 font-terminal text-[11px] tabular-nums">{s.pe !== null ? s.pe.toFixed(1) : "—"}</td>
                   <td className="py-2 px-3 font-terminal text-[10px] tabular-nums text-muted-foreground">{(s.volume / 1e6).toFixed(1)}M</td>
-                  <td className="py-2 px-3 font-terminal text-[9px] text-[hsl(186,80%,55%)]">{s.sector || "—"}</td>
+                  <td className="py-2 px-3 font-terminal text-[9px] text-[hsl(38,30%,55%)]">{s.sector || "—"}</td>
                 </tr>
               ))}
             </tbody>

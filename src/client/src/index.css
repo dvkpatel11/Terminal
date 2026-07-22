@@ -2,64 +2,69 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Bloomberg Terminal — Hacker Aesthetic
-   Palette: deep black surfaces, amber/orange primary, electric green for up, red for down
+/* Bloomberg Monitor — Cyan & Black
+   Palette: deep black surfaces, cyan primary, muted gold secondary
    Font: JetBrains Mono for data, Inter for UI chrome
 */
 
 :root {
-  --button-outline: rgba(255,165,0, .15);
-  --badge-outline: rgba(255,165,0, .08);
-  --opaque-button-border-intensity: 8;
+  --button-outline: rgba(0,188,212, .15);
+  --badge-outline: rgba(0,188,212, .08);
+  --opaque-button-border-intensity: 6;
   --elevate-1: rgba(255,255,255, .03);
   --elevate-2: rgba(255,255,255, .07);
 
-  /* Terminal dark palette — used by default (always dark) */
+  /* ── Surface scale (darkest → lightest) ── */
+  --surface-0: #050505;
+  --surface-1: #080808;
+  --surface-2: #0a0a0a;
+  --surface-3: #0c0c0c;
+  --surface-4: #0e0e0e;
+
+  /* ── Sentiment colors ── */
+  --color-up: hsl(142 71% 45%);
+  --color-down: hsl(0 80% 55%);
+  --color-neutral: hsl(186 45% 55%);
+
+  /* ── shadcn / Radix token layer ── */
   --background: 0 0% 5%;
   --foreground: 40 10% 85%;
-  --border: 0 0% 13%;
+  --border: 0 0% 14%;
   --card: 0 0% 7%;
   --card-foreground: 40 10% 85%;
   --card-border: 0 0% 11%;
   --sidebar: 0 0% 6%;
   --sidebar-foreground: 40 10% 85%;
   --sidebar-border: 0 0% 12%;
-  --sidebar-primary: 38 95% 50%;
+  --sidebar-primary: 186 45% 50%;
   --sidebar-primary-foreground: 0 0% 5%;
   --sidebar-accent: 0 0% 10%;
   --sidebar-accent-foreground: 40 10% 85%;
-  --sidebar-ring: 38 95% 50%;
+  --sidebar-ring: 186 45% 50%;
   --popover: 0 0% 8%;
   --popover-foreground: 40 10% 85%;
   --popover-border: 0 0% 14%;
-  --primary: 38 95% 50%;
+  --primary: 186 45% 50%;
   --primary-foreground: 0 0% 5%;
   --secondary: 0 0% 11%;
   --secondary-foreground: 40 10% 85%;
   --muted: 0 0% 10%;
-  --muted-foreground: 0 0% 50%;
+  --muted-foreground: 30 6% 70%;
   --accent: 0 0% 12%;
   --accent-foreground: 40 10% 85%;
-  --destructive: 0 80% 45%;
+  --destructive: 0 70% 42%;
   --destructive-foreground: 0 0% 98%;
   --input: 0 0% 18%;
-  --ring: 38 95% 50%;
+  --ring: 186 45% 50%;
 
-  /* Terminal semantic colors */
-  --up: 142 71% 45%;
-  --down: 0 80% 50%;
-  --up-fg: 142 71% 45%;
-  --down-fg: 0 80% 50%;
-  --amber: 38 95% 50%;
-  --cyan: 186 80% 50%;
-  --purple: 265 70% 60%;
-
-  /* Chart colors */
-  --chart-1: 38 95% 55%;
-  --chart-2: 186 80% 50%;
-  --chart-3: 142 71% 45%;
-  --chart-4: 265 70% 60%;
-  --chart-5: 0 80% 55%;
+  /* ── Semantic terminal colors ── */
+  --up: 142 60% 42%;
+  --down: 0 65% 48%;
+  --up-fg: 142 60% 42%;
+  --down-fg: 0 65% 48%;
+  --amber: 186 45% 50%;
+  --cyan: 38 30% 50%;
+  --purple: 265 60% 55%;
 
   --font-sans: 'Inter', 'DM Sans', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Menlo', monospace;
@@ -87,40 +92,40 @@
 
 /* Terminal is always dark */
 .dark {
-  --button-outline: rgba(255,165,0, .15);
-  --badge-outline: rgba(255,165,0, .08);
-  --opaque-button-border-intensity: 9;
+  --button-outline: rgba(0,188,212, .15);
+  --badge-outline: rgba(0,188,212, .08);
+  --opaque-button-border-intensity: 7;
   --elevate-1: rgba(255,255,255, .03);
   --elevate-2: rgba(255,255,255, .07);
   --background: 0 0% 5%;
   --foreground: 40 10% 85%;
-  --border: 0 0% 13%;
+  --border: 0 0% 14%;
   --card: 0 0% 7%;
   --card-foreground: 40 10% 85%;
   --card-border: 0 0% 11%;
   --sidebar: 0 0% 6%;
   --sidebar-foreground: 40 10% 85%;
   --sidebar-border: 0 0% 12%;
-  --sidebar-primary: 38 95% 50%;
+  --sidebar-primary: 186 45% 50%;
   --sidebar-primary-foreground: 0 0% 5%;
   --sidebar-accent: 0 0% 10%;
   --sidebar-accent-foreground: 40 10% 85%;
-  --sidebar-ring: 38 95% 50%;
+  --sidebar-ring: 186 45% 50%;
   --popover: 0 0% 8%;
   --popover-foreground: 40 10% 85%;
   --popover-border: 0 0% 14%;
-  --primary: 38 95% 50%;
+  --primary: 186 45% 50%;
   --primary-foreground: 0 0% 5%;
   --secondary: 0 0% 11%;
   --secondary-foreground: 40 10% 85%;
   --muted: 0 0% 10%;
-  --muted-foreground: 0 0% 50%;
+  --muted-foreground: 30 6% 70%;
   --accent: 0 0% 12%;
   --accent-foreground: 40 10% 85%;
-  --destructive: 0 80% 45%;
+  --destructive: 0 70% 42%;
   --destructive-foreground: 0 0% 98%;
   --input: 0 0% 18%;
-  --ring: 38 95% 50%;
+  --ring: 186 45% 50%;
   --shadow-2xs: 0px 1px 2px hsl(0 0% 0% / 0.5);
   --shadow-xs: 0px 2px 4px hsl(0 0% 0% / 0.6);
   --shadow-sm: 0px 2px 8px hsl(0 0% 0% / 0.6);
@@ -139,6 +144,7 @@
   --destructive-border: hsl(var(--destructive));
 }
 
+/* ── Base layer ─────────────────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border;
@@ -154,19 +160,91 @@
     font-feature-settings: "tnum" 1, "kern" 1;
   }
 
-  /* Monospace numbers for all financial data */
+  /* Tabular numbers for all financial data */
   .tabular-nums {
     font-variant-numeric: tabular-nums lining-nums;
     font-feature-settings: "tnum" 1;
   }
+
+  /* Focus-visible ring for keyboard accessibility */
+  :focus-visible {
+    outline: 2px solid hsl(186 45% 50% / 0.6);
+    outline-offset: 1px;
+  }
+
+  /* Remove default focus ring for mouse users */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
 }
 
-/* Terminal-specific utilities */
+/* ── Component layer ────────────────────────────────────────────────── */
+@layer components {
+  /* Panel shell — wraps every panel */
+  .panel-shell {
+    @apply h-full flex flex-col overflow-hidden bg-surface-0;
+  }
+
+  /* Panel header — label bar at top of panel */
+  .panel-header {
+    @apply flex items-center justify-between px-3 py-1.5 border-b border-border/50 bg-surface-2;
+  }
+
+  /* Panel label — uppercase monospace title in header */
+  .panel-label {
+    @apply text-xs font-terminal font-semibold tracking-[0.18em] uppercase text-muted-foreground/80;
+  }
+
+  /* Panel card — section within a panel */
+  .panel-card {
+    @apply bg-surface-1 border border-border/50;
+  }
+
+  /* KV row — key-value pair */
+  .kv-row {
+    @apply flex justify-between py-1 border-b border-border/20;
+  }
+
+  .kv-key {
+    @apply font-terminal text-[9px] text-muted-foreground tracking-wider;
+  }
+
+  .kv-value {
+    @apply font-terminal text-[11px] tabular-nums text-right text-foreground;
+  }
+
+  /* Data table */
+  .data-table {
+    @apply w-full;
+  }
+
+  .data-table th {
+    @apply text-left py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider;
+  }
+
+  .data-table td {
+    @apply py-2;
+  }
+
+  .data-table tr {
+    @apply border-b border-border/20 hover:bg-white/[0.02] cursor-pointer;
+  }
+}
+
+/* ── Utility layer ──────────────────────────────────────────────────── */
 @layer utilities {
   .font-terminal {
     font-family: 'JetBrains Mono', 'Fira Code', 'Menlo', monospace;
   }
 
+  /* ── Semantic surface utilities ── */
+  .bg-surface-0 { background-color: var(--surface-0); }
+  .bg-surface-1 { background-color: var(--surface-1); }
+  .bg-surface-2 { background-color: var(--surface-2); }
+  .bg-surface-3 { background-color: var(--surface-3); }
+  .bg-surface-4 { background-color: var(--surface-4); }
+
+  /* ── Price direction utilities ── */
   .text-up {
     color: hsl(142 71% 45%);
   }
@@ -177,37 +255,36 @@
     color: hsl(0 0% 55%);
   }
   .text-amber {
-    color: hsl(38 95% 55%);
+    color: hsl(38 45% 55%);
   }
+
+  /* ── Border direction utilities ── */
+  .border-l-up { border-left-color: var(--color-up); }
+  .border-l-down { border-left-color: var(--color-down); }
+  .border-l-cyan { border-left-color: var(--color-neutral); }
   .text-cyan {
-    color: hsl(186 80% 55%);
+    color: hsl(186 45% 55%);
   }
 
   .bg-up {
-    background-color: hsl(142 71% 45% / 0.15);
+    background-color: hsl(142 71% 45% / 0.12);
     color: hsl(142 71% 50%);
   }
   .bg-down {
-    background-color: hsl(0 80% 50% / 0.15);
+    background-color: hsl(0 80% 50% / 0.12);
     color: hsl(0 80% 60%);
   }
 
   .border-amber {
-    border-color: hsl(38 95% 50% / 0.4);
+    border-color: hsl(38 45% 50% / 0.35);
   }
 
+  /* ── Legacy panel (kept for migration) ── */
   .panel {
-    @apply bg-card border border-border;
+    @apply bg-card border border-border/70;
   }
 
-  .panel-header {
-    @apply flex items-center justify-between px-3 py-1.5 border-b border-border bg-background;
-  }
-
-  .panel-label {
-    @apply text-xs font-terminal font-semibold tracking-widest uppercase text-muted-foreground;
-  }
-
+  /* ── Ticker flash animations ── */
   .ticker-flash-up {
     animation: flashUp 0.4s ease-out;
   }
@@ -217,28 +294,43 @@
   }
 
   @keyframes flashUp {
-    0% { background-color: hsl(142 71% 45% / 0.4); }
+    0% { background-color: hsl(142 71% 45% / 0.3); }
     100% { background-color: transparent; }
   }
 
   @keyframes flashDown {
-    0% { background-color: hsl(0 80% 50% / 0.4); }
+    0% { background-color: hsl(0 80% 50% / 0.3); }
     100% { background-color: transparent; }
   }
 
+  /* ── Scrollbar styling ── */
   .scrollbar-thin::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 5px;
+    height: 5px;
   }
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: hsl(0 0% 20%);
-    border-radius: 2px;
+    background: hsl(186 45% 55% / 0.4);
+    border-radius: 3px;
+    border: 1px solid transparent;
+    background-clip: content-box;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: hsl(38 95% 50% / 0.5);
+    background: hsl(186 45% 55% / 0.6);
+    border: none;
+    border-radius: 3px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
   }
 
   .input[type="search"]::-webkit-search-cancel-button {
@@ -251,6 +343,7 @@
     pointer-events: none;
   }
 
+  /* ── Elevation utilities ── */
   .no-default-hover-elevate {}
   .no-default-active-elevate {}
 
@@ -309,3 +402,11 @@
     inset: -1px;
   }
 }
+
+/* P4 readability: bump the smallest panel body text to >=10px.
+   Scoped to the workspace (<main>) so the dense terminal chrome — ticker tape,
+   status bar, sidebar, command palette — keeps its Bloomberg-style 8-9px.
+   Within panels, true metadata at 8-9px also becomes 10px, which is still
+   legible and avoids the eye-strain of sub-9px body copy. */
+main .text-\[8px\] { font-size: 10px !important; }
+main .text-\[9px\] { font-size: 10px !important; }

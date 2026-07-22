@@ -7,7 +7,7 @@ test("parseTerminalCommand treats a bare ticker as a quote command", () => {
   assert.deepEqual(parseTerminalCommand("aapl"), {
     raw: "AAPL",
     symbol: "AAPL",
-    view: "quote",
+    view: "intel",
   });
 });
 
@@ -21,7 +21,7 @@ test("parseTerminalCommand maps Bloomberg-style function aliases", () => {
   assert.deepEqual(parseTerminalCommand("MSFT DES"), {
     raw: "MSFT DES",
     symbol: "MSFT",
-    view: "quote",
+    view: "intel",
   });
 
   assert.deepEqual(parseTerminalCommand("BTC-USD NEWS"), {

@@ -38,6 +38,37 @@ export async function runAlertEvaluationCycle(deps: AlertMonitorDependencies) {
   return triggered.length;
 }
 
+/**
+ * Evaluate alerts for a single symbol against a just-received live price.
+ * Used for responsive, on-tick alert firing instead of waiting for the
+ * polling cycle. Returns the number of alerts triggered.
+ */
+export async function runSymbolCycle(
+  deps: AlertMonitorDependencies,
+  symbol: string,
+  price: number,
+): Promise<number> {
+  if (!Number.isFinite(price)) return 0;
+  const alerts = await deps.loadAlerts();
+  const pending = alerts.filter((alert) => !alert.triggered && alert.symbol === symbol);
+  if (!pending.length) return 0;
+
+  const triggered = evaluateAlerts(pending, [{ symbol, price }]);
+  if (!triggered.length) return 0;
+
+  const now = deps.now?.() ?? new Date();
+  await Promise.all(
+    triggered.map((item) =>
+      deps.triggerAlert(item.id, {
+        triggerPrice: item.triggerPrice,
+        triggeredAt: now,
+      }),
+    ),
+  );
+
+  return triggered.length;
+}
+
 export function createAlertMonitor(startCycle: () => Promise<number>, intervalMs: number) {
   let running = false;
 

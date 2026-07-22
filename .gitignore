@@ -1,1 +1,13 @@
 .worktrees/
+screenshots/
+node_modules/
+*/node_modules/
+src/node_modules/
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+.env.local
+.env

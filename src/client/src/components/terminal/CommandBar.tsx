@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Search, TrendingUp, LineChart, Newspaper, Bot, Filter, Star, BellRing, Globe2, Briefcase, LayoutDashboard, History, TerminalSquare, X } from "lucide-react";
+import { Search, LineChart, Newspaper, Bot, Filter, Star, BellRing, Globe2, Briefcase, LayoutDashboard, History, TerminalSquare, Brain, CandlestickChart, FileText, CircleDollarSign, Activity, BarChart3, TrendingUp, ChartLine, Banknote, Bitcoin, MessageCircle, Scan, X, Settings } from "lucide-react";
 import { getCommandAliasView, parseTerminalCommand, type ParsedTerminalCommand } from "@/lib/terminalCommands";
 import type { ViewMode } from "@/lib/terminalTypes";
+import { PANEL_REGISTRY, ALL_VIEW_MODES } from "@/lib/panelRegistry";
 
 interface Props {
   onClose: () => void;
   onExecute: (command: ParsedTerminalCommand) => void;
+  onConfigOpen?: () => void;
 }
 
 interface QuickCommand {
@@ -17,30 +19,22 @@ interface QuickCommand {
 
 const RECENTS_KEY = "terminal-command-recents";
 
-const QUICK_COMMANDS: QuickCommand[] = [
-  { label: "Market Overview", aliases: ["MRKT", "MARKET"], view: "market", icon: LayoutDashboard },
-  { label: "Chart", aliases: ["GP", "CHRT", "CHART"], view: "chart", icon: LineChart },
-  { label: "News Feed", aliases: ["NEWS", "N"], view: "news", icon: Newspaper },
-  { label: "AI Agent", aliases: ["AI", "AGENT"], view: "agent", icon: Bot },
-  { label: "Stock Screener", aliases: ["EQS", "SCRN", "SCREENER"], view: "screener", icon: Filter },
-  { label: "Watchlist", aliases: ["WATCH", "WLT"], view: "watchlist", icon: Star },
-  { label: "Price Alerts", aliases: ["ALRT", "MON", "ALERTS"], view: "alerts", icon: BellRing },
-  { label: "Economics", aliases: ["ECON", "ECST"], view: "economics", icon: Globe2 },
-  { label: "Portfolio", aliases: ["PORT", "PRTU"], view: "portfolio", icon: Briefcase },
+// Every view is offered in the command palette, derived from the single registry.
+const QUICK_COMMANDS: QuickCommand[] = ALL_VIEW_MODES.map((v) => ({
+  label: PANEL_REGISTRY[v].label,
+  aliases: PANEL_REGISTRY[v].aliases,
+  view: v,
+  icon: PANEL_REGISTRY[v].icon,
+}));
+
+const SYSTEM_COMMANDS = [
+  { label: "Settings", aliases: ["CONFIG", "SETTINGS", "GEAR"], icon: Settings, action: "config" as const },
 ];
 
-const VIEW_LABELS: Record<ViewMode, string> = {
-  market: "MARKET OVERVIEW",
-  quote: "QUOTE",
-  chart: "CHART",
-  news: "NEWS",
-  agent: "AI AGENT",
-  screener: "SCREENER",
-  watchlist: "WATCHLIST",
-  alerts: "ALERTS",
-  economics: "ECONOMICS",
-  portfolio: "PORTFOLIO",
-};
+// Display label per view, derived from the registry (no duplicate `quote`/`intel` entries).
+const VIEW_LABELS: Record<ViewMode, string> = Object.fromEntries(
+  ALL_VIEW_MODES.map((v) => [v, PANEL_REGISTRY[v].label]),
+) as Record<ViewMode, string>;
 
 const POPULAR_TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "META", "JPM", "BTC-USD", "ETH-USD", "GC=F", "SPY"];
 
@@ -68,7 +62,7 @@ function formatCommandLabel(command: ParsedTerminalCommand): string {
   return VIEW_LABELS[command.view];
 }
 
-export default function CommandBar({ onClose, onExecute }: Props) {
+export default function CommandBar({ onClose, onExecute, onConfigOpen }: Props) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
   const [recentCommands, setRecentCommands] = useState<string[]>(() => loadRecentCommands());
@@ -84,6 +78,12 @@ export default function CommandBar({ onClose, onExecute }: Props) {
     const input = query.trim().toUpperCase();
     if (!input) return true;
     return command.label.toUpperCase().includes(input) || command.aliases.some((alias) => alias.includes(input));
+  });
+
+  const filteredSystemCmds = SYSTEM_COMMANDS.filter((cmd) => {
+    const input = query.trim().toUpperCase();
+    if (!input) return false;
+    return cmd.label.toUpperCase().includes(input) || cmd.aliases.some((alias) => alias.includes(input));
   });
 
   const filteredTickers = POPULAR_TICKERS.filter((ticker) => {
@@ -125,14 +125,28 @@ export default function CommandBar({ onClose, onExecute }: Props) {
   const tickerResults = filteredTickers.map((ticker) => ({
     type: "ticker" as const,
     label: ticker,
-    command: { raw: ticker, symbol: ticker, view: "quote" as ViewMode },
-    icon: TrendingUp,
+        command: { raw: ticker, symbol: ticker, view: "intel" as ViewMode },
+    icon: Brain,
     meta: "QUOTE",
   }));
 
-  const allResults = [...commandPreview, ...recentResults, ...quickResults, ...tickerResults];
+  const systemResults = filteredSystemCmds.map((cmd) => ({
+    type: "system" as const,
+    label: cmd.label,
+    command: { raw: cmd.aliases[0], view: "help" as ViewMode },
+    icon: cmd.icon,
+    meta: cmd.aliases.join(" · "),
+    action: cmd.action,
+  }));
 
-  const executeCommand = (command: ParsedTerminalCommand) => {
+  const allResults = [...commandPreview, ...recentResults, ...quickResults, ...tickerResults, ...systemResults];
+
+  const executeCommand = (command: ParsedTerminalCommand, action?: string) => {
+    if (action === "config" && onConfigOpen) {
+      onClose();
+      onConfigOpen();
+      return;
+    }
     const nextRecents = [command.raw, ...recentCommands.filter((item) => item !== command.raw)].slice(0, 8);
     setRecentCommands(nextRecents);
     saveRecentCommands(nextRecents);
@@ -148,10 +162,24 @@ export default function CommandBar({ onClose, onExecute }: Props) {
       e.preventDefault();
       setSelected((index) => Math.max(index - 1, 0));
     }
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const result = allResults[selected];
+      if (!result) return;
+      if ("action" in result && (result as any).action === "config") {
+        setQuery("CONFIG");
+        return;
+      }
+      // Complete with the raw command token so re-parsing is reliable,
+      // instead of the human-readable label (e.g. "AAPL STOCK INTELLIGENCE").
+      setQuery(result.command.raw);
+      setSelected(0);
+    }
     if (e.key === "Enter") {
       e.preventDefault();
       if (allResults[selected]) {
-        executeCommand(allResults[selected].command);
+        const item = allResults[selected];
+        executeCommand(item.command, "action" in item ? (item as any).action : undefined);
         return;
       }
       if (parsedCommand) {
@@ -164,11 +192,11 @@ export default function CommandBar({ onClose, onExecute }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-20" onClick={onClose}>
       <div
-        className="w-full max-w-2xl bg-[#0d0d0d] border border-[hsl(38,95%,50%)/40%] shadow-2xl"
+        className="w-full max-w-2xl bg-[#0d0d0d] border border-[hsl(186_45%_50%/0.4)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
-          <Search className="w-4 h-4 text-[hsl(38,95%,55%)] shrink-0" />
+          <Search className="w-4 h-4 text-[hsl(186_45%_55%)] shrink-0" />
           <input
             ref={inputRef}
             value={query}
@@ -189,7 +217,7 @@ export default function CommandBar({ onClose, onExecute }: Props) {
         <div className="max-h-96 overflow-y-auto scrollbar-thin">
           {allResults.length === 0 && query.trim() && (
             <div className="px-4 py-8 text-center font-terminal text-xs text-muted-foreground">
-              UNRECOGNIZED COMMAND. TRY <span className="text-[hsl(38,95%,55%)]">AAPL GP</span> OR <span className="text-[hsl(38,95%,55%)]">MRKT</span>
+              UNRECOGNIZED COMMAND. TRY <span className="text-[hsl(186_45%_55%)]">AAPL GP</span> OR <span className="text-[hsl(186_45%_55%)]">MRKT</span>
             </div>
           )}
 
@@ -200,9 +228,9 @@ export default function CommandBar({ onClose, onExecute }: Props) {
             return (
               <button
                 key={`${item.type}-${item.command.raw}-${index}`}
-                onClick={() => executeCommand(item.command)}
+                onClick={() => executeCommand(item.command, "action" in item ? (item as any).action : undefined)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 border-b border-border/50 text-left transition-colors ${
-                  isSelected ? "bg-[hsl(38,95%,50%)/10%] text-foreground" : "hover:bg-white/5 text-muted-foreground"
+                  isSelected ? "bg-[hsl(186_45%_50%/0.1)] text-foreground" : "hover:bg-white/5 text-muted-foreground"
                 }`}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -213,12 +241,12 @@ export default function CommandBar({ onClose, onExecute }: Props) {
                   </div>
                 </div>
                 {"symbol" in item.command && item.command.symbol && (
-                  <span className="font-terminal text-[8px] text-[hsl(38,95%,55%)] tracking-widest">
+                  <span className="font-terminal text-[8px] text-[hsl(186_45%_55%)] tracking-widest">
                     {VIEW_LABELS[item.command.view]}
                   </span>
                 )}
                 {!("symbol" in item.command && item.command.symbol) && aliasView && (
-                  <span className="font-terminal text-[8px] text-[hsl(38,95%,55%)] tracking-widest">
+                  <span className="font-terminal text-[8px] text-[hsl(186_45%_55%)] tracking-widest">
                     GO
                   </span>
                 )}
@@ -231,7 +259,7 @@ export default function CommandBar({ onClose, onExecute }: Props) {
           <span className="font-terminal text-[9px] text-muted-foreground">↑↓ NAVIGATE</span>
           <span className="font-terminal text-[9px] text-muted-foreground">↵ EXECUTE</span>
           <span className="font-terminal text-[9px] text-muted-foreground">EXAMPLES: AAPL DES · AAPL GP · MRKT</span>
-          <span className="font-terminal text-[9px] text-muted-foreground ml-auto">/ TO OPEN</span>
+          <span className="font-terminal text-[9px] text-muted-foreground ml-auto">CTRL+SPACE TO OPEN</span>
         </div>
       </div>
     </div>

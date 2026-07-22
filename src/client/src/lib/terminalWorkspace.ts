@@ -1,6 +1,5 @@
 import type { PaneId, ViewMode, WorkspaceState } from "./terminalTypes";
-
-const SECURITY_VIEWS: ViewMode[] = ["quote", "chart", "news", "agent"];
+import { SECURITY_VIEWS } from "./panelRegistry";
 
 function isSecurityView(view: ViewMode): boolean {
   return SECURITY_VIEWS.includes(view);
@@ -60,7 +59,7 @@ export function openSecurityView(workspace: WorkspaceState, symbol: string, view
 }
 
 export function openSymbolInWorkspace(workspace: WorkspaceState, symbol: string): WorkspaceState {
-  return openSecurityView(workspace, symbol, "quote");
+  return openSecurityView(workspace, symbol, "intel");
 }
 
 export function closeSecondaryPane(workspace: WorkspaceState): WorkspaceState {

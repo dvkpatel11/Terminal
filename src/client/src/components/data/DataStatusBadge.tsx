@@ -1,32 +1,35 @@
+import { useEffect, useState } from "react";
 import type { DataStatus } from "@/lib/finance";
 
 interface Props {
   status: DataStatus;
   compact?: boolean;
   showAsOf?: boolean;
+  /** Show a relative "updated Xs ago" stamp instead of the absolute timestamp. */
+  relative?: boolean;
 }
 
-function getStatusClass(status: DataStatus) {
-  switch (status.freshness) {
+function getLedColor(freshness: DataStatus["freshness"]) {
+  switch (freshness) {
     case "current":
-      return "text-up border-[hsl(142,71%,45%)]/30";
-    case "reference":
-      return "text-muted-foreground border-border";
+      return "bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.5)]";
+    case "delayed":
+    case "daily":
+      return "bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.5)]";
     case "feed":
     case "schedule":
     case "snapshot":
-      return "text-[hsl(38,95%,55%)] border-[hsl(38,95%,55%)]/30";
-    case "daily":
-    case "delayed":
+      return "bg-cyan-500 shadow-[0_0_4px_rgba(6,182,212,0.5)]";
+    case "reference":
     default:
-      return "text-[hsl(38,95%,55%)] border-[hsl(38,95%,55%)]/30";
+      return "bg-muted-foreground/40";
   }
 }
 
-function getFreshnessLabel(status: DataStatus) {
-  switch (status.freshness) {
+function getLabel(freshness: DataStatus["freshness"]) {
+  switch (freshness) {
     case "current":
-      return "CURRENT";
+      return "LIVE";
     case "delayed":
       return "DELAYED";
     case "daily":
@@ -38,9 +41,9 @@ function getFreshnessLabel(status: DataStatus) {
     case "schedule":
       return "SCHEDULE";
     case "snapshot":
-      return "SNAPSHOT";
+      return "SNAP";
     default:
-      return status.delayLabel.toUpperCase();
+      return String(freshness).toUpperCase();
   }
 }
 
@@ -54,19 +57,50 @@ function formatAsOf(iso: string) {
   });
 }
 
-export default function DataStatusBadge({ status, compact = false, showAsOf = false }: Props) {
+function useRelativeAsOf(iso?: string): string | null {
+  const [, force] = useState(0);
+  useEffect(() => {
+    if (!iso) return;
+    const timer = setInterval(() => force((n) => n + 1), 1000);
+    return () => clearInterval(timer);
+  }, [iso]);
+  if (!iso) return null;
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const seconds = Math.max(0, Math.floor(diffMs / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+export default function DataStatusBadge({ status, compact = false, showAsOf = false, relative = false }: Props) {
+  const ledSize = compact ? "w-1.5 h-1.5" : "w-2 h-2";
+  const textSize = compact ? "text-[8px]" : "text-[9px]";
+
+  const relativeText = useRelativeAsOf(relative ? status.asOf ?? undefined : undefined);
+
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className={`font-terminal border px-1.5 py-0.5 ${compact ? "text-[8px]" : "text-[9px]"} ${getStatusClass(status)}`}>
-        {getFreshnessLabel(status)} · {status.provider.toUpperCase()}
-      </span>
-      {showAsOf && status.asOf && (
-        <span className={`font-terminal text-muted-foreground ${compact ? "text-[8px]" : "text-[9px]"}`}>
-          AS OF {formatAsOf(status.asOf)}
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex items-center gap-1">
+        <span className={`${ledSize} rounded-full shrink-0 ${getLedColor(status.freshness)}`} />
+        <span className={`font-terminal text-muted-foreground/70 ${textSize}`}>
+          {getLabel(status.freshness)}
+        </span>
+        <span className={`font-terminal text-muted-foreground/40 ${textSize}`}>
+          {status.provider.toUpperCase()}
+        </span>
+      </div>
+      {relative && relativeText && (
+        <span className={`font-terminal text-muted-foreground/50 ${textSize}`}>
+          {relativeText}
         </span>
       )}
-      {compact && !showAsOf && (
-        <span className="font-terminal text-[8px] text-muted-foreground">{status.delayLabel.toUpperCase()}</span>
+      {showAsOf && !relative && status.asOf && (
+        <span className={`font-terminal text-muted-foreground/50 ${textSize}`}>
+          {formatAsOf(status.asOf)}
+        </span>
       )}
     </div>
   );

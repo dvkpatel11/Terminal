@@ -1,110 +1,178 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import TopBar from "@/components/terminal/TopBar";
 import TickerTape from "@/components/terminal/TickerTape";
-import Sidebar from "@/components/terminal/Sidebar";
-import MarketOverview from "@/components/panels/MarketOverview";
-import QuotePanel from "@/components/panels/QuotePanel";
-import ChartPanel from "@/components/panels/ChartPanel";
-import NewsPanel from "@/components/panels/NewsPanel";
-import AgentPanel from "@/components/panels/AgentPanel";
-import ScreenerPanel from "@/components/panels/ScreenerPanel";
-import WatchlistPanel from "@/components/panels/WatchlistPanel";
-import AlertsPanel from "@/components/panels/AlertsPanel";
-import EconomicsPanel from "@/components/panels/EconomicsPanel";
-import PortfolioPanel from "@/components/panels/PortfolioPanel";
 import CommandBar from "@/components/terminal/CommandBar";
-import FunctionBar from "@/components/terminal/FunctionBar";
 import WorkspacePane from "@/components/terminal/WorkspacePane";
+import StatusBar from "@/components/terminal/StatusBar";
+import MobileNav from "@/components/terminal/MobileNav";
+import PanelErrorBoundary from "@/components/panel/PanelErrorBoundary";
+import PanelLoadingSkeleton from "@/components/panel/PanelLoadingSkeleton";
+import { PANEL_REGISTRY } from "@/lib/panelRegistry";
+import { useWorkspaceStore } from "@/lib/workspaceStore";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { ParsedTerminalCommand } from "@/lib/terminalCommands";
-import { shouldIgnoreCommandShortcut } from "@/lib/terminalChrome";
-import { createInitialWorkspace, closeSecondaryPane, focusPane, navigateFocusedPane, openSecurityView, openSymbolInWorkspace } from "@/lib/terminalWorkspace";
-import type { PaneId, PaneState, WorkspaceState, ViewMode } from "@/lib/terminalTypes";
+import type { PaneId, ViewMode } from "@/lib/terminalTypes";
+import { DEFAULT_SYMBOL } from "@/lib/terminalTypes";
 
 export type { ViewMode } from "@/lib/terminalTypes";
 
 export default function Terminal() {
-  const [workspace, setWorkspace] = useState<WorkspaceState>(() => createInitialWorkspace());
-  const [cmdOpen, setCmdOpen] = useState(false);
+  const openView = useWorkspaceStore((s) => s.openView);
+  const setActiveTab = useWorkspaceStore((s) => s.setActiveTab);
+  const closeSecondary = useWorkspaceStore((s) => s.closeSecondary);
+  const [commandBarOpen, setCommandBarOpen] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
+  const isMobile = useIsMobile();
 
-  const activePane = useMemo(() => {
-    if (workspace.focusedPane === "secondary" && workspace.secondary) {
-      return workspace.secondary;
-    }
-    return workspace.primary;
-  }, [workspace]);
+  const primary = useWorkspaceStore((s) => s.primary);
+  const secondary = useWorkspaceStore((s) => s.secondary);
+  const focusedPane = useWorkspaceStore((s) => s.focusedPane);
 
-  const handleSymbol = useCallback((sym: string) => {
-    setWorkspace((current) => openSymbolInWorkspace(current, sym));
-  }, []);
-
-  const handleNav = useCallback((view: ViewMode) => {
-    setWorkspace((current) => navigateFocusedPane(current, view));
-  }, []);
-
-  const handlePaneFocus = useCallback((paneId: PaneId) => {
-    setWorkspace((current) => focusPane(current, paneId));
-  }, []);
-
-  const handlePaneSymbol = useCallback((paneId: PaneId, symbol: string) => {
-    setWorkspace((current) => openSymbolInWorkspace(focusPane(current, paneId), symbol));
-  }, []);
-
-  const handlePaneNav = useCallback((paneId: PaneId, view: ViewMode) => {
-    setWorkspace((current) => navigateFocusedPane(focusPane(current, paneId), view));
-  }, []);
-
-  const handleCommand = useCallback((command: ParsedTerminalCommand) => {
-    setWorkspace((current) => {
-      if (command.symbol) {
-        return openSecurityView(current, command.symbol, command.view);
-      }
-      return navigateFocusedPane(current, command.view);
-    });
-    setCmdOpen(false);
-  }, []);
-
-  const renderPaneContent = useCallback((paneId: PaneId, pane: PaneState) => {
-    const onSymbol = (symbol: string) => handlePaneSymbol(paneId, symbol);
-    const onNav = (view: ViewMode) => handlePaneNav(paneId, view);
-
-    switch (pane.view) {
-      case "market":
-        return <MarketOverview onSymbol={onSymbol} onNav={onNav} />;
-      case "quote":
-        return <QuotePanel symbol={pane.symbol} onNav={onNav} />;
-      case "chart":
-        return <ChartPanel symbol={pane.symbol} onSymbol={(nextSymbol) => setWorkspace((current) => openSecurityView(focusPane(current, paneId), nextSymbol, "chart"))} />;
-      case "news":
-        return <NewsPanel symbol={pane.symbol} />;
-      case "agent":
-        return <AgentPanel onSymbol={onSymbol} />;
-      case "screener":
-        return <ScreenerPanel onSymbol={onSymbol} />;
-      case "watchlist":
-        return <WatchlistPanel onSymbol={onSymbol} />;
-      case "alerts":
-        return <AlertsPanel onSymbol={onSymbol} />;
-      case "economics":
-        return <EconomicsPanel />;
-      case "portfolio":
-        return <PortfolioPanel onSymbol={onSymbol} />;
-      default:
-        return <MarketOverview onSymbol={onSymbol} onNav={onNav} />;
-    }
-  }, [handlePaneNav, handlePaneSymbol]);
-
+  // ── Keyboard shortcuts ────────────────────────────────────────────
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "/" && !shouldIgnoreCommandShortcut(e.target)) {
-        e.preventDefault();
-        setCmdOpen(true);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMod = e.metaKey || e.ctrlKey;
+      if (!isMod) return;
+
+      switch (e.key) {
+        case "1":
+          e.preventDefault();
+          useWorkspaceStore.setState({ focusedPane: "primary" });
+          break;
+        case "2":
+          e.preventDefault();
+          if (secondary) useWorkspaceStore.setState({ focusedPane: "secondary" });
+          break;
+        case "k":
+          e.preventDefault();
+          setCommandBarOpen(true);
+          break;
+        case "w":
+          e.preventDefault();
+          if (secondary) closeSecondary();
+          break;
       }
-      if (e.key === "Escape") setCmdOpen(false);
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [secondary, closeSecondary]);
+
+  const primaryTab = primary.tabs.find((t) => t.id === primary.activeTabId) ?? primary.tabs[0];
+  const secondaryTab = secondary?.tabs.find((t) => t.id === secondary.activeTabId) ?? secondary?.tabs[0];
+
+  const activePane =
+    focusedPane === "secondary" && secondaryTab
+      ? { view: secondaryTab.view, symbol: secondaryTab.symbol }
+      : { view: primaryTab.view, symbol: primaryTab.symbol };
+
+  const handleNav = useCallback(
+    (view: ViewMode) => {
+      const paneState = focusedPane === "primary" ? primary : secondary;
+      if (!paneState) return;
+
+      const registry = PANEL_REGISTRY[view];
+
+      // Market/global views replace the current tab instead of creating new ones
+      if (!registry.needsSymbol) {
+        const currentTab = paneState.tabs.find((t) => t.id === paneState.activeTabId) ?? paneState.tabs[0];
+        if (currentTab && currentTab.view === view) return; // already showing this view
+
+        // Replace the current tab's view
+        useWorkspaceStore.setState((s) => {
+          const pane = focusedPane === "primary" ? s.primary : s.secondary;
+          if (!pane) return {};
+          const tab = pane.tabs.find((t) => t.id === pane.activeTabId) ?? pane.tabs[0];
+          if (!tab) return {};
+          return {
+            [focusedPane]: {
+              ...pane,
+              tabs: pane.tabs.map((t) =>
+                t.id === tab.id ? { ...t, view, symbol: "" } : t
+              ),
+            },
+          };
+        });
+        return;
+      }
+
+      // Symbol-specific views create new tabs (or switch to existing)
+      const existing = paneState.tabs.find((t) => t.view === view && t.symbol === activePane.symbol);
+      if (existing) {
+        setActiveTab(focusedPane, existing.id);
+      } else {
+        const sym = activePane.symbol || DEFAULT_SYMBOL;
+        openView(view, sym, focusedPane);
+      }
+    },
+    [openView, setActiveTab, focusedPane, primary, secondary, activePane.symbol],
+  );
+
+  const handleSymbol = useCallback(
+    (sym: string) => {
+      openView("intel", sym, "primary");
+    },
+    [openView],
+  );
+
+  const handlePaneNav = useCallback(
+    (paneId: PaneId, view: ViewMode) => {
+      const registry = PANEL_REGISTRY[view];
+      const pane = paneId === "primary" ? primaryTab : secondaryTab;
+      const sym = registry.needsSymbol ? pane?.symbol || DEFAULT_SYMBOL : "";
+      openView(view, sym, paneId as "primary" | "secondary");
+    },
+    [openView, primaryTab, secondaryTab],
+  );
+
+  const handlePaneSymbol = useCallback(
+    (paneId: PaneId, symbol: string) => {
+        openView("intel", symbol, paneId as "primary" | "secondary");
+    },
+    [openView],
+  );
+
+  const handleCommand = useCallback(
+    (command: ParsedTerminalCommand) => {
+      if (!PANEL_REGISTRY[command.view]) return;
+      const sym =
+        command.symbol || (PANEL_REGISTRY[command.view].needsSymbol ? activePane.symbol : "");
+      openView(command.view, sym, focusedPane);
+    },
+    [openView, focusedPane, activePane.symbol],
+  );
+
+  // ── Simplified panel rendering ──────────────────────────────────────
+  // All panels receive the same base shape; the switch only decides which
+  // props to pass based on the panel's needsSymbol / isSecurityView flags.
+
+  const renderPaneContent = useCallback(
+    (paneId: PaneId) => {
+      const pane = paneId === "primary" ? primaryTab : secondaryTab;
+      if (!pane) return null;
+
+      const onSymbol = (symbol: string) => handlePaneSymbol(paneId, symbol);
+      const onNav = (view: ViewMode) => handlePaneNav(paneId, view);
+      const def = PANEL_REGISTRY[pane.view] ?? PANEL_REGISTRY.market;
+      const { component: PanelComponent, needsSymbol, label } = def;
+
+      const panelName = `${label} (${pane.symbol || "global"})`;
+
+      return (
+        <PanelErrorBoundary key={`${pane.view}:${pane.symbol}`} panelName={panelName}>
+          <Suspense fallback={<PanelLoadingSkeleton rows={6} />}>
+            {needsSymbol ? (
+              <PanelComponent symbol={pane.symbol} onNav={onNav} onSymbol={onSymbol} />
+            ) : (
+              <PanelComponent onSymbol={onSymbol} onNav={onNav} />
+            )}
+          </Suspense>
+        </PanelErrorBoundary>
+      );
+    },
+    [primaryTab, secondaryTab, handlePaneNav, handlePaneSymbol],
+  );
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
@@ -113,63 +181,83 @@ export default function Terminal() {
         view={activePane.view}
         onNav={handleNav}
         onSymbol={handleSymbol}
-        onOpenCmd={() => setCmdOpen(true)}
+        onExecute={handleCommand}
+        onCommandBarOpen={() => setCommandBarOpen(true)}
+        configOpen={configOpen}
+        onConfigOpenChange={setConfigOpen}
       />
 
       <TickerTape onSymbol={handleSymbol} />
 
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar view={activePane.view} onNav={handleNav} />
         <main className="flex-1 min-w-0 overflow-hidden bg-background">
-          {workspace.secondary ? (
-            <PanelGroup direction="horizontal" autoSaveId="terminal-workspace-layout" className="h-full">
+          {secondary ? (
+            <PanelGroup
+              direction="horizontal"
+              autoSaveId="terminal-workspace-layout"
+              className="h-full"
+            >
               <Panel defaultSize={55} minSize={35}>
                 <WorkspacePane
                   paneId="primary"
-                  pane={workspace.primary}
-                  focused={workspace.focusedPane === "primary"}
+                  pane={{ view: primaryTab.view, symbol: primaryTab.symbol }}
+                  focused={focusedPane === "primary"}
                   canClose={false}
-                  onFocus={() => handlePaneFocus("primary")}
+                  onFocus={() => useWorkspaceStore.setState({ focusedPane: "primary" })}
                 >
-                  {renderPaneContent("primary", workspace.primary)}
+                  {renderPaneContent("primary")}
                 </WorkspacePane>
               </Panel>
-              <PanelResizeHandle className="w-px bg-border hover:bg-[hsl(38,95%,50%)]/40 transition-colors" />
+              <PanelResizeHandle className="w-px bg-gradient-to-b from-transparent via-border/60 to-transparent hover:via-[hsl(186_45%_50%)]/40 transition-colors duration-200" />
               <Panel defaultSize={45} minSize={30}>
                 <WorkspacePane
                   paneId="secondary"
-                  pane={workspace.secondary}
-                  focused={workspace.focusedPane === "secondary"}
+                  pane={{
+                    view: secondaryTab?.view ?? "intel",
+                    symbol: secondaryTab?.symbol ?? "",
+                  }}
+                  focused={focusedPane === "secondary"}
                   canClose={true}
-                  onFocus={() => handlePaneFocus("secondary")}
-                  onClose={() => setWorkspace((current) => closeSecondaryPane(current))}
+                  onFocus={() => useWorkspaceStore.setState({ focusedPane: "secondary" })}
+                  onClose={() => closeSecondary()}
                 >
-                  {renderPaneContent("secondary", workspace.secondary)}
+                  {renderPaneContent("secondary")}
                 </WorkspacePane>
               </Panel>
             </PanelGroup>
           ) : (
             <WorkspacePane
               paneId="primary"
-              pane={workspace.primary}
+              pane={{ view: primaryTab.view, symbol: primaryTab.symbol }}
               focused={true}
               canClose={false}
-              onFocus={() => handlePaneFocus("primary")}
+              onFocus={() => useWorkspaceStore.setState({ focusedPane: "primary" })}
             >
-              {renderPaneContent("primary", workspace.primary)}
+              {renderPaneContent("primary")}
             </WorkspacePane>
           )}
         </main>
       </div>
 
-      {cmdOpen && (
-        <CommandBar
-          onClose={() => setCmdOpen(false)}
-          onExecute={handleCommand}
+      <StatusBar />
+      {isMobile && (
+        <MobileNav
+          view={activePane.view}
+          onNav={handleNav}
+          onOpenCommand={() => setCommandBarOpen(true)}
         />
       )}
 
-      <FunctionBar onNav={handleNav} onOpenCmd={() => setCmdOpen(true)} />
+      {commandBarOpen && (
+        <CommandBar
+          onClose={() => setCommandBarOpen(false)}
+          onExecute={(cmd) => {
+            setCommandBarOpen(false);
+            handleCommand(cmd);
+          }}
+          onConfigOpen={() => setConfigOpen(true)}
+        />
+      )}
     </div>
   );
 }

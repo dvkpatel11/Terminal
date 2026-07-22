@@ -32,9 +32,9 @@ export function getMarketStatus(now = new Date()): MarketStatus {
   if (weekday === "Sat" || weekday === "Sun") {
     return { label: "WEEKEND", color: "text-muted-foreground", pulse: false };
   }
-  if (t >= 240 && t < 570) return { label: "PRE-MKT", color: "text-[hsl(38,95%,55%)]", pulse: true };
+  if (t >= 240 && t < 570) return { label: "PRE-MKT", color: "text-[hsl(186,45%,55%)]", pulse: true };
   if (t >= 570 && t < 960) return { label: "MKT OPEN", color: "text-up", pulse: true };
-  if (t >= 960 && t < 1200) return { label: "AFTER-HRS", color: "text-[hsl(38,95%,55%)]", pulse: true };
+  if (t >= 960 && t < 1200) return { label: "AFTER-HRS", color: "text-[hsl(186,45%,55%)]", pulse: true };
   return { label: "CLOSED", color: "text-muted-foreground", pulse: false };
 }
 

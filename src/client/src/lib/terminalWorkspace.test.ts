@@ -15,7 +15,7 @@ test("openSymbolInWorkspace preserves broad primary context by opening a quote i
 
   assert.deepEqual(next, {
     primary: { view: "market", symbol: "AAPL" },
-    secondary: { view: "quote", symbol: "MSFT" },
+    secondary: { view: "intel", symbol: "MSFT" },
     focusedPane: "secondary",
   });
 });
@@ -41,7 +41,7 @@ test("openSymbolInWorkspace replaces the current security pane when already focu
   const workspace = openSecurityView(createInitialWorkspace(), "AAPL", "chart");
   const next = openSymbolInWorkspace(workspace, "TSLA");
 
-  assert.deepEqual(next.secondary, { view: "quote", symbol: "TSLA" });
+  assert.deepEqual(next.secondary, { view: "intel", symbol: "TSLA" });
   assert.equal(next.focusedPane, "secondary");
 });
 
@@ -60,7 +60,7 @@ test("closeSecondaryPane collapses back to a single focused primary pane", () =>
 test("openSecurityView preserves broad primary context when a secondary pane already exists", () => {
   const workspace = {
     primary: { view: "market", symbol: "AAPL" },
-    secondary: { view: "quote", symbol: "AAPL" },
+    secondary: { view: "intel", symbol: "AAPL" },
     focusedPane: "primary" as const,
   };
   const next = openSecurityView(workspace, "MSFT", "news");
