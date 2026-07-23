@@ -1,39 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ViewMode } from "./terminalTypes";
-import { DEFAULT_SYMBOL } from "./terminalTypes";
 
 /** Max tabs per pane. Beyond this, the least-recently-used tab is evicted. */
 export const TAB_CAP = 12;
-
-export interface LayoutDef {
-  id: string;
-  label: string;
-  primary: { view: ViewMode; symbol?: string };
-  secondary?: { view: ViewMode; symbol?: string };
-}
-
-/** Named, restorable multi-pane arrangements for fast context switching. */
-export const LAYOUTS: LayoutDef[] = [
-  {
-    id: "macro",
-    label: "MACRO DESK",
-    primary: { view: "economics" },
-    secondary: { view: "curv" },
-  },
-  {
-    id: "single",
-    label: "SINGLE-NAME",
-    primary: { view: "intel", symbol: DEFAULT_SYMBOL },
-    secondary: { view: "chart", symbol: DEFAULT_SYMBOL },
-  },
-  {
-    id: "portfolio",
-    label: "PORTFOLIO",
-    primary: { view: "portfolio" },
-    secondary: { view: "scorecard" },
-  },
-];
 
 export interface Tab {
   id: string;
@@ -61,7 +31,7 @@ interface WorkspaceStore {
   getActiveView: (pane: "primary" | "secondary") => Tab;
   ensureSecondary: () => void;
   closeSecondary: () => void;
-  applyLayout: (id: string) => void;
+
 }
 
 function makeTabId(view: ViewMode, symbol: string): string {
@@ -180,19 +150,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
 
       closeSecondary: () => {
         set({ secondary: null });
-      },
-
-      applyLayout: (id) => {
-        const layout = LAYOUTS.find((l) => l.id === id);
-        if (!layout) return;
-        const build = (view: ViewMode, symbol?: string) => {
-          const sym = (symbol ?? "").toUpperCase();
-          const tabId = makeTabId(view, sym);
-          return { tabs: [{ id: tabId, view, symbol: sym }], activeTabId: tabId };
-        };
-        const primary = build(layout.primary.view, layout.primary.symbol);
-        const secondary = layout.secondary ? build(layout.secondary.view, layout.secondary.symbol) : null;
-        set({ primary, secondary, focusedPane: "primary" });
       },
     }),
     {

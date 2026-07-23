@@ -9,7 +9,7 @@ import { getMarketStatus } from "@/lib/terminalChrome";
 import { useAlerts } from "@/lib/useAlerts";
 import { PANEL_REGISTRY, PANELS_BY_CATEGORY, type PanelCategory } from "@/lib/panelRegistry";
 import { useWorkspaceStore } from "@/lib/workspaceStore";
-import { LAYOUTS } from "@/lib/workspaceStore";
+
 
 interface Props {
   activeSymbol: string;
@@ -132,8 +132,6 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false);
   const [alertConfigOpen, setAlertConfigOpen] = useState(false);
-  const [layoutsOpen, setLayoutsOpen] = useState(false);
-  const layoutsRef = useRef<HTMLDivElement | null>(null);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
   const symbolDropdownRef = useRef<HTMLDivElement | null>(null);
   const mktStatus = getMarketStatus(clock);
@@ -167,15 +165,6 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
     window.addEventListener("mousedown", handleOutside);
     return () => window.removeEventListener("mousedown", handleOutside);
   }, [symbolDropdownOpen]);
-
-  useEffect(() => {
-    if (!layoutsOpen) return;
-    const handleOutside = (event: MouseEvent) => {
-      if (!layoutsRef.current?.contains(event.target as Node)) setLayoutsOpen(false);
-    };
-    window.addEventListener("mousedown", handleOutside);
-    return () => window.removeEventListener("mousedown", handleOutside);
-  }, [layoutsOpen]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -314,34 +303,6 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
               </span>
             )}
           </button>
-        </div>
-
-        {/* Layouts switcher */}
-        <div ref={layoutsRef} className="relative h-full">
-          <button
-            onClick={() => setLayoutsOpen((v) => !v)}
-            className="flex items-center justify-center h-full px-3 hover:bg-white/[0.03] text-muted-foreground hover:text-market transition-colors duration-150 border-l border-border/70 font-terminal text-data-xs tracking-[0.15em]"
-            title="Apply layout"
-            data-testid="layouts-trigger"
-          >
-            LAYOUT
-          </button>
-          {layoutsOpen && (
-            <div className="absolute right-0 top-full mt-0 w-[200px] bg-[#0c0c0c] border border-border/70 shadow-[0_8px_32px_rgba(0,0,0,0.6)] z-50 rounded-b-sm py-1">
-              {LAYOUTS.map((layout) => (
-                <button
-                  key={layout.id}
-                  onClick={() => {
-                    useWorkspaceStore.getState().applyLayout(layout.id);
-                    setLayoutsOpen(false);
-                  }}
-                  className="w-full flex items-center px-3.5 py-2 font-terminal text-data-xs text-left text-muted-foreground/80 hover:text-foreground hover:bg-white/[0.03] transition-colors duration-150"
-                >
-                  {layout.label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Settings gear */}
