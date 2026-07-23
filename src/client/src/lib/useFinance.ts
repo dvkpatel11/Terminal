@@ -847,3 +847,144 @@ export function useTestOAuth() {
     },
   });
 }
+
+// ─── Discord Hooks ─────────────────────────────────────────────
+
+export function useDiscordStatus() {
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["discord-status"],
+    queryFn: async () => {
+      const response = await fetch("/api/discord/status");
+      if (!response.ok) throw new Error("Failed to fetch Discord status");
+      return response.json() as Promise<{ configured: boolean }>;
+    },
+  });
+  return { configured: data?.configured ?? false, isLoading, refetch };
+}
+
+export function useDiscordSetToken() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (token: string) => {
+      const response = await fetch("/api/discord/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to set Discord token");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["discord-status"] });
+    },
+  });
+}
+
+export function useDiscordClearToken() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/discord/token", { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed to clear Discord token");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["discord-status"] });
+      queryClient.invalidateQueries({ queryKey: ["discord-tracked"] });
+    },
+  });
+}
+
+export function useDiscordGuilds() {
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["discord-guilds"],
+    queryFn: async () => {
+      const response = await fetch("/api/discord/guilds");
+      if (!response.ok) throw new Error("Failed to fetch Discord guilds");
+      return response.json() as Promise<{ id: string; name: string }[]>;
+    },
+    enabled: false, // Only fetch when explicitly triggered
+  });
+  return { guilds: data ?? [], isLoading, refetch };
+}
+
+export function useDiscordChannels(guildId: string | null) {
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["discord-channels", guildId],
+    queryFn: async () => {
+      if (!guildId) return [];
+      const response = await fetch(`/api/discord/guilds/${guildId}/channels`);
+      if (!response.ok) throw new Error("Failed to fetch Discord channels");
+      return response.json() as Promise<{ id: string; name: string; type: number }[]>;
+    },
+    enabled: !!guildId,
+  });
+  return { channels: data ?? [], isLoading, refetch };
+}
+
+export function useDiscordTrackedChannels() {
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["discord-tracked"],
+    queryFn: async () => {
+      const response = await fetch("/api/discord/tracked");
+      if (!response.ok) throw new Error("Failed to fetch tracked channels");
+      return response.json();
+    },
+  });
+  return { channels: data ?? [], isLoading, refetch };
+}
+
+export function useDiscordTrackChannel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (channel: {
+      channelId: string;
+      channelName: string;
+      guildId: string;
+      guildName: string;
+    }) => {
+      const response = await fetch("/api/discord/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(channel),
+      });
+      if (!response.ok) throw new Error("Failed to track channel");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["discord-tracked"] });
+    },
+  });
+}
+
+export function useDiscordUntrackChannel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (channelId: string) => {
+      const response = await fetch(`/api/discord/track/${channelId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to untrack channel");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["discord-tracked"] });
+    },
+  });
+}
+
+export function useDiscordMessages() {
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["discord-messages"],
+    queryFn: async () => {
+      const response = await fetch("/api/discord/fetch");
+      if (!response.ok) throw new Error("Failed to fetch Discord messages");
+      return response.json() as Promise<{ posts: any[] }>;
+    },
+    enabled: false,
+  });
+  return { posts: data?.posts ?? [], isLoading, refetch };
+}
