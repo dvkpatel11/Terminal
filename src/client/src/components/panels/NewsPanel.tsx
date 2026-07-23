@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { NewsList, NewsArticleView } from "@/components/news";
+import PanelLoadingSkeleton from "@/components/panel/PanelLoadingSkeleton";
+import QueryErrorFallback from "@/components/panel/QueryErrorFallback";
 import type { NewsItem } from "@/lib/finance";
 import { useNews } from "@/lib/useFinance";
 
@@ -14,7 +16,7 @@ export default function NewsPanel({ symbol }: Props) {
   const [query, setQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<NewsItem | null>(null);
 
-  const { data: news = [] } = useNews(symbol, query);
+  const { data: news = [], isLoading, isError, error, refetch } = useNews(symbol, query);
 
   const sources = useMemo(() => {
     return [
@@ -82,7 +84,15 @@ export default function NewsPanel({ symbol }: Props) {
               : state === "negative"
                 ? "text-down"
                 : "text-[hsl(186,45%,55%)]";
-            return (
+  if (isLoading) {
+    return <PanelLoadingSkeleton rows={8} />;
+  }
+
+  if (isError) {
+    return <QueryErrorFallback label="News" error={error} onRetry={() => refetch()} />;
+  }
+
+  return (
               <button
                 key={state}
                 onClick={() => setSentimentFilter(value)}
