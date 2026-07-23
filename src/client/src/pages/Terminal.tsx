@@ -139,6 +139,9 @@ export default function Terminal() {
       const sym =
         command.symbol || (PANEL_REGISTRY[command.view].needsSymbol ? activePane.symbol : "");
       openView(command.view, sym, focusedPane);
+      if (command.symbol) {
+        useWorkspaceStore.getState().setGlobalSymbol(command.symbol);
+      }
     },
     [openView, focusedPane, activePane.symbol],
   );

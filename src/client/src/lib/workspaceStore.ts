@@ -51,11 +51,13 @@ interface WorkspaceStore {
   secondary: PaneTabs | null;
   focusedPane: "primary" | "secondary";
   secondarySymbol: string;
+  globalSymbol: string | null;
 
   openView: (view: ViewMode, symbol?: string, pane?: "primary" | "secondary") => void;
   closeTab: (pane: "primary" | "secondary", tabId: string) => void;
   setActiveTab: (pane: "primary" | "secondary", tabId: string) => void;
   setSecondarySymbol: (symbol: string) => void;
+  setGlobalSymbol: (symbol: string | null) => void;
   getActiveView: (pane: "primary" | "secondary") => Tab;
   ensureSecondary: () => void;
   closeSecondary: () => void;
@@ -81,6 +83,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       secondary: null,
       focusedPane: "primary",
       secondarySymbol: "AAPL",
+      globalSymbol: null,
 
       openView: (view, symbol = "", pane) => {
         const targetPane = pane ?? get().focusedPane;
@@ -150,6 +153,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         set({ secondarySymbol: symbol.toUpperCase() });
       },
 
+      setGlobalSymbol: (symbol) => {
+        set({ globalSymbol: symbol ? symbol.toUpperCase() : null });
+      },
+
       getActiveView: (pane) => {
         const state = get();
         const paneState = pane === "primary" ? state.primary : state.secondary;
@@ -194,6 +201,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         primary: state.primary,
         secondary: state.secondary,
         secondarySymbol: state.secondarySymbol,
+        globalSymbol: state.globalSymbol,
       }),
     }
   )
