@@ -58,7 +58,11 @@ import {
   type InsertVixTermStructure,
   type TechnicalIndicatorRecord,
   type InsertTechnicalIndicator,
+  oauthConnections,
+  type OauthConnection,
+  type InsertOauthConnection,
 } from "@shared/schema";
+import { getPopularTickers, getProfileCatalog } from "./symbolRegistry";
 
 // ─── IStorage Interface (Backward Compatible) ───────────────────────────────
 export interface IStorage {
@@ -77,6 +81,12 @@ export interface IStorage {
   getChatMessages(): Promise<ChatMessage[]>;
   addChatMessage(msg: InsertChatMessage): Promise<ChatMessage>;
   clearChatMessages(): Promise<void>;
+
+  // OAuth Connections
+  getOauthConnection(provider: string): Promise<OauthConnection | undefined>;
+  upsertOauthConnection(conn: InsertOauthConnection): Promise<OauthConnection>;
+  deleteOauthConnection(provider: string): Promise<void>;
+  getAllOauthConnections(): Promise<OauthConnection[]>;
 }
 
 // ─── Extended Storage Interface ──────────────────────────────────────────────
@@ -479,6 +489,35 @@ export class DatabaseStorage implements IExtendedStorage {
     return result[0];
   }
 
+  // ─── OAuth Connections ──────────────────────────────────────────────────────
+  async getOauthConnection(provider: string): Promise<OauthConnection | undefined> {
+    const result = await this.db.select()
+      .from(oauthConnections)
+      .where(eq(oauthConnections.provider, provider))
+      .limit(1);
+    return result[0];
+  }
+
+  async upsertOauthConnection(conn: InsertOauthConnection): Promise<OauthConnection> {
+    const existing = await this.getOauthConnection(conn.provider);
+    if (existing) {
+      await this.db.update(oauthConnections)
+        .set({ ...conn, updatedAt: new Date() })
+        .where(eq(oauthConnections.id, existing.id));
+      return { ...existing, ...conn, updatedAt: new Date() };
+    }
+    const result = await this.db.insert(oauthConnections).values(conn).returning();
+    return result[0];
+  }
+
+  async deleteOauthConnection(provider: string): Promise<void> {
+    await this.db.delete(oauthConnections).where(eq(oauthConnections.provider, provider));
+  }
+
+  async getAllOauthConnections(): Promise<OauthConnection[]> {
+    return this.db.select().from(oauthConnections);
+  }
+
   // ─── Data Management ─────────────────────────────────────────────────────────
   async cleanupOldData(retentionDays = 90): Promise<void> {
     const cutoffDate = new Date(Date.now() - retentionDays * 86400000);
@@ -519,12 +558,16 @@ export class MemStorage implements IStorage {
   private watchlist: Map<number, WatchlistItem> = new Map();
   private alertsMap: Map<number, Alert> = new Map();
   private chatMsgs: Map<number, ChatMessage> = new Map();
+  private oauthConns: Map<number, OauthConnection> = new Map();
   private watchlistId = 1;
   private alertId = 1;
   private chatId = 1;
+  private oauthId = 1;
 
   constructor() {
-    const defaults = [
+    const popular = getPopularTickers();
+    const profiles = getProfileCatalog();
+    const fallback = [
       { symbol: "AAPL", name: "Apple Inc." },
       { symbol: "MSFT", name: "Microsoft Corp." },
       { symbol: "NVDA", name: "NVIDIA Corp." },
@@ -534,6 +577,9 @@ export class MemStorage implements IStorage {
       { symbol: "META", name: "Meta Platforms" },
       { symbol: "BRK-B", name: "Berkshire Hathaway" },
     ];
+    const defaults = popular.length > 0
+      ? popular.slice(0, 8).map(sym => ({ symbol: sym, name: profiles[sym]?.name ?? sym }))
+      : fallback;
     defaults.forEach(d => {
       const item: WatchlistItem = { id: this.watchlistId++, instrumentId: 0, symbol: d.symbol, name: d.name, notes: null, addedAt: new Date() };
       this.watchlist.set(item.id, item);
@@ -594,6 +640,31 @@ export class MemStorage implements IStorage {
 
   async clearChatMessages(): Promise<void> {
     this.chatMsgs.clear();
+  }
+
+  async getOauthConnection(provider: string): Promise<OauthConnection | undefined> {
+    return Array.from(this.oauthConns.values()).find(c => c.provider === provider);
+  }
+
+  async upsertOauthConnection(conn: InsertOauthConnection): Promise<OauthConnection> {
+    const existing = await this.getOauthConnection(conn.provider);
+    if (existing) {
+      const updated: OauthConnection = { ...existing, ...conn, refreshToken: conn.refreshToken ?? null, tokenExpiresAt: conn.tokenExpiresAt ?? null, scope: conn.scope ?? null, updatedAt: new Date() };
+      this.oauthConns.set(existing.id, updated);
+      return updated;
+    }
+    const newConn: OauthConnection = { ...conn, id: this.oauthId++, refreshToken: conn.refreshToken ?? null, tokenExpiresAt: conn.tokenExpiresAt ?? null, scope: conn.scope ?? null, createdAt: new Date(), updatedAt: new Date() };
+    this.oauthConns.set(newConn.id, newConn);
+    return newConn;
+  }
+
+  async deleteOauthConnection(provider: string): Promise<void> {
+    const conn = await this.getOauthConnection(provider);
+    if (conn) this.oauthConns.delete(conn.id);
+  }
+
+  async getAllOauthConnections(): Promise<OauthConnection[]> {
+    return Array.from(this.oauthConns.values());
   }
 }
 
