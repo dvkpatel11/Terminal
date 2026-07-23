@@ -276,8 +276,8 @@ export const oauthConnections = pgTable("oauth_connections", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
-  providerUserUnique: uniqueIndex("oauth_connections_provider_user_idx")
-    .on(table.provider, table.providerUserId),
+  providerUnique: uniqueIndex("oauth_connections_provider_idx")
+    .on(table.provider),
 }));
 
 export const insertOauthConnectionSchema = z.object({

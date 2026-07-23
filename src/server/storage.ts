@@ -499,14 +499,13 @@ export class DatabaseStorage implements IExtendedStorage {
   }
 
   async upsertOauthConnection(conn: InsertOauthConnection): Promise<OauthConnection> {
-    const existing = await this.getOauthConnection(conn.provider);
-    if (existing) {
-      await this.db.update(oauthConnections)
-        .set({ ...conn, updatedAt: new Date() })
-        .where(eq(oauthConnections.id, existing.id));
-      return { ...existing, ...conn, updatedAt: new Date() };
-    }
-    const result = await this.db.insert(oauthConnections).values(conn).returning();
+    const result = await this.db.insert(oauthConnections)
+      .values(conn)
+      .onConflictDoUpdate({
+        target: [oauthConnections.provider],
+        set: { ...conn, updatedAt: new Date() },
+      })
+      .returning();
     return result[0];
   }
 
