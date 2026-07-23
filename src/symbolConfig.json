@@ -1,0 +1,284 @@
+{
+  "$schema": "Symbol configuration — single source of truth for all symbol lists across client and server. Edit this file to add/remove symbols.",
+
+  "tape": [
+    "AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "META", "BRK-B",
+    "JPM", "BAC", "GS", "MS", "V", "MA", "PYPL",
+    "XOM", "CVX", "COP", "SLB",
+    "^GSPC", "^DJI", "^IXIC", "GC=F", "CL=F", "BTC-USD", "ETH-USD"
+  ],
+
+  "popularTickers": [
+    "AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "META", "JPM",
+    "BTC-USD", "ETH-USD", "GC=F", "SPY"
+  ],
+
+  "indices": [
+    { "symbol": "^GSPC", "label": "S&P 500", "region": "Americas" },
+    { "symbol": "^DJI", "label": "DOW", "region": "Americas" },
+    { "symbol": "^IXIC", "label": "NASDAQ", "region": "Americas" },
+    { "symbol": "^RUT", "label": "RUSSELL 2K", "region": "Americas" },
+    { "symbol": "^GSPTSE", "label": "S&P/TSX", "region": "Americas" },
+    { "symbol": "^BVSP", "label": "BOVESPA", "region": "Americas" },
+    { "symbol": "^FTSE", "label": "FTSE 100", "region": "EMEA" },
+    { "symbol": "^GDAXI", "label": "DAX", "region": "EMEA" },
+    { "symbol": "^FCHI", "label": "CAC 40", "region": "EMEA" },
+    { "symbol": "^STOXX50E", "label": "EURO STOXX 50", "region": "EMEA" },
+    { "symbol": "^SSMI", "label": "SMI", "region": "EMEA" },
+    { "symbol": "^N225", "label": "NIKKEI 225", "region": "Asia-Pac" },
+    { "symbol": "^HSI", "label": "HANG SENG", "region": "Asia-Pac" },
+    { "symbol": "000001.SS", "label": "SHANGHAI", "region": "Asia-Pac" },
+    { "symbol": "^BSESN", "label": "SENSEX", "region": "Asia-Pac" },
+    { "symbol": "^AXJO", "label": "ASX 200", "region": "Asia-Pac" },
+    { "symbol": "^KS11", "label": "KOSPI", "region": "Asia-Pac" },
+    { "symbol": "BTC-USD", "label": "BTC-USD", "region": "Crypto" }
+  ],
+
+  "sectorEtfs": [
+    { "symbol": "XLK", "label": "Technology", "sector": "Technology" },
+    { "symbol": "XLV", "label": "Health Care", "sector": "Healthcare" },
+    { "symbol": "XLF", "label": "Financials", "sector": "Financial Services" },
+    { "symbol": "XLE", "label": "Energy", "sector": "Energy" },
+    { "symbol": "XLI", "label": "Industrials", "sector": "Industrials" },
+    { "symbol": "XLC", "label": "Comm Services", "sector": "Communication Services" },
+    { "symbol": "XLP", "label": "Consumer Staples", "sector": "Consumer Defensive" },
+    { "symbol": "XLU", "label": "Utilities", "sector": "Utilities" },
+    { "symbol": "XLRE", "label": "Real Estate", "sector": "Real Estate" },
+    { "symbol": "XLB", "label": "Materials", "sector": "Basic Materials" },
+    { "symbol": "XLY", "label": "Consumer Disc.", "sector": "Consumer Cyclical" }
+  ],
+
+  "scorecardAssets": [
+    { "symbol": "^GSPC", "label": "S&P 500", "category": "equity" },
+    { "symbol": "^IXIC", "label": "Nasdaq 100", "category": "equity" },
+    { "symbol": "^RUT", "label": "Russell 2000", "category": "equity" },
+    { "symbol": "^FTSE", "label": "FTSE 100", "category": "equity" },
+    { "symbol": "^GDAXI", "label": "DAX", "category": "equity" },
+    { "symbol": "^N225", "label": "Nikkei 225", "category": "equity" },
+    { "symbol": "DX-Y.NYB", "label": "DXY (Dollar)", "category": "fx" },
+    { "symbol": "GC=F", "label": "Gold", "category": "commodity" },
+    { "symbol": "CL=F", "label": "WTI Crude", "category": "commodity" },
+    { "symbol": "SI=F", "label": "Silver", "category": "commodity" },
+    { "symbol": "HG=F", "label": "Copper", "category": "commodity" },
+    { "symbol": "BTC-USD", "label": "Bitcoin", "category": "crypto" },
+    { "symbol": "^VIX", "label": "VIX", "category": "volatility" },
+    { "symbol": "^TNX", "label": "US 10Y Yield", "category": "rates" },
+    { "symbol": "^TYX", "label": "US 30Y Yield", "category": "rates" }
+  ],
+
+  "vixTerms": [
+    { "symbol": "^VIX", "label": "VIX (Spot)", "tenor": "spot" },
+    { "symbol": "^VIX2", "label": "VIX (2M)", "tenor": "2m" },
+    { "symbol": "^VIX3M", "label": "VIX (3M)", "tenor": "3m" }
+  ],
+
+  "crypto": {
+    "symbols": [
+      "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD",
+      "ADA-USD", "DOGE-USD", "DOT-USD", "LINK-USD",
+      "AVAX-USD", "MATIC-USD", "UNI-USD", "LTC-USD"
+    ],
+    "labels": {
+      "BTC-USD": "Bitcoin",
+      "ETH-USD": "Ethereum",
+      "SOL-USD": "Solana",
+      "XRP-USD": "XRP",
+      "ADA-USD": "Cardano",
+      "DOGE-USD": "Dogecoin",
+      "DOT-USD": "Polkadot",
+      "LINK-USD": "Chainlink",
+      "AVAX-USD": "Avalanche",
+      "MATIC-USD": "Polygon",
+      "UNI-USD": "Uniswap",
+      "LTC-USD": "Litecoin"
+    },
+    "binanceMap": {
+      "BTC-USD": "btcusdt",
+      "ETH-USD": "ethusdt",
+      "SOL-USD": "solusdt",
+      "XRP-USD": "xrpusdt"
+    }
+  },
+
+  "fx": {
+    "pairs": ["EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD"],
+    "yahooSymbols": { "EURUSD": "EURUSD=X", "GBPUSD": "GBPUSD=X", "USDJPY": "JPY=X" },
+    "labels": {
+      "EURUSD": "EUR/USD",
+      "GBPUSD": "GBP/USD",
+      "USDJPY": "USD/JPY",
+      "USDCHF": "USD/CHF",
+      "AUDUSD": "AUD/USD",
+      "USDCAD": "USD/CAD",
+      "NZDUSD": "NZD/USD"
+    }
+  },
+
+  "finnhubEquities": [
+    "AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "META", "BRK-B",
+    "JPM", "BAC", "GS", "MS", "V", "MA", "XOM", "CVX", "UNH", "JNJ",
+    "KO", "PEP", "WMT", "HD", "DIS", "NFLX", "AMD"
+  ],
+
+  "screenerUniverse": [
+    "AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "META", "BRK-B",
+    "JPM", "BAC", "GS", "V", "MA", "XOM", "CVX", "UNH", "JNJ", "PFE",
+    "KO", "PEP", "WMT", "HD", "DIS", "NFLX", "CRM", "ADBE", "PYPL",
+    "AMD", "INTC", "QCOM", "TXN", "AVGO", "MU", "AMAT", "ASML"
+  ],
+
+  "screenerSectors": [
+    "Technology", "Healthcare", "Financial Services", "Consumer Cyclical",
+    "Communication Services", "Industrials", "Consumer Defensive", "Energy",
+    "Utilities", "Real Estate", "Basic Materials"
+  ],
+
+  "sampleSymbols": [
+    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "AVGO", "ORCL", "CRM",
+    "JPM", "BAC", "WFC", "GS", "MS", "BLK", "SCHW", "C", "AXP", "USB",
+    "UNH", "JNJ", "LLY", "PFE", "ABBV", "MRK", "TMO", "ABT", "DHR", "BMY",
+    "XOM", "CVX", "COP", "SLB", "EOG", "MPC", "PSX", "VLO", "OXY", "HES",
+    "PG", "KO", "PEP", "WMT", "COST", "HD", "MCD", "NKE", "SBUX", "TGT"
+  ],
+
+  "optionsFlowDefaults": [
+    "AAPL", "MSFT", "TSLA", "NVDA", "AMZN", "META", "GOOGL", "SPY", "QQQ"
+  ],
+
+  "commonTickers": [
+    "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "TSLA", "NVDA", "META",
+    "NFLX", "AMD", "INTC", "IBM", "ORCL", "CRM", "ADBE", "QCOM", "TXN",
+    "AVGO", "COST", "WMT", "HD", "LOW", "DIS", "NKE", "MCD", "SBUX",
+    "BA", "JPM", "GS", "BAC", "C", "WFC", "V", "MA", "PYPL", "SQ",
+    "GME", "AMC", "BB", "PLTR", "SNAP", "RBLX", "UBER", "LYFT",
+    "BTC", "ETH", "SOL", "DOGE", "ADA", "XRP", "DOT", "LINK", "AVAX",
+    "MATIC", "ATOM", "UNI", "ALGO", "FIL", "NEAR", "APT", "SUI",
+    "SPY", "QQQ", "IWM", "DIA", "SPX", "VIX", "TLT",
+    "COIN", "HOOD", "MSTR", "SHOP",
+    "TD", "RY", "CNQ", "ENB", "BNS", "SU", "CP", "TRI", "BCE",
+    "NIO", "RIVN", "LCID", "F", "GM", "AAL", "DAL", "UAL", "CCL", "NCLH"
+  ],
+
+  "peerMap": {
+    "AAPL": ["MSFT", "GOOGL", "META", "AMZN", "NVDA"],
+    "MSFT": ["AAPL", "GOOGL", "AMZN", "CRM", "ADBE"],
+    "NVDA": ["AMD", "INTC", "QCOM", "AVGO", "MU"],
+    "TSLA": ["AMZN", "GOOGL", "NVDA", "MSFT", "AAPL"],
+    "META": ["GOOGL", "NFLX", "AMZN", "AAPL", "MSFT"],
+    "GOOGL": ["META", "MSFT", "AAPL", "AMZN", "NFLX"],
+    "AMZN": ["MSFT", "GOOGL", "AAPL", "WMT", "META"],
+    "JPM": ["BAC", "GS", "MS", "V", "MA"],
+    "XOM": ["CVX", "COP", "SLB", "CL=F", "GC=F"]
+  },
+
+  "indexSparklines": [
+    "^GSPC", "^DJI", "^IXIC", "^RUT", "^GSPTSE", "^BVSP",
+    "^FTSE", "^GDAXI", "^FCHI", "^STOXX50E", "^SSMI",
+    "^N225", "^HSI", "000001.SS", "^BSESN", "^AXJO", "^KS11",
+    "BTC-USD"
+  ],
+
+  "profileCatalog": {
+    "AAPL": { "name": "Apple Inc.", "exchange": "NASDAQ", "sector": "Technology", "marketCap": 3.4e12, "referencePrice": 242, "eps": 6.5, "assetClass": "equity" },
+    "MSFT": { "name": "Microsoft Corp.", "exchange": "NASDAQ", "sector": "Technology", "marketCap": 3.2e12, "referencePrice": 430, "eps": 11.8, "assetClass": "equity" },
+    "NVDA": { "name": "NVIDIA Corp.", "exchange": "NASDAQ", "sector": "Technology", "marketCap": 2.7e12, "referencePrice": 875, "eps": 2.9, "assetClass": "equity" },
+    "TSLA": { "name": "Tesla Inc.", "exchange": "NASDAQ", "sector": "Consumer Cyclical", "marketCap": 8.0e11, "referencePrice": 250, "eps": 3.1, "assetClass": "equity" },
+    "GOOGL": { "name": "Alphabet Inc.", "exchange": "NASDAQ", "sector": "Communication Services", "marketCap": 2.2e12, "referencePrice": 180, "eps": 7.2, "assetClass": "equity" },
+    "AMZN": { "name": "Amazon.com Inc.", "exchange": "NASDAQ", "sector": "Consumer Cyclical", "marketCap": 2.1e12, "referencePrice": 200, "eps": 6.3, "assetClass": "equity" },
+    "META": { "name": "Meta Platforms", "exchange": "NASDAQ", "sector": "Communication Services", "marketCap": 1.4e12, "referencePrice": 560, "eps": 18.7, "assetClass": "equity" },
+    "BRK-B": { "name": "Berkshire Hathaway", "exchange": "NYSE", "sector": "Financial Services", "marketCap": 1.0e12, "referencePrice": 455, "eps": 35.5, "assetClass": "equity" },
+    "JPM": { "name": "JPMorgan Chase", "exchange": "NYSE", "sector": "Financial Services", "marketCap": 6.5e11, "referencePrice": 235, "eps": 17.6, "assetClass": "equity" },
+    "BAC": { "name": "Bank of America", "exchange": "NYSE", "sector": "Financial Services", "marketCap": 3.5e11, "referencePrice": 44, "eps": 3.3, "assetClass": "equity" },
+    "GS": { "name": "Goldman Sachs", "exchange": "NYSE", "sector": "Financial Services", "marketCap": 1.8e11, "referencePrice": 520, "eps": 37.2, "assetClass": "equity" },
+    "MS": { "name": "Morgan Stanley", "exchange": "NYSE", "sector": "Financial Services", "marketCap": 2.3e11, "referencePrice": 124, "eps": 6.7, "assetClass": "equity" },
+    "V": { "name": "Visa Inc.", "exchange": "NYSE", "sector": "Financial Services", "marketCap": 6.0e11, "referencePrice": 300, "eps": 10.2, "assetClass": "equity" },
+    "MA": { "name": "Mastercard Inc.", "exchange": "NYSE", "sector": "Financial Services", "marketCap": 5.0e11, "referencePrice": 500, "eps": 14.1, "assetClass": "equity" },
+    "PYPL": { "name": "PayPal Holdings", "exchange": "NASDAQ", "sector": "Financial Services", "marketCap": 8.0e10, "referencePrice": 74, "eps": 4.2, "assetClass": "equity" },
+    "XOM": { "name": "Exxon Mobil", "exchange": "NYSE", "sector": "Energy", "marketCap": 5.0e11, "referencePrice": 119, "eps": 8.6, "assetClass": "equity" },
+    "CVX": { "name": "Chevron Corp.", "exchange": "NYSE", "sector": "Energy", "marketCap": 2.9e11, "referencePrice": 160, "eps": 10.4, "assetClass": "equity" },
+    "COP": { "name": "ConocoPhillips", "exchange": "NYSE", "sector": "Energy", "marketCap": 1.4e11, "referencePrice": 112, "eps": 8.7, "assetClass": "equity" },
+    "SLB": { "name": "Schlumberger", "exchange": "NYSE", "sector": "Energy", "marketCap": 6.5e10, "referencePrice": 50, "eps": 3.4, "assetClass": "equity" },
+    "UNH": { "name": "UnitedHealth Group", "exchange": "NYSE", "sector": "Healthcare", "marketCap": 4.5e11, "referencePrice": 560, "eps": 27.5, "assetClass": "equity" },
+    "JNJ": { "name": "Johnson & Johnson", "exchange": "NYSE", "sector": "Healthcare", "marketCap": 3.9e11, "referencePrice": 155, "eps": 10.1, "assetClass": "equity" },
+    "PFE": { "name": "Pfizer Inc.", "exchange": "NYSE", "sector": "Healthcare", "marketCap": 1.8e11, "referencePrice": 28, "eps": 2.6, "assetClass": "equity" },
+    "KO": { "name": "Coca-Cola Co.", "exchange": "NYSE", "sector": "Consumer Defensive", "marketCap": 2.8e11, "referencePrice": 69, "eps": 2.8, "assetClass": "equity" },
+    "PEP": { "name": "PepsiCo Inc.", "exchange": "NASDAQ", "sector": "Consumer Defensive", "marketCap": 2.4e11, "referencePrice": 170, "eps": 8.2, "assetClass": "equity" },
+    "WMT": { "name": "Walmart Inc.", "exchange": "NYSE", "sector": "Consumer Defensive", "marketCap": 6.5e11, "referencePrice": 87, "eps": 2.4, "assetClass": "equity" },
+    "HD": { "name": "Home Depot", "exchange": "NYSE", "sector": "Consumer Cyclical", "marketCap": 3.7e11, "referencePrice": 380, "eps": 15.1, "assetClass": "equity" },
+    "DIS": { "name": "Walt Disney Co.", "exchange": "NYSE", "sector": "Communication Services", "marketCap": 2.1e11, "referencePrice": 110, "eps": 4.8, "assetClass": "equity" },
+    "NFLX": { "name": "Netflix Inc.", "exchange": "NASDAQ", "sector": "Communication Services", "marketCap": 5.5e11, "referencePrice": 990, "eps": 19.3, "assetClass": "equity" },
+    "CRM": { "name": "Salesforce", "exchange": "NYSE", "sector": "Technology", "marketCap": 3.1e11, "referencePrice": 325, "eps": 7.9, "assetClass": "equity" },
+    "ADBE": { "name": "Adobe Inc.", "exchange": "NASDAQ", "sector": "Technology", "marketCap": 2.4e11, "referencePrice": 520, "eps": 16.1, "assetClass": "equity" },
+    "AMD": { "name": "Advanced Micro Devices", "exchange": "NASDAQ", "sector": "Technology", "marketCap": 3.2e11, "referencePrice": 178, "eps": 1.6, "assetClass": "equity" },
+    "INTC": { "name": "Intel Corp.", "exchange": "NASDAQ", "sector": "Technology", "marketCap": 9.0e10, "referencePrice": 24, "eps": 0.9, "assetClass": "equity" },
+    "QCOM": { "name": "Qualcomm Inc.", "exchange": "NASDAQ", "sector": "Technology", "marketCap": 1.9e11, "referencePrice": 170, "eps": 8.1, "assetClass": "equity" },
+    "TXN": { "name": "Texas Instruments", "exchange": "NASDAQ", "sector": "Technology", "marketCap": 1.7e11, "referencePrice": 188, "eps": 6.2, "assetClass": "equity" },
+    "AVGO": { "name": "Broadcom Inc.", "exchange": "NASDAQ", "sector": "Technology", "marketCap": 8.0e11, "referencePrice": 1400, "eps": 12.4, "assetClass": "equity" },
+    "MU": { "name": "Micron Technology", "exchange": "NASDAQ", "sector": "Technology", "marketCap": 1.4e11, "referencePrice": 125, "eps": 4.8, "assetClass": "equity" },
+    "AMAT": { "name": "Applied Materials", "exchange": "NASDAQ", "sector": "Technology", "marketCap": 1.8e11, "referencePrice": 220, "eps": 8.8, "assetClass": "equity" },
+    "ASML": { "name": "ASML Holding", "exchange": "NASDAQ", "sector": "Technology", "marketCap": 3.5e11, "referencePrice": 950, "eps": 24.5, "assetClass": "equity" },
+    "SPY": { "name": "SPDR S&P 500 ETF", "exchange": "ARCA", "sector": "ETF", "referencePrice": 581, "assetClass": "etf" },
+    "QQQ": { "name": "Invesco QQQ Trust", "exchange": "NASDAQ", "sector": "ETF", "referencePrice": 492, "assetClass": "etf" },
+    "IWM": { "name": "iShares Russell 2000 ETF", "exchange": "ARCA", "sector": "ETF", "referencePrice": 249, "assetClass": "etf" },
+    "DIA": { "name": "SPDR Dow Jones Industrial Average ETF", "exchange": "ARCA", "sector": "ETF", "referencePrice": 432, "assetClass": "etf" },
+    "XLK": { "name": "Technology Select Sector SPDR Fund", "exchange": "ARCA", "sector": "Technology", "referencePrice": 220, "assetClass": "etf" },
+    "XLV": { "name": "Health Care Select Sector SPDR Fund", "exchange": "ARCA", "sector": "Healthcare", "referencePrice": 145, "assetClass": "etf" },
+    "XLF": { "name": "Financial Select Sector SPDR Fund", "exchange": "ARCA", "sector": "Financial Services", "referencePrice": 44, "assetClass": "etf" },
+    "XLE": { "name": "Energy Select Sector SPDR Fund", "exchange": "ARCA", "sector": "Energy", "referencePrice": 88, "assetClass": "etf" },
+    "XLI": { "name": "Industrial Select Sector SPDR Fund", "exchange": "ARCA", "sector": "Industrials", "referencePrice": 118, "assetClass": "etf" },
+    "XLC": { "name": "Communication Services Select SPDR Fund", "exchange": "ARCA", "sector": "Communication Services", "referencePrice": 85, "assetClass": "etf" },
+    "XLP": { "name": "Consumer Staples Select Sector SPDR Fund", "exchange": "ARCA", "sector": "Consumer Defensive", "referencePrice": 80, "assetClass": "etf" },
+    "XLU": { "name": "Utilities Select Sector SPDR Fund", "exchange": "ARCA", "sector": "Utilities", "referencePrice": 74, "assetClass": "etf" },
+    "XLRE": { "name": "Real Estate Select Sector SPDR Fund", "exchange": "ARCA", "sector": "Real Estate", "referencePrice": 42, "assetClass": "etf" },
+    "XLB": { "name": "Materials Select Sector SPDR Fund", "exchange": "ARCA", "sector": "Basic Materials", "referencePrice": 88, "assetClass": "etf" },
+    "XLY": { "name": "Consumer Discretionary Select Sector SPDR Fund", "exchange": "ARCA", "sector": "Consumer Cyclical", "referencePrice": 195, "assetClass": "etf" },
+    "^GSPC": { "name": "S&P 500", "exchange": "INDEX", "sector": "Index", "referencePrice": 5780, "assetClass": "index" },
+    "^DJI": { "name": "Dow Jones Industrial Average", "exchange": "INDEX", "sector": "Index", "referencePrice": 43250, "assetClass": "index" },
+    "^IXIC": { "name": "NASDAQ Composite", "exchange": "INDEX", "sector": "Index", "referencePrice": 18450, "assetClass": "index" },
+    "^RUT": { "name": "Russell 2000", "exchange": "INDEX", "sector": "Index", "referencePrice": 2180, "assetClass": "index" },
+    "^VIX": { "name": "CBOE Volatility Index", "exchange": "CBOE", "sector": "Volatility", "referencePrice": 17.5, "assetClass": "index" },
+    "^NYA": { "name": "NYSE Composite", "exchange": "INDEX", "sector": "Index", "referencePrice": 19800, "assetClass": "index" },
+    "^FTSE": { "name": "FTSE 100", "exchange": "INDEX", "sector": "Index", "referencePrice": 8200, "assetClass": "index" },
+    "^GDAXI": { "name": "DAX", "exchange": "INDEX", "sector": "Index", "referencePrice": 18500, "assetClass": "index" },
+    "^N225": { "name": "Nikkei 225", "exchange": "INDEX", "sector": "Index", "referencePrice": 39500, "assetClass": "index" },
+    "GC=F": { "name": "Gold Futures", "exchange": "COMEX", "sector": "Commodity", "referencePrice": 2985, "assetClass": "commodity" },
+    "CL=F": { "name": "Crude Oil WTI", "exchange": "NYMEX", "sector": "Commodity", "referencePrice": 68.4, "assetClass": "commodity" },
+    "ADA-USD": { "name": "Cardano USD", "exchange": "CRYPTO", "sector": "Crypto", "assetClass": "crypto", "coinGeckoId": "cardano" },
+    "AUDUSD": { "name": "Australian Dollar / US Dollar", "exchange": "FX", "sector": "Forex", "assetClass": "forex" },
+    "AVAX-USD": { "name": "Avalanche USD", "exchange": "CRYPTO", "sector": "Crypto", "assetClass": "crypto", "coinGeckoId": "avalanche-2" },
+    "BTC-USD": { "name": "Bitcoin USD", "exchange": "CRYPTO", "sector": "Crypto", "assetClass": "crypto", "coinGeckoId": "bitcoin" },
+    "DOGE-USD": { "name": "Dogecoin USD", "exchange": "CRYPTO", "sector": "Crypto", "assetClass": "crypto", "coinGeckoId": "dogecoin" },
+    "DOT-USD": { "name": "Polkadot USD", "exchange": "CRYPTO", "sector": "Crypto", "assetClass": "crypto", "coinGeckoId": "polkadot" },
+    "ETH-USD": { "name": "Ethereum USD", "exchange": "CRYPTO", "sector": "Crypto", "assetClass": "crypto", "coinGeckoId": "ethereum" },
+    "EURUSD": { "name": "Euro / US Dollar", "exchange": "FX", "sector": "Forex", "assetClass": "forex" },
+    "GBPUSD": { "name": "British Pound / US Dollar", "exchange": "FX", "sector": "Forex", "assetClass": "forex" },
+    "LINK-USD": { "name": "Chainlink USD", "exchange": "CRYPTO", "sector": "Crypto", "assetClass": "crypto", "coinGeckoId": "chainlink" },
+    "LTC-USD": { "name": "Litecoin USD", "exchange": "CRYPTO", "sector": "Crypto", "assetClass": "crypto", "coinGeckoId": "litecoin" },
+    "MATIC-USD": { "name": "Polygon USD", "exchange": "CRYPTO", "sector": "Crypto", "assetClass": "crypto", "coinGeckoId": "matic-network" },
+    "NZDUSD": { "name": "New Zealand Dollar / US Dollar", "exchange": "FX", "sector": "Forex", "assetClass": "forex" },
+    "SOL-USD": { "name": "Solana USD", "exchange": "CRYPTO", "sector": "Crypto", "assetClass": "crypto", "coinGeckoId": "solana" },
+    "UNI-USD": { "name": "Uniswap USD", "exchange": "CRYPTO", "sector": "Crypto", "assetClass": "crypto", "coinGeckoId": "uniswap" },
+    "USDCAD": { "name": "US Dollar / Canadian Dollar", "exchange": "FX", "sector": "Forex", "assetClass": "forex" },
+    "USDCHF": { "name": "US Dollar / Swiss Franc", "exchange": "FX", "sector": "Forex", "assetClass": "forex" },
+    "USDJPY": { "name": "US Dollar / Japanese Yen", "exchange": "FX", "sector": "Forex", "assetClass": "forex" },
+    "XRP-USD": { "name": "XRP USD", "exchange": "CRYPTO", "sector": "Crypto", "assetClass": "crypto", "coinGeckoId": "ripple" }
+  },
+
+  "defaults": {
+    "benchmark": "SPY",
+    "economicsCommodities": ["GC=F", "CL=F"]
+  },
+
+  "indexDescriptions": {
+    "^GSPC": "500 large-cap US equities",
+    "^DJI": "30 blue-chip US stocks",
+    "^IXIC": "all NASDAQ-listed securities",
+    "^FTSE": "100 London Stock Exchange listings",
+    "^GDAXI": "40 Frankfurt Stock Exchange listings",
+    "^N225": "225 Tokyo Stock Exchange listings"
+  },
+
+  "discord": {
+    "trackedChannels": []
+  }
+}
