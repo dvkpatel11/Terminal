@@ -550,6 +550,13 @@
   }
   .flash-up { animation: flash-up 0.6s ease-out; }
   .flash-down { animation: flash-down 0.6s ease-out; }
+
+  /* Data table active row (keyboard nav) */
+  .data-table-active {
+    background-color: hsl(var(--color-market-muted)) !important;
+    outline: 1px solid hsl(var(--color-market));
+    outline-offset: -1px;
+  }
 }
 
 
