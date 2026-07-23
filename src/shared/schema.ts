@@ -1,4 +1,4 @@
-import { pgTable, text, integer, real, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, real, boolean, timestamp, uniqueIndex, bigserial } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 // ─── Instruments (Central Registry) ──────────────────────────────────────────
@@ -262,6 +262,26 @@ export const insertSocialPostSchema = z.object({
 
 export type InsertSocialPost = z.infer<typeof insertSocialPostSchema>;
 export type SocialPost = typeof socialPosts.$inferSelect;
+
+// ─── OAuth Connections ──────────────────────────────────────────────────────
+export const oauthConnections = pgTable("oauth_connections", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  provider: text("provider").notNull(),
+  providerUserId: text("provider_user_id").notNull(),
+  displayName: text("display_name").notNull(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  scope: text("scope"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  providerUserUnique: uniqueIndex("oauth_connections_provider_user_idx")
+    .on(table.provider, table.providerUserId),
+}));
+
+export type OauthConnection = typeof oauthConnections.$inferSelect;
+export type InsertOauthConnection = typeof oauthConnections.$inferInsert;
 
 // ─── Options Flow ────────────────────────────────────────────────────────────
 export const optionsFlow = pgTable("options_flow", {
