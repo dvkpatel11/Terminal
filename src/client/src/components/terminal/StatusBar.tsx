@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRealtime } from "@/lib/realtime";
 
 function useApiHealth() {
   return useQuery<{ ok: boolean; latency: number }>({
@@ -26,6 +27,7 @@ function latencyClass(ms: number) {
 
 export default function StatusBar() {
   const { data: health } = useApiHealth();
+  const { connected } = useRealtime();
   const [clock, setClock] = useState(() => new Date());
 
   useEffect(() => {
@@ -52,6 +54,14 @@ export default function StatusBar() {
             <span className={`${latencyClass(health.latency)} shrink-0`}>{health.latency}ms</span>
           </>
         )}
+
+        <span className="text-muted-foreground/30">|</span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-cyan animate-pulse" : "bg-yellow-500"}`} />
+          <span className={connected ? "text-cyan" : "text-yellow-500"}>
+            {connected ? "WS" : "WS OFF"}
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center gap-1.5">

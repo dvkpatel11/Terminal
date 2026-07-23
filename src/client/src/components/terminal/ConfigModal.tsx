@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Settings, Key, Activity, Check, AlertTriangle, RefreshCw, Eye, EyeOff, ExternalLink, HelpCircle, Plus, Trash2, List, Plug } from "lucide-react";
+import { X, Settings, Key, Activity, Check, AlertTriangle, RefreshCw, Eye, EyeOff, ExternalLink, HelpCircle, Plus, Trash2, List, Plug, Monitor, Bell, Clock } from "lucide-react";
 import { PANEL_REGISTRY, PANELS_BY_CATEGORY, CATEGORY_ORDER, type PanelCategory } from "@/lib/panelRegistry";
 import type { ViewMode } from "@/lib/terminalTypes";
 import { useSymbolConfig } from "@/lib/useSymbolConfig";
@@ -11,7 +11,7 @@ interface Props {
   onNav: (v: ViewMode) => void;
 }
 
-type ConfigTab = "status" | "keys" | "symbols" | "social" | "general" | "help";
+type ConfigTab = "status" | "keys" | "symbols" | "social" | "display" | "notifications" | "refresh" | "general" | "help";
 
 interface ProviderStatus {
   name: string;
@@ -36,6 +36,63 @@ interface NvidiaKeyStatus {
 
 const NVIDIA_KEY_STORAGE = "blmtrm_nvidia_key";
 const DEFAULT_SYMBOL_STORAGE = "blmtrm_default_symbol";
+const DISPLAY_SETTINGS_KEY = "blmtrm_display";
+const NOTIFICATION_SETTINGS_KEY = "blmtrm_notifications";
+const REFRESH_SETTINGS_KEY = "blmtrm_refresh";
+
+interface DisplaySettings {
+  fontSize: "compact" | "standard" | "large";
+  density: "compact" | "comfortable" | "spacious";
+}
+
+interface NotificationSettings {
+  alertSounds: boolean;
+  toastDuration: number;
+  showPriceAlerts: boolean;
+  showSystemAlerts: boolean;
+}
+
+interface RefreshSettings {
+  quoteInterval: number;
+  newsInterval: number;
+  fundamentalsInterval: number;
+}
+
+function loadDisplaySettings(): DisplaySettings {
+  try {
+    const raw = localStorage.getItem(DISPLAY_SETTINGS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { fontSize: "standard", density: "comfortable" };
+}
+
+function saveDisplaySettings(settings: DisplaySettings) {
+  localStorage.setItem(DISPLAY_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function loadNotificationSettings(): NotificationSettings {
+  try {
+    const raw = localStorage.getItem(NOTIFICATION_SETTINGS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { alertSounds: true, toastDuration: 5000, showPriceAlerts: true, showSystemAlerts: true };
+}
+
+function saveNotificationSettings(settings: NotificationSettings) {
+  localStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function loadRefreshSettings(): RefreshSettings {
+  try {
+    const raw = localStorage.getItem(REFRESH_SETTINGS_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { quoteInterval: 15, newsInterval: 60, fundamentalsInterval: 300 };
+}
+
+function saveRefreshSettings(settings: RefreshSettings) {
+  localStorage.setItem(REFRESH_SETTINGS_KEY, JSON.stringify(settings));
+}
 
 const PROVIDERS = [
   { name: "Yahoo Finance", category: "MARKET DATA", testUrl: "/api/finance/tick?symbols=SPY" },
@@ -108,6 +165,9 @@ export default function ConfigModal({ open, onClose, onNav }: Props) {
   const [nvidiaKeyVisible, setNvidiaKeyVisible] = useState(false);
   const [nvidiaStatus, setNvidiaStatus] = useState<NvidiaKeyStatus>({ configured: !!loadNvidiaKey(), valid: false, testing: false });
   const [defaultSymbol, setDefaultSymbol] = useState(loadDefaultSymbol);
+  const [displaySettings, setDisplaySettings] = useState(loadDisplaySettings);
+  const [notificationSettings, setNotificationSettings] = useState(loadNotificationSettings);
+  const [refreshSettings, setRefreshSettings] = useState(loadRefreshSettings);
   const { data: symbolConfig } = useSymbolConfig();
 
   const [oauthSuccess, setOauthSuccess] = useState<string | null>(null);
@@ -339,6 +399,9 @@ export default function ConfigModal({ open, onClose, onNav }: Props) {
     { id: "keys", label: "API KEYS", icon: Key },
     { id: "symbols", label: "SYMBOLS", icon: List },
     { id: "social", label: "SOCIAL ACCOUNTS", icon: Plug },
+    { id: "display", label: "DISPLAY", icon: Monitor },
+    { id: "notifications", label: "NOTIFICATIONS", icon: Bell },
+    { id: "refresh", label: "DATA REFRESH", icon: Clock },
     { id: "general", label: "GENERAL", icon: Settings },
     { id: "help", label: "HELP", icon: HelpCircle },
   ];
@@ -832,6 +895,273 @@ export default function ConfigModal({ open, onClose, onNav }: Props) {
 
           {activeTab === "social" && (
             <SocialAccountsTab oauthSuccess={oauthSuccess} oauthError={oauthError} />
+          )}
+
+          {activeTab === "display" && (
+            <div className="p-4 space-y-4">
+              <div className="border border-border/40 rounded-sm p-3">
+                <div className="mb-3">
+                  <span className="font-terminal text-[10px] font-bold text-foreground/80">FONT SIZE</span>
+                  <span className="font-terminal text-[7px] tracking-wider text-muted-foreground/50 ml-2">TERMINAL TEXT SCALE</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: "compact" as const, label: "COMPACT", desc: "10px base" },
+                    { value: "standard" as const, label: "STANDARD", desc: "12px base" },
+                    { value: "large" as const, label: "LARGE", desc: "14px base" },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        const next = { ...displaySettings, fontSize: opt.value };
+                        setDisplaySettings(next);
+                        saveDisplaySettings(next);
+                      }}
+                      className={`px-3 py-2 border rounded-sm transition-all ${
+                        displaySettings.fontSize === opt.value
+                          ? "border-[hsl(186_45%_50%/0.4)] bg-[hsl(186_45%_50%/0.08)] text-[hsl(186_45%_60%)]"
+                          : "border-border/40 text-muted-foreground/60 hover:bg-white/[0.02]"
+                      }`}
+                    >
+                      <div className="font-terminal text-[9px] font-bold">{opt.label}</div>
+                      <div className="font-terminal text-[7px] text-muted-foreground/40 mt-0.5">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border border-border/40 rounded-sm p-3">
+                <div className="mb-3">
+                  <span className="font-terminal text-[10px] font-bold text-foreground/80">DENSITY</span>
+                  <span className="font-terminal text-[7px] tracking-wider text-muted-foreground/50 ml-2">PANEL SPACING</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: "compact" as const, label: "COMPACT", desc: "Tight spacing" },
+                    { value: "comfortable" as const, label: "COMFORTABLE", desc: "Default spacing" },
+                    { value: "spacious" as const, label: "SPACIOUS", desc: "Wide spacing" },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        const next = { ...displaySettings, density: opt.value };
+                        setDisplaySettings(next);
+                        saveDisplaySettings(next);
+                      }}
+                      className={`px-3 py-2 border rounded-sm transition-all ${
+                        displaySettings.density === opt.value
+                          ? "border-[hsl(186_45%_50%/0.4)] bg-[hsl(186_45%_50%/0.08)] text-[hsl(186_45%_60%)]"
+                          : "border-border/40 text-muted-foreground/60 hover:bg-white/[0.02]"
+                      }`}
+                    >
+                      <div className="font-terminal text-[9px] font-bold">{opt.label}</div>
+                      <div className="font-terminal text-[7px] text-muted-foreground/40 mt-0.5">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="px-1 py-2">
+                <span className="font-terminal text-[8px] text-muted-foreground/40 tracking-wider">
+                  DISPLAY SETTINGS ARE SAVED TO BROWSER LOCALSTORAGE.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "notifications" && (
+            <div className="p-4 space-y-4">
+              <div className="border border-border/40 rounded-sm p-3">
+                <div className="mb-3">
+                  <span className="font-terminal text-[10px] font-bold text-foreground/80">ALERT PREFERENCES</span>
+                </div>
+                <div className="space-y-3">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="font-terminal text-[9px] text-foreground/70">Alert Sounds</span>
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={notificationSettings.alertSounds}
+                        onChange={(e) => {
+                          const next = { ...notificationSettings, alertSounds: e.target.checked };
+                          setNotificationSettings(next);
+                          saveNotificationSettings(next);
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-8 h-4 bg-border/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[hsl(186,45%,50%)]" />
+                    </div>
+                  </label>
+
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="font-terminal text-[9px] text-foreground/70">Price Alerts</span>
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={notificationSettings.showPriceAlerts}
+                        onChange={(e) => {
+                          const next = { ...notificationSettings, showPriceAlerts: e.target.checked };
+                          setNotificationSettings(next);
+                          saveNotificationSettings(next);
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-8 h-4 bg-border/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[hsl(186,45%,50%)]" />
+                    </div>
+                  </label>
+
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="font-terminal text-[9px] text-foreground/70">System Alerts</span>
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={notificationSettings.showSystemAlerts}
+                        onChange={(e) => {
+                          const next = { ...notificationSettings, showSystemAlerts: e.target.checked };
+                          setNotificationSettings(next);
+                          saveNotificationSettings(next);
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-8 h-4 bg-border/50 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[hsl(186,45%,50%)]" />
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="border border-border/40 rounded-sm p-3">
+                <div className="mb-3">
+                  <span className="font-terminal text-[10px] font-bold text-foreground/80">TOAST DURATION</span>
+                  <span className="font-terminal text-[7px] tracking-wider text-muted-foreground/50 ml-2">HOW LONG NOTIFICATIONS SHOW</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: 3000, label: "3s" },
+                    { value: 5000, label: "5s" },
+                    { value: 10000, label: "10s" },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        const next = { ...notificationSettings, toastDuration: opt.value };
+                        setNotificationSettings(next);
+                        saveNotificationSettings(next);
+                      }}
+                      className={`px-3 py-2 border rounded-sm transition-all ${
+                        notificationSettings.toastDuration === opt.value
+                          ? "border-[hsl(186_45%_50%/0.4)] bg-[hsl(186_45%_50%/0.08)] text-[hsl(186_45%_60%)]"
+                          : "border-border/40 text-muted-foreground/60 hover:bg-white/[0.02]"
+                      }`}
+                    >
+                      <div className="font-terminal text-[9px] font-bold">{opt.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "refresh" && (
+            <div className="p-4 space-y-4">
+              <div className="border border-border/40 rounded-sm p-3">
+                <div className="mb-3">
+                  <span className="font-terminal text-[10px] font-bold text-foreground/80">QUOTE REFRESH</span>
+                  <span className="font-terminal text-[7px] tracking-wider text-muted-foreground/50 ml-2">PRICE DATA POLLING</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {([
+                    { value: 5, label: "5s" },
+                    { value: 15, label: "15s" },
+                    { value: 30, label: "30s" },
+                    { value: 60, label: "60s" },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        const next = { ...refreshSettings, quoteInterval: opt.value };
+                        setRefreshSettings(next);
+                        saveRefreshSettings(next);
+                      }}
+                      className={`px-3 py-2 border rounded-sm transition-all ${
+                        refreshSettings.quoteInterval === opt.value
+                          ? "border-[hsl(186_45%_50%/0.4)] bg-[hsl(186_45%_50%/0.08)] text-[hsl(186_45%_60%)]"
+                          : "border-border/40 text-muted-foreground/60 hover:bg-white/[0.02]"
+                      }`}
+                    >
+                      <div className="font-terminal text-[9px] font-bold">{opt.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border border-border/40 rounded-sm p-3">
+                <div className="mb-3">
+                  <span className="font-terminal text-[10px] font-bold text-foreground/80">NEWS REFRESH</span>
+                  <span className="font-terminal text-[7px] tracking-wider text-muted-foreground/50 ml-2">NEWS FEED POLLING</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {([
+                    { value: 30, label: "30s" },
+                    { value: 60, label: "60s" },
+                    { value: 120, label: "2m" },
+                    { value: 300, label: "5m" },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        const next = { ...refreshSettings, newsInterval: opt.value };
+                        setRefreshSettings(next);
+                        saveRefreshSettings(next);
+                      }}
+                      className={`px-3 py-2 border rounded-sm transition-all ${
+                        refreshSettings.newsInterval === opt.value
+                          ? "border-[hsl(186_45%_50%/0.4)] bg-[hsl(186_45%_50%/0.08)] text-[hsl(186_45%_60%)]"
+                          : "border-border/40 text-muted-foreground/60 hover:bg-white/[0.02]"
+                      }`}
+                    >
+                      <div className="font-terminal text-[9px] font-bold">{opt.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border border-border/40 rounded-sm p-3">
+                <div className="mb-3">
+                  <span className="font-terminal text-[10px] font-bold text-foreground/80">FUNDAMENTALS REFRESH</span>
+                  <span className="font-terminal text-[7px] tracking-wider text-muted-foreground/50 ml-2">FINANCIAL DATA POLLING</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {([
+                    { value: 60, label: "1m" },
+                    { value: 300, label: "5m" },
+                    { value: 600, label: "10m" },
+                    { value: 1800, label: "30m" },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        const next = { ...refreshSettings, fundamentalsInterval: opt.value };
+                        setRefreshSettings(next);
+                        saveRefreshSettings(next);
+                      }}
+                      className={`px-3 py-2 border rounded-sm transition-all ${
+                        refreshSettings.fundamentalsInterval === opt.value
+                          ? "border-[hsl(186_45%_50%/0.4)] bg-[hsl(186_45%_50%/0.08)] text-[hsl(186_45%_60%)]"
+                          : "border-border/40 text-muted-foreground/60 hover:bg-white/[0.02]"
+                      }`}
+                    >
+                      <div className="font-terminal text-[9px] font-bold">{opt.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="px-1 py-2">
+                <span className="font-terminal text-[8px] text-muted-foreground/40 tracking-wider">
+                  REFRESH SETTINGS REQUIRE A PAGE RELOAD TO TAKE EFFECT.
+                </span>
+              </div>
+            </div>
           )}
 
           {activeTab === "general" && (

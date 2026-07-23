@@ -10,6 +10,7 @@ import { NewsList } from "@/components/news";
 import { formatPrice, formatPct, formatBig, pctClass } from "@/lib/finance";
 import { useQuote, useOHLCV, useNews, useFundamentals, useOnChain } from "@/lib/useFinance";
 import { useWorkspaceStore } from "@/lib/workspaceStore";
+import { useSymbolConfig } from "@/lib/useSymbolConfig";
 import type { ViewMode } from "@/lib/terminalTypes";
 import { sigMA, sig52w, sigPE, sigFwdPE, sigEvEbitda, sigMargin, sigGrowth, sigAnalystUpside, sigAnalystRec, sigDebtEquity, sigDividend, tally, type Signal } from "@/lib/signals";
 
@@ -60,11 +61,12 @@ function isETF(quote?: { assetClass?: string; exchange?: string; sector?: string
 
 export default function IntelPanel({ symbol, onNav }: Props) {
   const openView = useWorkspaceStore((s) => s.openView);
-  const { data: quote, isLoading: quoteLoading } = useQuote(symbol);
+  const { data: quote, isLoading: quoteLoading, isError: quoteError } = useQuote(symbol);
   const { data: ohlcvSeries } = useOHLCV(symbol, "1Y", "1d");
   const { data: news } = useNews(symbol);
-  const { data: fundamentals, isLoading: fundLoading } = useFundamentals(symbol);
+  const { data: fundamentals, isLoading: fundLoading, isError: fundError } = useFundamentals(symbol);
   const { data: onChain } = useOnChain(isCrypto(quote) ? symbol : undefined);
+  const { data: symbolConfig } = useSymbolConfig();
 
   const profile = fundamentals?.profile;
   const metrics = fundamentals?.metrics;
@@ -138,7 +140,7 @@ export default function IntelPanel({ symbol, onNav }: Props) {
     return { d7: calc(7), d30: calc(30), d90: calc(90), ytd: calc(Math.min(bars.length - 1, 365)) };
   }, [ohlcvSeries, price]);
 
-  const loading = quoteLoading || fundLoading;
+  const loading = quoteLoading;
   if (loading) {
     return (
       <div className="p-6 space-y-4">
@@ -147,6 +149,16 @@ export default function IntelPanel({ symbol, onNav }: Props) {
         <div className="grid grid-cols-3 gap-4 mt-6">
           {Array(9).fill(0).map((_, i) => <Skeleton key={i} className="h-32 bg-border" />)}
         </div>
+      </div>
+    );
+  }
+
+  if (!quote && quoteError) {
+    return (
+      <div className="p-6 space-y-4">
+        <div className="font-terminal text-negative text-sm">Failed to load data for {symbol}</div>
+        <div className="font-terminal text-muted-foreground text-xs">Check your connection or try a different symbol.</div>
+        <SymbolSuggestions query={symbol} onSelect={(s) => openView("intel", s)} />
       </div>
     );
   }
@@ -383,7 +395,7 @@ export default function IntelPanel({ symbol, onNav }: Props) {
                 ) : (
                   <>
                     <div>Market-cap weighted composite</div>
-                    <div>Tracks {symbol === "^GSPC" ? "500 large-cap US equities" : symbol === "^DJI" ? "30 blue-chip US stocks" : symbol === "^IXIC" ? "all NASDAQ-listed securities" : symbol === "^FTSE" ? "100 London Stock Exchange listings" : symbol === "^GDAXI" ? "40 Frankfurt Stock Exchange listings" : symbol === "^N225" ? "225 Tokyo Stock Exchange listings" : "constituent securities"}</div>
+                    <div>Tracks {symbolConfig?.indexDescriptions[symbol] ?? "constituent securities"}</div>
                   </>
                 )}
               </div>
