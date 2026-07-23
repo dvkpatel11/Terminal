@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS oauth_connections (
   refresh_token TEXT,
   token_expires_at TIMESTAMP,
   scope TEXT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
 -- Unique index on (provider, provider_user_id)
