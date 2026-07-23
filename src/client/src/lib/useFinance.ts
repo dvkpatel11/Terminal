@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Quote, OHLCVSeries, NewsItem, NewsArticle, PortfolioAnalytics, PortfolioPositionInput, EconomicsSnapshot, EconomicCalendarEvent, EconomicEventDetail, DataStatus } from "./finance";
 import { useRealtime } from "./realtime";
 
@@ -792,5 +792,58 @@ export function useSocialSources() {
       return res.json();
     },
     staleTime: 300000,
+  });
+}
+
+// ─── OAuth Connection Hooks ────────────────────────────────────────────────
+
+interface OAuthConnection {
+  provider: string;
+  displayName: string;
+  scope: string | null;
+  tokenExpiresAt: string | null;
+  createdAt: string;
+}
+
+export function useOAuthConnections() {
+  return useQuery<OAuthConnection[]>({
+    queryKey: ["/api/oauth/connections"],
+    staleTime: 30_000,
+  });
+}
+
+export function useConnectOAuth() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (provider: string) => {
+      const res = await fetch(`/api/oauth/authorize?provider=${provider}`);
+      const data = await res.json();
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      }
+      return data;
+    },
+  });
+}
+
+export function useDisconnectOAuth() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (provider: string) => {
+      const res = await fetch(`/api/oauth/connections/${provider}`, { method: "DELETE" });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/oauth/connections"] });
+    },
+  });
+}
+
+export function useTestOAuth() {
+  return useMutation({
+    mutationFn: async (provider: string) => {
+      const res = await fetch(`/api/oauth/test/${provider}`, { method: "POST" });
+      return res.json();
+    },
   });
 }
