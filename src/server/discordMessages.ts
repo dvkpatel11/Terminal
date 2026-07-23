@@ -40,7 +40,7 @@ export function normalizeDiscordMessage(
 
   return {
     id: msg.id,
-    platform: "discord" as any,
+    platform: "discord",
     author: msg.author.username,
     title: `#${channelName}`,
     text: displayText,

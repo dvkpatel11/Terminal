@@ -7,6 +7,10 @@ import {
 } from './sentimentAnalyzer';
 import { decryptToken } from "./oauth";
 import { extendedStorage } from "./storage";
+import { getDiscordTrackedChannels } from './symbolRegistry';
+import { getDiscordBotToken } from './discordBot';
+import { getMessages } from './discordApi';
+import { normalizeDiscordMessage } from './discordMessages';
 
 const FETCH_TIMEOUT = 8000;
 const REDDIT_USER_AGENT = 'TerminalApp/1.0';
@@ -17,7 +21,7 @@ const TWITTER_API = 'https://api.twitter.com/2';
 
 export interface SocialPost {
   id: string;
-  platform: 'reddit' | 'x' | 'truth';
+  platform: 'reddit' | 'x' | 'truth' | 'discord';
   author: string;
   title: string;
   text: string;
@@ -43,7 +47,7 @@ export interface SocialFeedResponse {
 }
 
 export interface SocialSourceConfig {
-  platform: 'reddit' | 'x' | 'truth';
+  platform: 'reddit' | 'x' | 'truth' | 'discord';
   identifier: string;
   displayName: string;
   url: string;
@@ -348,6 +352,34 @@ export async function fetchTruthPosts(handles: string[]): Promise<SocialPost[]> 
   return allPosts;
 }
 
+// ─── Discord Fetcher ───────────────────────────────────────────────────────
+
+async function fetchDiscordPosts(): Promise<SocialPost[]> {
+  try {
+    const token = getDiscordBotToken();
+    if (!token) return [];
+
+    const tracked = getDiscordTrackedChannels();
+    if (!tracked.length) return [];
+
+    const posts: SocialPost[] = [];
+    for (const ch of tracked) {
+      try {
+        const messages = await getMessages(token, ch.channelId, 50);
+        for (const msg of messages) {
+          const post = normalizeDiscordMessage(msg, ch.guildName, ch.channelName);
+          if (post) posts.push(post);
+        }
+      } catch (error: any) {
+        console.error(`[discord] Failed to fetch ${ch.channelName}:`, error.message);
+      }
+    }
+    return posts;
+  } catch {
+    return [];
+  }
+}
+
 // ─── Unified Feed ──────────────────────────────────────────────────────────
 
 function aggregateSentiment(posts: SocialPost[]): Record<string, { positive: number; negative: number; score: number; count: number }> {
@@ -392,21 +424,24 @@ export async function getSocialFeed(
   const xSources = enabled.filter(s => s.platform === 'x').map(s => s.identifier);
   const truthSources = enabled.filter(s => s.platform === 'truth').map(s => s.identifier);
 
-  const [redditPosts, xPosts, truthPosts] = await Promise.allSettled([
+  const [redditPosts, xPosts, truthPosts, discordPosts] = await Promise.allSettled([
     redditSources.length ? fetchRedditPosts(redditSources, userTokens.reddit) : Promise.resolve([]),
     xSources.length ? fetchXTweets(xSources, userTokens.x) : Promise.resolve([]),
     truthSources.length ? fetchTruthPosts(truthSources) : Promise.resolve([]),
+    fetchDiscordPosts(),
   ]);
 
   const allReddit = redditPosts.status === 'fulfilled' ? redditPosts.value : [];
   const allX = xPosts.status === 'fulfilled' ? xPosts.value : [];
   const allTruth = truthPosts.status === 'fulfilled' ? truthPosts.value : [];
+  const allDiscord = discordPosts.status === 'fulfilled' ? discordPosts.value : [];
 
   if (allReddit.length) byPlatform.reddit = allReddit;
   if (allX.length) byPlatform.x = allX;
   if (allTruth.length) byPlatform.truth = allTruth;
+  if (allDiscord.length) byPlatform.discord = allDiscord;
 
-  const allPosts = [...allReddit, ...allX, ...allTruth]
+  const allPosts = [...allReddit, ...allX, ...allTruth, ...allDiscord]
     .sort((a, b) => b.engagementScore - a.engagementScore);
 
   const byAccount = [...allPosts].sort((a, b) => {
