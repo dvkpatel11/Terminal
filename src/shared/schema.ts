@@ -1,4 +1,4 @@
-import { pgTable, text, integer, real, boolean, timestamp, uniqueIndex, bigserial } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, real, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 // ─── Instruments (Central Registry) ──────────────────────────────────────────
@@ -265,7 +265,7 @@ export type SocialPost = typeof socialPosts.$inferSelect;
 
 // ─── OAuth Connections ──────────────────────────────────────────────────────
 export const oauthConnections = pgTable("oauth_connections", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   provider: text("provider").notNull(),
   providerUserId: text("provider_user_id").notNull(),
   displayName: text("display_name").notNull(),
@@ -273,15 +273,25 @@ export const oauthConnections = pgTable("oauth_connections", {
   refreshToken: text("refresh_token"),
   tokenExpiresAt: timestamp("token_expires_at"),
   scope: text("scope"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
   providerUserUnique: uniqueIndex("oauth_connections_provider_user_idx")
     .on(table.provider, table.providerUserId),
 }));
 
+export const insertOauthConnectionSchema = z.object({
+  provider: z.string().trim().min(1),
+  providerUserId: z.string().trim().min(1),
+  displayName: z.string().trim().min(1),
+  accessToken: z.string().min(1),
+  refreshToken: z.string().nullable().optional(),
+  tokenExpiresAt: z.date().nullable().optional(),
+  scope: z.string().nullable().optional(),
+});
+
+export type InsertOauthConnection = z.infer<typeof insertOauthConnectionSchema>;
 export type OauthConnection = typeof oauthConnections.$inferSelect;
-export type InsertOauthConnection = typeof oauthConnections.$inferInsert;
 
 // ─── Options Flow ────────────────────────────────────────────────────────────
 export const optionsFlow = pgTable("options_flow", {
