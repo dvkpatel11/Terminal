@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Settings, Key, Activity, Check, AlertTriangle, RefreshCw, Eye, EyeOff, ExternalLink, HelpCircle, Plus, Trash2 } from "lucide-react";
+import { X, Settings, Key, Activity, Check, AlertTriangle, RefreshCw, Eye, EyeOff, ExternalLink, HelpCircle, Plus, Trash2, List, Plug } from "lucide-react";
 import { PANEL_REGISTRY, PANELS_BY_CATEGORY, CATEGORY_ORDER, type PanelCategory } from "@/lib/panelRegistry";
 import type { ViewMode } from "@/lib/terminalTypes";
+import { useSymbolConfig } from "@/lib/useSymbolConfig";
+import SocialAccountsTab from "./SocialAccountsTab";
 
 interface Props {
   open: boolean;
@@ -9,7 +11,7 @@ interface Props {
   onNav: (v: ViewMode) => void;
 }
 
-type ConfigTab = "status" | "keys" | "general" | "help";
+type ConfigTab = "status" | "keys" | "symbols" | "social" | "general" | "help";
 
 interface ProviderStatus {
   name: string;
@@ -106,6 +108,26 @@ export default function ConfigModal({ open, onClose, onNav }: Props) {
   const [nvidiaKeyVisible, setNvidiaKeyVisible] = useState(false);
   const [nvidiaStatus, setNvidiaStatus] = useState<NvidiaKeyStatus>({ configured: !!loadNvidiaKey(), valid: false, testing: false });
   const [defaultSymbol, setDefaultSymbol] = useState(loadDefaultSymbol);
+  const { data: symbolConfig } = useSymbolConfig();
+
+  const [oauthSuccess, setOauthSuccess] = useState<string | null>(null);
+  const [oauthError, setOauthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+    const success = params.get("oauth_success");
+    const error = params.get("oauth_error");
+    if (success) {
+      setOauthSuccess(success);
+      setOauthError(null);
+      window.history.replaceState({}, "", "/#/");
+    }
+    if (error) {
+      setOauthError(error);
+      setOauthSuccess(null);
+      window.history.replaceState({}, "", "/#/");
+    }
+  }, []);
 
   // News source test state
   const [newsTestResults, setNewsTestResults] = useState<Record<string, { loading: boolean; result: SourceTestResult | null }>>({});
@@ -315,6 +337,8 @@ export default function ConfigModal({ open, onClose, onNav }: Props) {
   const tabs: { id: ConfigTab; label: string; icon: typeof Settings }[] = [
     { id: "status", label: "API STATUS", icon: Activity },
     { id: "keys", label: "API KEYS", icon: Key },
+    { id: "symbols", label: "SYMBOLS", icon: List },
+    { id: "social", label: "SOCIAL ACCOUNTS", icon: Plug },
     { id: "general", label: "GENERAL", icon: Settings },
     { id: "help", label: "HELP", icon: HelpCircle },
   ];
@@ -668,6 +692,146 @@ export default function ConfigModal({ open, onClose, onNav }: Props) {
                 </span>
               </div>
             </div>
+          )}
+
+          {activeTab === "symbols" && (
+            <div className="p-4 space-y-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-terminal text-[9px] tracking-[0.15em] text-muted-foreground/70">MARKET SYMBOL REGISTRY</span>
+                <span className="font-terminal text-[8px] text-muted-foreground/40">SOURCE: symbolConfig.json</span>
+              </div>
+
+              {symbolConfig ? (
+                <div className="space-y-3">
+                  {([
+                    { key: "tape", label: "TICKER TAPE", items: symbolConfig.tape },
+                    { key: "popularTickers", label: "POPULAR TICKERS", items: symbolConfig.popularTickers },
+                    { key: "finnhubEquities", label: "FINNHUB EQUITIES (WS)", items: symbolConfig.finnhubEquities },
+                    { key: "screenerUniverse", label: "SCREENER UNIVERSE", items: symbolConfig.screenerUniverse },
+                    { key: "sampleSymbols", label: "MARKET BREADTH SAMPLE", items: symbolConfig.sampleSymbols },
+                    { key: "optionsFlowDefaults", label: "OPTIONS FLOW DEFAULTS", items: symbolConfig.optionsFlowDefaults },
+                    { key: "commonTickers", label: "SENTIMENT TICKERS", items: symbolConfig.commonTickers },
+                    { key: "indexSparklines", label: "INDEX SPARKLINES", items: symbolConfig.indexSparklines },
+                  ] as const).map(({ key, label, items }) => (
+                    <div key={key} className="border border-border/40 rounded-sm p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-terminal text-[10px] font-bold text-foreground/80">{label}</span>
+                        <span className="font-terminal text-[8px] text-muted-foreground/50">{items.length} SYMBOLS</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {items.map((s) => (
+                          <span key={s} className="px-1.5 py-0.5 bg-[#111] border border-border/30 font-terminal text-[8px] text-foreground/60 tabular-nums">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  {symbolConfig.indices.length > 0 && (
+                    <div className="border border-border/40 rounded-sm p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-terminal text-[10px] font-bold text-foreground/80">GLOBAL INDICES</span>
+                        <span className="font-terminal text-[8px] text-muted-foreground/50">{symbolConfig.indices.length} INDICES</span>
+                      </div>
+                      <div className="space-y-1">
+                        {symbolConfig.indices.map((idx) => (
+                          <div key={idx.symbol} className="flex items-center justify-between">
+                            <span className="font-terminal text-[9px] text-foreground/60 tabular-nums">{idx.symbol}</span>
+                            <span className="font-terminal text-[8px] text-muted-foreground/50">{idx.label}</span>
+                            <span className="font-terminal text-[8px] text-muted-foreground/30">{idx.region}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {symbolConfig.sectorEtfs.length > 0 && (
+                    <div className="border border-border/40 rounded-sm p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-terminal text-[10px] font-bold text-foreground/80">SECTOR ETFs</span>
+                        <span className="font-terminal text-[8px] text-muted-foreground/50">{symbolConfig.sectorEtfs.length} SECTORS</span>
+                      </div>
+                      <div className="space-y-1">
+                        {symbolConfig.sectorEtfs.map((etf) => (
+                          <div key={etf.symbol} className="flex items-center justify-between">
+                            <span className="font-terminal text-[9px] text-foreground/60 tabular-nums">{etf.symbol}</span>
+                            <span className="font-terminal text-[8px] text-muted-foreground/50">{etf.label}</span>
+                            <span className="font-terminal text-[8px] text-muted-foreground/30">{etf.sector}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {symbolConfig.crypto.symbols.length > 0 && (
+                      <div className="border border-border/40 rounded-sm p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-terminal text-[10px] font-bold text-foreground/80">CRYPTO</span>
+                          <span className="font-terminal text-[8px] text-muted-foreground/50">{symbolConfig.crypto.symbols.length}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {symbolConfig.crypto.symbols.map((s) => (
+                            <span key={s} className="px-1.5 py-0.5 bg-[#111] border border-border/30 font-terminal text-[8px] text-foreground/60">
+                              {symbolConfig.crypto.labels[s] ?? s}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {symbolConfig.fx.pairs.length > 0 && (
+                      <div className="border border-border/40 rounded-sm p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-terminal text-[10px] font-bold text-foreground/80">FOREX</span>
+                          <span className="font-terminal text-[8px] text-muted-foreground/50">{symbolConfig.fx.pairs.length}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {symbolConfig.fx.pairs.map((s) => (
+                            <span key={s} className="px-1.5 py-0.5 bg-[#111] border border-border/30 font-terminal text-[8px] text-foreground/60">
+                              {symbolConfig.fx.labels[s] ?? s}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {Object.keys(symbolConfig.peerMap).length > 0 && (
+                    <div className="border border-border/40 rounded-sm p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-terminal text-[10px] font-bold text-foreground/80">PEER MAP</span>
+                        <span className="font-terminal text-[8px] text-muted-foreground/50">{Object.keys(symbolConfig.peerMap).length} GROUPS</span>
+                      </div>
+                      <div className="space-y-1">
+                        {Object.entries(symbolConfig.peerMap).map(([sym, peers]) => (
+                          <div key={sym} className="flex items-center gap-2">
+                            <span className="font-terminal text-[9px] text-foreground/70 tabular-nums w-16">{sym}</span>
+                            <span className="font-terminal text-[8px] text-muted-foreground/40">&rarr;</span>
+                            <span className="font-terminal text-[8px] text-muted-foreground/50">{peers.join(", ")}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="px-1 py-2">
+                    <span className="font-terminal text-[8px] text-muted-foreground/40 tracking-wider">
+                      TO MODIFY: EDIT symbolConfig.json ON DISK, THEN RESTART THE SERVER OR POST /api/symbols/reload.
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-8 text-center">
+                  <span className="font-terminal text-[10px] text-muted-foreground/50">LOADING SYMBOL CONFIG...</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "social" && (
+            <SocialAccountsTab oauthSuccess={oauthSuccess} oauthError={oauthError} />
           )}
 
           {activeTab === "general" && (
