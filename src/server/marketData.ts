@@ -3,6 +3,14 @@ import { buildDataStatus, type DataStatus } from "./dataStatus";
 import { fetchText, getCached, setCached } from "./providerUtils";
 import { fetchOpenBBFundamentals, fetchOpenBBOptions, fetchOpenBBYieldCurve } from "./openbbProvider";
 import { extendedStorage } from "./storage";
+import {
+  getScreenerUniverse,
+  getPeerMap,
+  getPeersForSymbol,
+  getProfileCatalog,
+  getIndexSparklineSymbols,
+  getEconomicsCommodities,
+} from "./symbolRegistry";
 
 export interface OHLCVBar {
   date: string;
@@ -246,110 +254,11 @@ const NEGATIVE_WORDS = [
   "fears", "fear", "probe", "scrutiny", "recession", "pressure", "lawsuit", "slump", "bearish",
 ];
 
-const PROFILE_CATALOG: Record<string, InstrumentProfile> = {
-  AAPL: { name: "Apple Inc.", exchange: "NASDAQ", sector: "Technology", marketCap: 3.4e12, referencePrice: 242, eps: 6.5, assetClass: "equity" },
-  MSFT: { name: "Microsoft Corp.", exchange: "NASDAQ", sector: "Technology", marketCap: 3.2e12, referencePrice: 430, eps: 11.8, assetClass: "equity" },
-  NVDA: { name: "NVIDIA Corp.", exchange: "NASDAQ", sector: "Technology", marketCap: 2.7e12, referencePrice: 875, eps: 2.9, assetClass: "equity" },
-  TSLA: { name: "Tesla Inc.", exchange: "NASDAQ", sector: "Consumer Cyclical", marketCap: 8.0e11, referencePrice: 250, eps: 3.1, assetClass: "equity" },
-  GOOGL: { name: "Alphabet Inc.", exchange: "NASDAQ", sector: "Communication Services", marketCap: 2.2e12, referencePrice: 180, eps: 7.2, assetClass: "equity" },
-  AMZN: { name: "Amazon.com Inc.", exchange: "NASDAQ", sector: "Consumer Cyclical", marketCap: 2.1e12, referencePrice: 200, eps: 6.3, assetClass: "equity" },
-  META: { name: "Meta Platforms", exchange: "NASDAQ", sector: "Communication Services", marketCap: 1.4e12, referencePrice: 560, eps: 18.7, assetClass: "equity" },
-  "BRK-B": { name: "Berkshire Hathaway", exchange: "NYSE", sector: "Financial Services", marketCap: 1.0e12, referencePrice: 455, eps: 35.5, assetClass: "equity" },
-  JPM: { name: "JPMorgan Chase", exchange: "NYSE", sector: "Financial Services", marketCap: 6.5e11, referencePrice: 235, eps: 17.6, assetClass: "equity" },
-  BAC: { name: "Bank of America", exchange: "NYSE", sector: "Financial Services", marketCap: 3.5e11, referencePrice: 44, eps: 3.3, assetClass: "equity" },
-  GS: { name: "Goldman Sachs", exchange: "NYSE", sector: "Financial Services", marketCap: 1.8e11, referencePrice: 520, eps: 37.2, assetClass: "equity" },
-  MS: { name: "Morgan Stanley", exchange: "NYSE", sector: "Financial Services", marketCap: 2.3e11, referencePrice: 124, eps: 6.7, assetClass: "equity" },
-  V: { name: "Visa Inc.", exchange: "NYSE", sector: "Financial Services", marketCap: 6.0e11, referencePrice: 300, eps: 10.2, assetClass: "equity" },
-  MA: { name: "Mastercard Inc.", exchange: "NYSE", sector: "Financial Services", marketCap: 5.0e11, referencePrice: 500, eps: 14.1, assetClass: "equity" },
-  PYPL: { name: "PayPal Holdings", exchange: "NASDAQ", sector: "Financial Services", marketCap: 8.0e10, referencePrice: 74, eps: 4.2, assetClass: "equity" },
-  XOM: { name: "Exxon Mobil", exchange: "NYSE", sector: "Energy", marketCap: 5.0e11, referencePrice: 119, eps: 8.6, assetClass: "equity" },
-  CVX: { name: "Chevron Corp.", exchange: "NYSE", sector: "Energy", marketCap: 2.9e11, referencePrice: 160, eps: 10.4, assetClass: "equity" },
-  COP: { name: "ConocoPhillips", exchange: "NYSE", sector: "Energy", marketCap: 1.4e11, referencePrice: 112, eps: 8.7, assetClass: "equity" },
-  SLB: { name: "Schlumberger", exchange: "NYSE", sector: "Energy", marketCap: 6.5e10, referencePrice: 50, eps: 3.4, assetClass: "equity" },
-  UNH: { name: "UnitedHealth Group", exchange: "NYSE", sector: "Healthcare", marketCap: 4.5e11, referencePrice: 560, eps: 27.5, assetClass: "equity" },
-  JNJ: { name: "Johnson & Johnson", exchange: "NYSE", sector: "Healthcare", marketCap: 3.9e11, referencePrice: 155, eps: 10.1, assetClass: "equity" },
-  PFE: { name: "Pfizer Inc.", exchange: "NYSE", sector: "Healthcare", marketCap: 1.8e11, referencePrice: 28, eps: 2.6, assetClass: "equity" },
-  KO: { name: "Coca-Cola Co.", exchange: "NYSE", sector: "Consumer Defensive", marketCap: 2.8e11, referencePrice: 69, eps: 2.8, assetClass: "equity" },
-  PEP: { name: "PepsiCo Inc.", exchange: "NASDAQ", sector: "Consumer Defensive", marketCap: 2.4e11, referencePrice: 170, eps: 8.2, assetClass: "equity" },
-  WMT: { name: "Walmart Inc.", exchange: "NYSE", sector: "Consumer Defensive", marketCap: 6.5e11, referencePrice: 87, eps: 2.4, assetClass: "equity" },
-  HD: { name: "Home Depot", exchange: "NYSE", sector: "Consumer Cyclical", marketCap: 3.7e11, referencePrice: 380, eps: 15.1, assetClass: "equity" },
-  DIS: { name: "Walt Disney Co.", exchange: "NYSE", sector: "Communication Services", marketCap: 2.1e11, referencePrice: 110, eps: 4.8, assetClass: "equity" },
-  NFLX: { name: "Netflix Inc.", exchange: "NASDAQ", sector: "Communication Services", marketCap: 5.5e11, referencePrice: 990, eps: 19.3, assetClass: "equity" },
-  CRM: { name: "Salesforce", exchange: "NYSE", sector: "Technology", marketCap: 3.1e11, referencePrice: 325, eps: 7.9, assetClass: "equity" },
-  ADBE: { name: "Adobe Inc.", exchange: "NASDAQ", sector: "Technology", marketCap: 2.4e11, referencePrice: 520, eps: 16.1, assetClass: "equity" },
-  AMD: { name: "Advanced Micro Devices", exchange: "NASDAQ", sector: "Technology", marketCap: 3.2e11, referencePrice: 178, eps: 1.6, assetClass: "equity" },
-  INTC: { name: "Intel Corp.", exchange: "NASDAQ", sector: "Technology", marketCap: 9.0e10, referencePrice: 24, eps: 0.9, assetClass: "equity" },
-  QCOM: { name: "Qualcomm Inc.", exchange: "NASDAQ", sector: "Technology", marketCap: 1.9e11, referencePrice: 170, eps: 8.1, assetClass: "equity" },
-  TXN: { name: "Texas Instruments", exchange: "NASDAQ", sector: "Technology", marketCap: 1.7e11, referencePrice: 188, eps: 6.2, assetClass: "equity" },
-  AVGO: { name: "Broadcom Inc.", exchange: "NASDAQ", sector: "Technology", marketCap: 8.0e11, referencePrice: 1400, eps: 12.4, assetClass: "equity" },
-  MU: { name: "Micron Technology", exchange: "NASDAQ", sector: "Technology", marketCap: 1.4e11, referencePrice: 125, eps: 4.8, assetClass: "equity" },
-  AMAT: { name: "Applied Materials", exchange: "NASDAQ", sector: "Technology", marketCap: 1.8e11, referencePrice: 220, eps: 8.8, assetClass: "equity" },
-  ASML: { name: "ASML Holding", exchange: "NASDAQ", sector: "Technology", marketCap: 3.5e11, referencePrice: 950, eps: 24.5, assetClass: "equity" },
-  SPY: { name: "SPDR S&P 500 ETF", exchange: "ARCA", sector: "ETF", referencePrice: 581, assetClass: "etf" },
-  QQQ: { name: "Invesco QQQ Trust", exchange: "NASDAQ", sector: "ETF", referencePrice: 492, assetClass: "etf" },
-  IWM: { name: "iShares Russell 2000 ETF", exchange: "ARCA", sector: "ETF", referencePrice: 249, assetClass: "etf" },
-  DIA: { name: "SPDR Dow Jones Industrial Average ETF", exchange: "ARCA", sector: "ETF", referencePrice: 432, assetClass: "etf" },
-  XLK: { name: "Technology Select Sector SPDR Fund", exchange: "ARCA", sector: "Technology", referencePrice: 220, assetClass: "etf" },
-  XLV: { name: "Health Care Select Sector SPDR Fund", exchange: "ARCA", sector: "Healthcare", referencePrice: 145, assetClass: "etf" },
-  XLF: { name: "Financial Select Sector SPDR Fund", exchange: "ARCA", sector: "Financial Services", referencePrice: 44, assetClass: "etf" },
-  XLE: { name: "Energy Select Sector SPDR Fund", exchange: "ARCA", sector: "Energy", referencePrice: 88, assetClass: "etf" },
-  XLI: { name: "Industrial Select Sector SPDR Fund", exchange: "ARCA", sector: "Industrials", referencePrice: 118, assetClass: "etf" },
-  XLC: { name: "Communication Services Select SPDR Fund", exchange: "ARCA", sector: "Communication Services", referencePrice: 85, assetClass: "etf" },
-  XLP: { name: "Consumer Staples Select Sector SPDR Fund", exchange: "ARCA", sector: "Consumer Defensive", referencePrice: 80, assetClass: "etf" },
-  XLU: { name: "Utilities Select Sector SPDR Fund", exchange: "ARCA", sector: "Utilities", referencePrice: 74, assetClass: "etf" },
-  XLRE: { name: "Real Estate Select Sector SPDR Fund", exchange: "ARCA", sector: "Real Estate", referencePrice: 42, assetClass: "etf" },
-  XLB: { name: "Materials Select Sector SPDR Fund", exchange: "ARCA", sector: "Basic Materials", referencePrice: 88, assetClass: "etf" },
-  XLY: { name: "Consumer Discretionary Select Sector SPDR Fund", exchange: "ARCA", sector: "Consumer Cyclical", referencePrice: 195, assetClass: "etf" },
-  "^GSPC": { name: "S&P 500", exchange: "INDEX", sector: "Index", referencePrice: 5780, assetClass: "index" },
-  "^DJI": { name: "Dow Jones Industrial Average", exchange: "INDEX", sector: "Index", referencePrice: 43250, assetClass: "index" },
-  "^IXIC": { name: "NASDAQ Composite", exchange: "INDEX", sector: "Index", referencePrice: 18450, assetClass: "index" },
-  "^RUT": { name: "Russell 2000", exchange: "INDEX", sector: "Index", referencePrice: 2180, assetClass: "index" },
-  "^VIX": { name: "CBOE Volatility Index", exchange: "CBOE", sector: "Volatility", referencePrice: 17.5, assetClass: "index" },
-  "^NYA": { name: "NYSE Composite", exchange: "INDEX", sector: "Index", referencePrice: 19800, assetClass: "index" },
-  "^FTSE": { name: "FTSE 100", exchange: "INDEX", sector: "Index", referencePrice: 8200, assetClass: "index" },
-  "^GDAXI": { name: "DAX", exchange: "INDEX", sector: "Index", referencePrice: 18500, assetClass: "index" },
-  "^N225": { name: "Nikkei 225", exchange: "INDEX", sector: "Index", referencePrice: 39500, assetClass: "index" },
-  "GC=F": { name: "Gold Futures", exchange: "COMEX", sector: "Commodity", referencePrice: 2985, assetClass: "commodity" },
-  "CL=F": { name: "Crude Oil WTI", exchange: "NYMEX", sector: "Commodity", referencePrice: 68.4, assetClass: "commodity" },
-  "ADA-USD": { name: "Cardano USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "cardano" },
-  "AUDUSD": { name: "Australian Dollar / US Dollar", exchange: "FX", sector: "Forex", assetClass: "forex" },
-  "AVAX-USD": { name: "Avalanche USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "avalanche-2" },
-  "BTC-USD": { name: "Bitcoin USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "bitcoin" },
-  "DOGE-USD": { name: "Dogecoin USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "dogecoin" },
-  "DOT-USD": { name: "Polkadot USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "polkadot" },
-  "ETH-USD": { name: "Ethereum USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "ethereum" },
-  "EURUSD": { name: "Euro / US Dollar", exchange: "FX", sector: "Forex", assetClass: "forex" },
-  "GBPUSD": { name: "British Pound / US Dollar", exchange: "FX", sector: "Forex", assetClass: "forex" },
-  "LINK-USD": { name: "Chainlink USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "chainlink" },
-  "LTC-USD": { name: "Litecoin USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "litecoin" },
-  "MATIC-USD": { name: "Polygon USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "matic-network" },
-  "NZDUSD": { name: "New Zealand Dollar / US Dollar", exchange: "FX", sector: "Forex", assetClass: "forex" },
-  "SOL-USD": { name: "Solana USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "solana" },
-  "UNI-USD": { name: "Uniswap USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "uniswap" },
-  "USDCAD": { name: "US Dollar / Canadian Dollar", exchange: "FX", sector: "Forex", assetClass: "forex" },
-  "USDCHF": { name: "US Dollar / Swiss Franc", exchange: "FX", sector: "Forex", assetClass: "forex" },
-  "USDJPY": { name: "US Dollar / Japanese Yen", exchange: "FX", sector: "Forex", assetClass: "forex" },
-  "XRP-USD": { name: "XRP USD", exchange: "CRYPTO", sector: "Crypto", assetClass: "crypto", coinGeckoId: "ripple" },
-};
+const PROFILE_CATALOG: Record<string, InstrumentProfile> = getProfileCatalog() as Record<string, InstrumentProfile>;
 
-const SCREENER_UNIVERSE = [
-  "AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "META", "BRK-B",
-  "JPM", "BAC", "GS", "V", "MA", "XOM", "CVX", "UNH", "JNJ", "PFE",
-  "KO", "PEP", "WMT", "HD", "DIS", "NFLX", "CRM", "ADBE", "PYPL",
-  "AMD", "INTC", "QCOM", "TXN", "AVGO", "MU", "AMAT", "ASML",
-];
+const SCREENER_UNIVERSE = getScreenerUniverse();
 
-const PEER_MAP: Record<string, string[]> = {
-  AAPL: ["MSFT", "GOOGL", "META", "AMZN", "NVDA"],
-  MSFT: ["AAPL", "GOOGL", "AMZN", "CRM", "ADBE"],
-  NVDA: ["AMD", "INTC", "QCOM", "AVGO", "MU"],
-  TSLA: ["AMZN", "GOOGL", "NVDA", "MSFT", "AAPL"],
-  META: ["GOOGL", "NFLX", "AMZN", "AAPL", "MSFT"],
-  GOOGL: ["META", "MSFT", "AAPL", "AMZN", "NFLX"],
-  AMZN: ["MSFT", "GOOGL", "AAPL", "WMT", "META"],
-  JPM: ["BAC", "GS", "MS", "V", "MA"],
-  XOM: ["CVX", "COP", "SLB", "CL=F", "GC=F"],
-};
+const PEER_MAP: Record<string, string[]> = getPeerMap();
 
 const GENERAL_NEWS_FEEDS: RssFeedConfig[] = [
   { url: "https://www.cnbc.com/id/100003114/device/rss/rss.html", fallbackSource: "CNBC" },
@@ -1275,12 +1184,7 @@ export async function getOHLCVSeries(symbol: string, range = "1Y", interval: Ohl
 }
 
 export async function getIndexSparklines(): Promise<Record<string, number[]>> {
-  const symbols = [
-    "^GSPC", "^DJI", "^IXIC", "^RUT", "^GSPTSE", "^BVSP",
-    "^FTSE", "^GDAXI", "^FCHI", "^STOXX50E", "^SSMI",
-    "^N225", "^HSI", "000001.SS", "^BSESN", "^AXJO", "^KS11",
-    "BTC-USD",
-  ];
+  const symbols = getIndexSparklineSymbols();
   const result: Record<string, number[]> = {};
   const entries = await Promise.allSettled(
     symbols.map(async (symbol) => {
@@ -1441,7 +1345,7 @@ export async function getNewsArticle(input: {
 
 export async function getPeers(symbol: string) {
   const upper = symbol.toUpperCase();
-  return getQuotes(PEER_MAP[upper] ?? ["AAPL", "MSFT", "GOOGL", "AMZN", "META"]);
+  return getQuotes(getPeersForSymbol(upper));
 }
 
 export async function getScreenerResults(filters: { sector?: string; minPe?: string; maxPe?: string }) {
@@ -1466,7 +1370,7 @@ export async function getEconomicsSnapshot() {
 
   try {
     const [commodities, eurUsdCsv, gbpUsdCsv, usdJpyCsv, goldCsv] = await Promise.all([
-      getQuotes(["GC=F", "CL=F"]),
+      getQuotes(getEconomicsCommodities()),
       fetchText("https://stooq.com/q/l/?s=eurusd&i=5"),
       fetchText("https://stooq.com/q/l/?s=gbpusd&i=5"),
       fetchText("https://stooq.com/q/l/?s=usdjpy&i=5"),
@@ -1477,7 +1381,7 @@ export async function getEconomicsSnapshot() {
     gbpUsd = parseStooqCurrent(gbpUsdCsv).close;
     usdJpy = parseStooqCurrent(usdJpyCsv).close;
     gold = parseStooqCurrent(goldCsv).close;
-    oil = commodities.find((item) => item.symbol === "CL=F")?.price ?? oil;
+    oil = commodities.find((item) => item.symbol === getEconomicsCommodities()[1])?.price ?? oil;
   } catch {
     // Keep the fallback snapshot when live provider calls fail.
   }
@@ -1504,6 +1408,75 @@ export async function getEconomicsSnapshot() {
   };
 }
 
+// ─── Yahoo Finance Fundamentals Fallback ────────────────────────────────────
+
+async function fetchYahooFundamentals(symbol: string): Promise<Record<string, any>> {
+  const modules = [
+    "defaultKeyStatistics",
+    "financialData",
+    "summaryDetail",
+    "assetProfile",
+    "earningsHistory",
+    "earningsTrend",
+  ].join(",");
+
+  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}`;
+  const res = await fetch(url, {
+    headers: { "User-Agent": "blmtrm/1.0" },
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!res.ok) throw new Error(`Yahoo quoteSummary ${res.status}`);
+  const json = await res.json();
+  const result = json?.quoteSummary?.result?.[0];
+  if (!result) throw new Error("No Yahoo quoteSummary result");
+
+  const stats = result.defaultKeyStatistics ?? {};
+  const fin = result.financialData ?? {};
+  const summary = result.summaryDetail ?? {};
+  const profile = result.assetProfile ?? {};
+
+  const metrics: Record<string, any> = {};
+  if (stats.trailingPE?.raw != null) metrics.pe_ratio = stats.trailingPE.raw;
+  if (stats.forwardPE?.raw != null) metrics.forward_pe = stats.forwardPE.raw;
+  if (stats.priceToBook?.raw != null) metrics.price_to_book = stats.priceToBook.raw;
+  if (stats.pegRatio?.raw != null) metrics.peg_ratio = stats.pegRatio.raw;
+  if (stats.enterpriseToEbitda?.raw != null) metrics.enterprise_to_ebitda = stats.enterpriseToEbitda.raw;
+  if (stats.debtToEquity?.raw != null) metrics.debt_to_equity = stats.debtToEquity.raw / 100;
+  if (fin.currentRatio?.raw != null) metrics.current_ratio = fin.currentRatio.raw;
+  if (fin.quickRatio?.raw != null) metrics.quick_ratio = fin.quickRatio.raw;
+  if (fin.returnOnAssets?.raw != null) metrics.return_on_assets = fin.returnOnAssets.raw;
+  if (fin.returnOnEquity?.raw != null) metrics.return_on_equity = fin.returnOnEquity.raw;
+  if (fin.profitMargins?.raw != null) metrics.profit_margin = fin.profitMargins.raw;
+  if (fin.grossMargins?.raw != null) metrics.gross_margin = fin.grossMargins.raw;
+  if (fin.operatingMargins?.raw != null) metrics.operating_margin = fin.operatingMargins.raw;
+  if (fin.revenueGrowth?.raw != null) metrics.revenue_growth = fin.revenueGrowth.raw;
+  if (fin.earningsGrowth?.raw != null) metrics.earnings_growth = fin.earningsGrowth.raw;
+  if (summary.dividendYield?.raw != null) metrics.dividend_yield = summary.dividendYield.raw;
+  if (summary.payoutRatio?.raw != null) metrics.payout_ratio = summary.payoutRatio.raw;
+  if (summary.marketCap?.raw != null) metrics.market_cap = summary.marketCap.raw;
+  if (summary.enterpriseValue?.raw != null) metrics.enterprise_value = summary.enterpriseValue.raw;
+  if (stats.bookValue?.raw != null) metrics.book_value = stats.bookValue.raw;
+
+  const profileData: Record<string, any> = {};
+  if (profile.longBusinessSummary) profileData.long_description = profile.longBusinessSummary;
+  if (profile.sector) profileData.sector = profile.sector;
+  if (profile.industry) profileData.industry_category = profile.industry;
+  if (profile.fullTimeEmployees) profileData.employees = profile.fullTimeEmployees;
+  if (summary.marketCap?.raw != null) profileData.market_cap = summary.marketCap.raw;
+  if (stats.sharesOutstanding?.raw != null) profileData.shares_outstanding = stats.sharesOutstanding.raw;
+  if (stats.beta?.raw != null) profileData.beta = stats.beta.raw;
+  if (summary.dividendYield?.raw != null) profileData.dividend_yield = summary.dividendYield.raw;
+
+  return {
+    metrics,
+    profile: profileData,
+    incomeStatement: [],
+    consensus: {},
+    dividends: [],
+  };
+}
+
 export async function getFundamentals(symbol: string) {
   const cacheKey = `fundamentals:${symbol.toUpperCase()}`;
   const cached = getCached(fundamentalsCache, cacheKey);
@@ -1522,9 +1495,18 @@ export async function getFundamentals(symbol: string) {
     camel.status = buildDataStatus({ provider: "OpenBB", freshness: "reference" });
     return setCached(fundamentalsCache, cacheKey, camel, 5 * 60_000);
   } catch (error) {
-    console.error(`OpenBB fundamentals error for ${symbol}:`, error);
+    console.error(`OpenBB fundamentals error for ${symbol}, trying Yahoo fallback:`, error);
+  }
+
+  // Yahoo Finance fallback when OpenBB is unavailable
+  try {
+    const data = await fetchYahooFundamentals(symbol);
+    data.status = buildDataStatus({ provider: "Yahoo Finance", freshness: "reference" });
+    return setCached(fundamentalsCache, cacheKey, data, 5 * 60_000);
+  } catch (fallbackError) {
+    console.error(`Yahoo fundamentals fallback error for ${symbol}:`, fallbackError);
     return {
-      status: buildDataStatus({ provider: "OpenBB", freshness: "reference", isFallback: true }),
+      status: buildDataStatus({ provider: "Yahoo Finance", freshness: "reference", isFallback: true }),
     };
   }
 }
