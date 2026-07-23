@@ -210,19 +210,48 @@ export async function refreshAccessToken(
   };
 }
 
+// ─── App Credential Storage ─────────────────────────────────────────────────
+
+interface AppCredentials {
+  clientId: string;
+  clientSecret: string;
+}
+
+const appCredentials = new Map<string, AppCredentials>();
+
+export function setAppCredentials(provider: string, clientId: string, clientSecret: string): void {
+  appCredentials.set(provider, { clientId, clientSecret });
+}
+
+export function getAppCredentials(provider: string): AppCredentials | undefined {
+  // Check in-memory store first, then fall back to env vars
+  const stored = appCredentials.get(provider);
+  if (stored) return stored;
+
+  const envId = process.env[`${provider.toUpperCase()}_CLIENT_ID`];
+  const envSecret = process.env[`${provider.toUpperCase()}_CLIENT_SECRET`];
+  if (envId && envSecret) {
+    return { clientId: envId, clientSecret: envSecret };
+  }
+
+  return undefined;
+}
+
+export function hasAppCredentials(provider: string): boolean {
+  return getAppCredentials(provider) !== undefined;
+}
+
 // Helpers
 function getClientId(provider: string): string {
-  const envKey = `${provider.toUpperCase()}_CLIENT_ID`;
-  const value = process.env[envKey];
-  if (!value) throw new Error(`Missing ${envKey} environment variable`);
-  return value;
+  const creds = getAppCredentials(provider);
+  if (!creds) throw new Error(`Missing credentials for ${provider}. Configure in Settings > Social Accounts.`);
+  return creds.clientId;
 }
 
 function getClientSecret(provider: string): string {
-  const envKey = `${provider.toUpperCase()}_CLIENT_SECRET`;
-  const value = process.env[envKey];
-  if (!value) throw new Error(`Missing ${envKey} environment variable`);
-  return value;
+  const creds = getAppCredentials(provider);
+  if (!creds) throw new Error(`Missing credentials for ${provider}. Configure in Settings > Social Accounts.`);
+  return creds.clientSecret;
 }
 
 // Token Encryption

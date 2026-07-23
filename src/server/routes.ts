@@ -42,7 +42,7 @@ import {
   loadSymbolConfig,
   reloadSymbolConfig,
 } from "./symbolRegistry";
-import { generateOAuthState, validateOAuthState, exchangeCodeForTokens, fetchUserInfo, refreshAccessToken, encryptToken, decryptToken } from "./oauth";
+import { generateOAuthState, validateOAuthState, exchangeCodeForTokens, fetchUserInfo, refreshAccessToken, encryptToken, decryptToken, setAppCredentials, getAppCredentials, hasAppCredentials } from "./oauth";
 import { OAUTH_PROVIDERS } from "./oauthProviders";
 
 function parseSymbols(value: unknown) {
@@ -534,6 +534,34 @@ export async function registerRoutes(
       const status = err.response?.status ?? 0;
       const msg = err.response?.data?.error?.message ?? err.message;
       res.json({ ok: false, status, error: msg });
+    }
+  });
+
+  // ─── OAuth App Credentials ─────────────────────────────────────────────────
+
+  app.get("/api/oauth/credentials", (_req, res) => {
+    const providers = Object.keys(OAUTH_PROVIDERS);
+    const result = providers.map(p => ({
+      provider: p,
+      configured: hasAppCredentials(p),
+    }));
+    res.json(result);
+  });
+
+  app.post("/api/oauth/credentials/:provider", (req, res) => {
+    try {
+      const { provider } = req.params;
+      if (!OAUTH_PROVIDERS[provider]) {
+        return res.status(400).json({ error: `Unknown provider: ${provider}` });
+      }
+      const { clientId, clientSecret } = req.body;
+      if (!clientId || !clientSecret) {
+        return res.status(400).json({ error: "clientId and clientSecret are required" });
+      }
+      setAppCredentials(provider, String(clientId), String(clientSecret));
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 

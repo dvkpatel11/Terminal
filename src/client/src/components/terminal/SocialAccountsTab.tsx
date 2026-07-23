@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Check, ExternalLink, Loader2, Unplug } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Check, ExternalLink, Loader2, Unplug, Key } from "lucide-react";
 import { useOAuthConnections, useConnectOAuth, useDisconnectOAuth, useTestOAuth } from "@/lib/useFinance";
 
 const PROVIDER_INFO: Record<string, { label: string; icon: string; color: string; description: string }> = {
@@ -7,6 +7,11 @@ const PROVIDER_INFO: Record<string, { label: string; icon: string; color: string
   reddit: { label: "REDDIT", icon: "r/", color: "text-orange-400", description: "Access subscribed subreddits and saved posts" },
   truth: { label: "TRUTH SOCIAL", icon: "T", color: "text-gray-300", description: "Access your Truth Social feed" },
 };
+
+interface AppCredentialStatus {
+  provider: string;
+  configured: boolean;
+}
 
 interface Props {
   oauthSuccess?: string | null;
@@ -20,8 +25,44 @@ export default function SocialAccountsTab({ oauthSuccess, oauthError }: Props) {
   const testMutation = useTestOAuth();
   const [confirmDisconnect, setConfirmDisconnect] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { loading: boolean; result: any }>>({});
+  const [credentials, setCredentials] = useState<Record<string, { clientId: string; clientSecret: string }>>({});
+  const [credentialStatus, setCredentialStatus] = useState<Record<string, boolean>>({});
+  const [savingCredentials, setSavingCredentials] = useState<string | null>(null);
+  const [showCredentials, setShowCredentials] = useState<Record<string, boolean>>({});
+
+  // Load credential status on mount
+  useEffect(() => {
+    fetch("/api/oauth/credentials")
+      .then(r => r.json())
+      .then((data: AppCredentialStatus[]) => {
+        const status: Record<string, boolean> = {};
+        data.forEach(c => { status[c.provider] = c.configured; });
+        setCredentialStatus(status);
+      })
+      .catch(() => {});
+  }, []);
 
   const connectedProviders = new Map(connections.map(c => [c.provider, c]));
+
+  const handleSaveCredentials = async (provider: string) => {
+    const creds = credentials[provider];
+    if (!creds?.clientId || !creds?.clientSecret) return;
+
+    setSavingCredentials(provider);
+    try {
+      const res = await fetch(`/api/oauth/credentials/${provider}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(creds),
+      });
+      if (res.ok) {
+        setCredentialStatus(prev => ({ ...prev, [provider]: true }));
+        setCredentials(prev => ({ ...prev, [provider]: { clientId: "", clientSecret: "" } }));
+        setShowCredentials(prev => ({ ...prev, [provider]: false }));
+      }
+    } catch {}
+    setSavingCredentials(null);
+  };
 
   const handleTest = async (provider: string) => {
     setTestResults(prev => ({ ...prev, [provider]: { loading: true, result: null } }));
@@ -89,6 +130,9 @@ export default function SocialAccountsTab({ oauthSuccess, oauthError }: Props) {
           const isConnecting = connectMutation.isPending;
           const isDisconnecting = disconnectMutation.isPending;
           const testResult = testResults[provider];
+          const credsConfigured = credentialStatus[provider];
+          const showCredsForm = showCredentials[provider];
+          const creds = credentials[provider] || { clientId: "", clientSecret: "" };
 
           return (
             <div key={provider} className="border border-border/40 rounded-sm p-4">
@@ -104,6 +148,12 @@ export default function SocialAccountsTab({ oauthSuccess, oauthError }: Props) {
                         <span className="flex items-center gap-1 px-1.5 py-0.5 bg-green-500/10 border border-green-500/20 rounded-sm">
                           <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                           <span className="font-terminal text-[7px] text-green-400">CONNECTED</span>
+                        </span>
+                      )}
+                      {!credsConfigured && !connection && (
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 bg-yellow-500/10 border border-yellow-500/20 rounded-sm">
+                          <Key className="w-2 h-2 text-yellow-400" />
+                          <span className="font-terminal text-[7px] text-yellow-400">NEEDS API KEY</span>
                         </span>
                       )}
                     </div>
@@ -168,22 +218,73 @@ export default function SocialAccountsTab({ oauthSuccess, oauthError }: Props) {
                     </>
                   ) : (
                     <button
-                      onClick={() => connectMutation.mutate(provider)}
+                      onClick={() => {
+                        if (!credsConfigured) {
+                          setShowCredentials(prev => ({ ...prev, [provider]: !prev[provider] }));
+                        } else {
+                          connectMutation.mutate(provider);
+                        }
+                      }}
                       disabled={isConnecting}
                       className="flex items-center gap-1.5 font-terminal text-[8px] text-foreground/70 hover:text-foreground px-3 py-1.5 border border-border/40 rounded-sm hover:border-[hsl(186_45%_50%/0.4)] transition-colors disabled:opacity-50"
                     >
                       {isConnecting ? (
                         <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
+                      ) : credsConfigured ? (
                         <>
                           Connect
                           <ExternalLink className="w-3 h-3" />
+                        </>
+                      ) : (
+                        <>
+                          <Key className="w-3 h-3" />
+                          Add API Key
                         </>
                       )}
                     </button>
                   )}
                 </div>
               </div>
+
+              {/* Credentials form */}
+              {!connection && showCredsForm && (
+                <div className="mt-3 pt-3 border-t border-border/20 space-y-2">
+                  <span className="font-terminal text-[8px] text-muted-foreground/50">
+                    Enter your {info.label} app credentials.{" "}
+                    <a
+                      href={provider === "reddit" ? "https://www.reddit.com/prefs/apps" : provider === "x" ? "https://developer.x.com/en/portal/dashboard" : "https://truthsocial.com/settings/applications"}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[hsl(186,45%,50%)] hover:underline"
+                    >
+                      Get credentials →
+                    </a>
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Client ID"
+                    value={creds.clientId}
+                    onChange={(e) => setCredentials(prev => ({ ...prev, [provider]: { ...prev[provider], clientId: e.target.value } }))}
+                    className="w-full bg-[#0a0a0a] border border-border/50 px-3 py-1.5 font-terminal text-[9px] text-foreground/80 focus:outline-none focus:border-[hsl(186_45%_50%/0.4)] rounded-sm"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Client Secret"
+                    value={creds.clientSecret}
+                    onChange={(e) => setCredentials(prev => ({ ...prev, [provider]: { ...prev[provider], clientSecret: e.target.value } }))}
+                    className="w-full bg-[#0a0a0a] border border-border/50 px-3 py-1.5 font-terminal text-[9px] text-foreground/80 focus:outline-none focus:border-[hsl(186_45%_50%/0.4)] rounded-sm"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => handleSaveCredentials(provider)}
+                      disabled={!creds.clientId || !creds.clientSecret || savingCredentials === provider}
+                      className="font-terminal text-[8px] text-foreground/70 hover:text-foreground px-3 py-1.5 border border-border/40 rounded-sm hover:border-[hsl(186_45%_50%/0.4)] transition-colors disabled:opacity-50"
+                    >
+                      {savingCredentials === provider ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -191,7 +292,7 @@ export default function SocialAccountsTab({ oauthSuccess, oauthError }: Props) {
 
       <div className="px-1 py-2">
         <span className="font-terminal text-[8px] text-muted-foreground/40 tracking-wider">
-          CONNECTIONS ARE STORED SERVER-SIDE. TOKENS ARE ENCRYPTED AT REST.
+          API KEYS ARE STORED SERVER-SIDE FOR THE DURATION OF THE SESSION. TOKENS ARE ENCRYPTED AT REST.
         </span>
       </div>
     </div>

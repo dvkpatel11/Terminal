@@ -42,28 +42,15 @@ describe("OAuth Token Encryption", () => {
 describe("OAuth State Management", () => {
   let generateOAuthState: (provider: string) => { state: string; authUrl: string };
   let validateOAuthState: (state: string) => { provider: string } | undefined;
-  const origRedditClientId = process.env.REDDIT_CLIENT_ID;
-  const origXClientId = process.env.X_CLIENT_ID;
+  let setAppCredentials: (provider: string, clientId: string, clientSecret: string) => void;
 
   test.before(async () => {
-    process.env.REDDIT_CLIENT_ID = "dummy_reddit_client_id";
-    process.env.X_CLIENT_ID = "dummy_x_client_id";
     const oauth = await import("./oauth");
     generateOAuthState = oauth.generateOAuthState;
     validateOAuthState = oauth.validateOAuthState;
-  });
-
-  test.after(() => {
-    if (origRedditClientId !== undefined) {
-      process.env.REDDIT_CLIENT_ID = origRedditClientId;
-    } else {
-      delete process.env.REDDIT_CLIENT_ID;
-    }
-    if (origXClientId !== undefined) {
-      process.env.X_CLIENT_ID = origXClientId;
-    } else {
-      delete process.env.X_CLIENT_ID;
-    }
+    setAppCredentials = oauth.setAppCredentials;
+    setAppCredentials("reddit", "dummy_reddit_client_id", "dummy_reddit_secret");
+    setAppCredentials("x", "dummy_x_client_id", "dummy_x_secret");
   });
 
   test("generates and validates state", () => {
