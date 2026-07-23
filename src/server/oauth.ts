@@ -255,7 +255,13 @@ function getClientSecret(provider: string): string {
 }
 
 // Token Encryption
-const ENCRYPTION_KEY = process.env.OAUTH_ENCRYPTION_KEY || "";
+// Auto-generate a random key in dev if not set — tokens won't survive restart
+// but the app works without manual configuration.
+let ENCRYPTION_KEY = process.env.OAUTH_ENCRYPTION_KEY || "";
+if (!ENCRYPTION_KEY && process.env.NODE_ENV !== "production") {
+  ENCRYPTION_KEY = crypto.randomBytes(32).toString("hex");
+  console.warn("[oauth] OAUTH_ENCRYPTION_KEY not set — using random dev key (tokens lost on restart)");
+}
 
 export function encryptToken(token: string): string {
   if (!ENCRYPTION_KEY) return token; // No encryption key = store plaintext (dev only)

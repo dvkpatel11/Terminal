@@ -1,4 +1,10 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: resolve(__dirname, ".env") });
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -11,6 +17,7 @@ import { startOpenBBServer } from "./openbbProvider";
 import { createQuoteBus, type QuoteBus } from "./realtime/quoteBus";
 import { startFinnhub, type CryptoSymbolMap } from "./realtime/finnhubWs";
 import { startBinance, type BinanceSymbolMap } from "./realtime/binanceWs";
+import { getFinnhubEquities, getBinanceSymbolMap } from "./symbolRegistry";
 
 const app = express();
 const httpServer = createServer(app);
@@ -80,11 +87,7 @@ app.use((req, res, next) => {
 
   // Finnhub free tier caps the stream at ~25 symbols. Crypto is covered by
   // the keyless Binance WS, so we only stream a curated equity set here.
-  const FINNHUB_EQUITIES = [
-    "AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "META", "BRK-B",
-    "JPM", "BAC", "GS", "MS", "V", "MA", "XOM", "CVX", "UNH", "JNJ",
-    "KO", "PEP", "WMT", "HD", "DIS", "NFLX", "AMD",
-  ];
+  const FINNHUB_EQUITIES = getFinnhubEquities();
 
   const FINNHUB_CRYPTO: CryptoSymbolMap = {};
 
@@ -100,12 +103,7 @@ app.use((req, res, next) => {
   }
 
   // Binance public WS: genuinely realtime crypto with NO API key. Always on.
-  const BINANCE_CRYPTO: BinanceSymbolMap = {
-    "BTC-USD": "btcusdt",
-    "ETH-USD": "ethusdt",
-    "SOL-USD": "solusdt",
-    "XRP-USD": "xrpusdt",
-  };
+  const BINANCE_CRYPTO: BinanceSymbolMap = getBinanceSymbolMap() as BinanceSymbolMap;
   const binanceStop = startBinance({ bus, symbolMap: BINANCE_CRYPTO }).stop;
 
   // Alerts: evaluate against live bus prices when available, else the
