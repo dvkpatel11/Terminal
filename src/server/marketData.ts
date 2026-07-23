@@ -1410,19 +1410,62 @@ export async function getEconomicsSnapshot() {
 
 // ─── Yahoo Finance Fundamentals Fallback ────────────────────────────────────
 
+let yahooCrumb: string | null = null;
+let yahooCookie: string | null = null;
+let yahooAuthExpiry = 0;
+
+async function getYahooCrumb(): Promise<{ crumb: string; cookie: string }> {
+  if (yahooCrumb && yahooCookie && Date.now() < yahooAuthExpiry) {
+    return { crumb: yahooCrumb, cookie: yahooCookie };
+  }
+
+  // Get session cookie
+  const sessionRes = await fetch("https://finance.yahoo.com/quote/MU/", {
+    headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+    redirect: "manual",
+    signal: AbortSignal.timeout(10000),
+  });
+  const setCookies = sessionRes.headers.getSetCookie();
+  const cookie = setCookies
+    .map((c) => c.split(";")[0])
+    .find((c) => c.startsWith("A3=") || c.startsWith("B=") || c.includes(".yahoo"));
+
+  if (!cookie) throw new Error("Failed to get Yahoo session cookie");
+
+  // Get crumb
+  const crumbRes = await fetch("https://query2.finance.yahoo.com/v1/test/getcrumb", {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      Cookie: cookie,
+    },
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!crumbRes.ok) throw new Error(`Yahoo crumb ${crumbRes.status}`);
+  const crumb = await crumbRes.text();
+
+  yahooCrumb = crumb;
+  yahooCookie = cookie;
+  yahooAuthExpiry = Date.now() + 30 * 60 * 1000; // 30 min
+
+  return { crumb, cookie };
+}
+
 async function fetchYahooFundamentals(symbol: string): Promise<Record<string, any>> {
+  const { crumb, cookie } = await getYahooCrumb();
   const modules = [
     "defaultKeyStatistics",
     "financialData",
     "summaryDetail",
     "assetProfile",
-    "earningsHistory",
-    "earningsTrend",
   ].join(",");
 
-  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}`;
+  const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}&crumb=${encodeURIComponent(crumb)}`;
   const res = await fetch(url, {
-    headers: { "User-Agent": "blmtrm/1.0" },
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      Cookie: cookie,
+    },
     signal: AbortSignal.timeout(10000),
   });
 
