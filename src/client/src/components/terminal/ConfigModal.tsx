@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Settings, Key, Activity, Check, AlertTriangle, RefreshCw, Eye, EyeOff, ExternalLink, HelpCircle, Plus, Trash2, List, Plug, Monitor, Bell, Clock } from "lucide-react";
+import { X, Settings, Key, Activity, Check, AlertTriangle, RefreshCw, Eye, EyeOff, ExternalLink, HelpCircle, Plus, Trash2, List, Plug, Monitor, Bell, Clock, MessageSquare } from "lucide-react";
 import { PANEL_REGISTRY, PANELS_BY_CATEGORY, CATEGORY_ORDER, type PanelCategory } from "@/lib/panelRegistry";
 import type { ViewMode } from "@/lib/terminalTypes";
 import { useSymbolConfig } from "@/lib/useSymbolConfig";
 import SocialAccountsTab from "./SocialAccountsTab";
+import DiscordTab from "./DiscordTab";
 
 interface Props {
   open: boolean;
@@ -11,7 +12,7 @@ interface Props {
   onNav: (v: ViewMode) => void;
 }
 
-type ConfigTab = "status" | "keys" | "symbols" | "social" | "display" | "notifications" | "refresh" | "general" | "help";
+type ConfigTab = "status" | "keys" | "symbols" | "social" | "discord" | "display" | "notifications" | "refresh" | "general" | "help";
 
 interface ProviderStatus {
   name: string;
@@ -399,6 +400,7 @@ export default function ConfigModal({ open, onClose, onNav }: Props) {
     { id: "keys", label: "API KEYS", icon: Key },
     { id: "symbols", label: "SYMBOLS", icon: List },
     { id: "social", label: "SOCIAL ACCOUNTS", icon: Plug },
+    { id: "discord", label: "DISCORD", icon: MessageSquare },
     { id: "display", label: "DISPLAY", icon: Monitor },
     { id: "notifications", label: "NOTIFICATIONS", icon: Bell },
     { id: "refresh", label: "DATA REFRESH", icon: Clock },
@@ -895,6 +897,10 @@ export default function ConfigModal({ open, onClose, onNav }: Props) {
 
           {activeTab === "social" && (
             <SocialAccountsTab oauthSuccess={oauthSuccess} oauthError={oauthError} />
+          )}
+
+          {activeTab === "discord" && (
+            <DiscordTab />
           )}
 
           {activeTab === "display" && (
