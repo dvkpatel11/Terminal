@@ -49,11 +49,13 @@ export default function TabStrip({ tabs, activeTabId, onSelect, onClose }: Props
     return 0;
   });
 
-  if (sorted.length === 0) return null;
-
   return (
-    <div className="flex items-center h-7 bg-gradient-to-b from-surface-2 to-surface-1 border-b border-border/40 overflow-x-auto scrollbar-thin shrink-0" role="tablist" aria-label="Panel tabs">
-      {sorted.map((tab) => {
+    <div className="flex items-center h-7 min-h-[28px] bg-gradient-to-b from-surface-2 to-surface-1 border-b border-border/40 overflow-x-auto scrollbar-thin shrink-0" role="tablist" aria-label="Panel tabs">
+      {sorted.length === 0 ? (
+        <span className="px-2.5 text-data-xs font-terminal text-muted-foreground/40 tracking-wide select-none">
+          No symbol tabs open
+        </span>
+      ) : sorted.map((tab) => {
         const meta = PANEL_REGISTRY[tab.view];
         if (!meta) return null;
 
