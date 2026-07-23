@@ -160,6 +160,18 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         secondarySymbol: state.secondarySymbol,
         globalSymbol: state.globalSymbol,
       }),
+      merge: (persisted: unknown, current: WorkspaceStore) => {
+        const stored = persisted as Record<string, unknown> | null;
+        if (!stored || typeof stored !== "object") return current;
+
+        // Validate primary has the expected shape
+        const p = stored.primary as { tabs?: unknown[]; activeTabId?: string } | undefined;
+        if (!p || !Array.isArray(p.tabs) || p.tabs.length === 0 || !p.activeTabId) {
+          return current;
+        }
+
+        return { ...current, ...stored } as WorkspaceStore;
+      },
     }
   )
 );
