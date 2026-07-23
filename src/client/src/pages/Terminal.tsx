@@ -6,6 +6,7 @@ import CommandBar from "@/components/terminal/CommandBar";
 import WorkspacePane from "@/components/terminal/WorkspacePane";
 import StatusBar from "@/components/terminal/StatusBar";
 import MobileNav from "@/components/terminal/MobileNav";
+import AlertOverlay from "@/components/terminal/AlertOverlay";
 import PanelErrorBoundary from "@/components/panel/PanelErrorBoundary";
 import PanelLoadingSkeleton from "@/components/panel/PanelLoadingSkeleton";
 import { PANEL_REGISTRY } from "@/lib/panelRegistry";
@@ -243,6 +244,7 @@ export default function Terminal() {
       </div>
 
       <StatusBar />
+      <AlertOverlay />
       {isMobile && (
         <MobileNav
           view={activePane.view}
