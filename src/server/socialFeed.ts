@@ -5,6 +5,8 @@ import {
   weightedScore,
   type ContentType,
 } from './sentimentAnalyzer';
+import { decryptToken } from "./oauth";
+import { extendedStorage } from "./storage";
 
 const FETCH_TIMEOUT = 8000;
 const REDDIT_USER_AGENT = 'TerminalApp/1.0';
@@ -113,25 +115,30 @@ export function parseSocialUrl(input: string): SocialSourceConfig | null {
 
 // ─── Reddit Fetcher ────────────────────────────────────────────────────────
 
-async function redditFetch(url: string): Promise<any> {
-  const clientId = process.env.REDDIT_CLIENT_ID;
-  const clientSecret = process.env.REDDIT_CLIENT_SECRET;
+async function redditFetch(url: string, userToken?: string): Promise<any> {
   const headers: Record<string, string> = { 'User-Agent': REDDIT_USER_AGENT };
 
-  if (clientId && clientSecret) {
-    const tokenResp = await fetch('https://www.reddit.com/api/v1/access_token', {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': REDDIT_USER_AGENT,
-      },
-      body: 'grant_type=client_credentials',
-    });
-    if (tokenResp.ok) {
-      const tokenData = (await tokenResp.json()) as any;
-      if (tokenData.access_token) {
-        headers['Authorization'] = `Bearer ${tokenData.access_token}`;
+  if (userToken) {
+    headers['Authorization'] = `Bearer ${userToken}`;
+  } else {
+    const clientId = process.env.REDDIT_CLIENT_ID;
+    const clientSecret = process.env.REDDIT_CLIENT_SECRET;
+
+    if (clientId && clientSecret) {
+      const tokenResp = await fetch('https://www.reddit.com/api/v1/access_token', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': REDDIT_USER_AGENT,
+        },
+        body: 'grant_type=client_credentials',
+      });
+      if (tokenResp.ok) {
+        const tokenData = (await tokenResp.json()) as any;
+        if (tokenData.access_token) {
+          headers['Authorization'] = `Bearer ${tokenData.access_token}`;
+        }
       }
     }
   }
@@ -141,14 +148,15 @@ async function redditFetch(url: string): Promise<any> {
   return resp.json();
 }
 
-export async function fetchRedditPosts(subreddits: string[]): Promise<SocialPost[]> {
+export async function fetchRedditPosts(subreddits: string[], userToken?: string): Promise<SocialPost[]> {
   const allPosts: SocialPost[] = [];
 
   const results = await Promise.allSettled(
     subreddits.map(sub =>
       cached(`social-reddit-${sub}`, async () => {
         const data = await redditFetch(
-          `https://www.reddit.com/r/${sub}/hot.json?limit=15&raw_json=1`
+          `https://www.reddit.com/r/${sub}/hot.json?limit=15&raw_json=1`,
+          userToken
         );
         return (data.data?.children || [])
           .filter((c: any) => c.data && !c.data.stickied)
@@ -219,8 +227,8 @@ async function fetchTwitterTweets(userId: string, bearer: string): Promise<any[]
   return data.data || [];
 }
 
-export async function fetchXTweets(handles: string[]): Promise<SocialPost[]> {
-  const bearer = process.env.TWITTER_BEARER_TOKEN;
+export async function fetchXTweets(handles: string[], userToken?: string): Promise<SocialPost[]> {
+  const bearer = userToken || process.env.TWITTER_BEARER_TOKEN;
   if (!bearer) return [];
 
   const allPosts: SocialPost[] = [];
@@ -362,7 +370,21 @@ function aggregateSentiment(posts: SocialPost[]): Record<string, { positive: num
   return map;
 }
 
-export async function getSocialFeed(config: SocialSourceConfig[]): Promise<SocialFeedResponse> {
+export async function getSocialFeed(
+  config: SocialSourceConfig[],
+  useUserTokens: boolean = false,
+): Promise<SocialFeedResponse> {
+  // Load user tokens if requested
+  const userTokens: Record<string, string> = {};
+  if (useUserTokens) {
+    const connections = await extendedStorage!.getAllOauthConnections();
+    for (const conn of connections) {
+      if (!conn.tokenExpiresAt || new Date(conn.tokenExpiresAt) > new Date()) {
+        userTokens[conn.provider] = decryptToken(conn.accessToken);
+      }
+    }
+  }
+
   const enabled = config.filter(s => s.enabled);
   const byPlatform: Record<string, SocialPost[]> = {};
 
@@ -371,8 +393,8 @@ export async function getSocialFeed(config: SocialSourceConfig[]): Promise<Socia
   const truthSources = enabled.filter(s => s.platform === 'truth').map(s => s.identifier);
 
   const [redditPosts, xPosts, truthPosts] = await Promise.allSettled([
-    redditSources.length ? fetchRedditPosts(redditSources) : Promise.resolve([]),
-    xSources.length ? fetchXTweets(xSources) : Promise.resolve([]),
+    redditSources.length ? fetchRedditPosts(redditSources, userTokens.reddit) : Promise.resolve([]),
+    xSources.length ? fetchXTweets(xSources, userTokens.x) : Promise.resolve([]),
     truthSources.length ? fetchTruthPosts(truthSources) : Promise.resolve([]),
   ]);
 

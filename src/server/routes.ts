@@ -180,6 +180,7 @@ export async function registerRoutes(
   // ─── Social Feed ────────────────────────────────────────────────────────────
   app.get("/api/finance/social/feed", handleFinance(async (req) => {
     const sourcesRaw = String(req.query.sources || '');
+    const useUserTokens = req.query.user_tokens === "true";
     const sources: SocialSourceConfig[] = sourcesRaw
       ? sourcesRaw.split('|').map(s => parseSocialUrl(s)).filter((s): s is SocialSourceConfig => s !== null)
       : [
@@ -187,7 +188,7 @@ export async function registerRoutes(
           { platform: 'reddit', identifier: 'stocks', displayName: 'r/stocks', url: 'https://reddit.com/r/stocks', enabled: true },
           { platform: 'reddit', identifier: 'CryptoCurrency', displayName: 'r/CryptoCurrency', url: 'https://reddit.com/r/CryptoCurrency', enabled: true },
         ];
-    return getSocialFeed(sources);
+    return getSocialFeed(sources, useUserTokens);
   }));
 
   app.get("/api/finance/social/sources", handleFinance(async () => {
