@@ -12,29 +12,38 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
-  retryCount: number;
 }
 
-export default class PanelErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, error: null, retryCount: 0 };
+// Static counter survives state replacements from getDerivedStateFromError
+let globalRetryCount = 0;
+let lastErrorKey = "";
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error, retryCount: 0 };
+export default class PanelErrorBoundary extends Component<Props, State> {
+  state: State = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: Error): Partial<State> {
+    // Only count each unique crash once (prevents double-counting from re-renders)
+    const key = String(error?.message ?? error);
+    if (key !== lastErrorKey) {
+      globalRetryCount++;
+      lastErrorKey = key;
+    }
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    this.setState((prev) => ({ retryCount: prev.retryCount + 1 }));
-    console.error(`[PanelErrorBoundary] ${this.props.panelName ?? "Panel"} crashed:`, error, info);
+    console.error(`[PanelErrorBoundary] ${this.props.panelName ?? "Panel"} crashed (${globalRetryCount}/${MAX_RETRIES}):`, error, info);
   }
 
   render() {
     if (this.state.hasError) {
-      const retriesLeft = MAX_RETRIES - this.state.retryCount;
+      const retriesLeft = MAX_RETRIES - globalRetryCount;
       return (
         <PanelErrorFallback
           title={`${this.props.panelName ?? "Panel"} error`}
           error={this.state.error}
           onRetry={retriesLeft > 0 ? () => {
+            lastErrorKey = "";
             this.setState({ hasError: false, error: null });
             this.props.onRetry?.();
           } : undefined}

@@ -44,6 +44,14 @@ export default function NewsPanel({ symbol }: Props) {
     }
   }, [filtered, selectedItem]);
 
+  if (isLoading) {
+    return <PanelLoadingSkeleton rows={8} />;
+  }
+
+  if (isError) {
+    return <QueryErrorFallback label="News" error={error} onRetry={() => refetch()} />;
+  }
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="shrink-0 border-b border-border bg-[#070707]">
@@ -84,15 +92,7 @@ export default function NewsPanel({ symbol }: Props) {
               : state === "negative"
                 ? "text-down"
                 : "text-[hsl(186,45%,55%)]";
-  if (isLoading) {
-    return <PanelLoadingSkeleton rows={8} />;
-  }
-
-  if (isError) {
-    return <QueryErrorFallback label="News" error={error} onRetry={() => refetch()} />;
-  }
-
-  return (
+            return (
               <button
                 key={state}
                 onClick={() => setSentimentFilter(value)}
