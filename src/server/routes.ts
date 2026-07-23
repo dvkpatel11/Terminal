@@ -2,7 +2,7 @@ import type { Express } from "express";
 import type { Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { z } from "zod";
-import { storage } from "./storage";
+import { storage, extendedStorage } from "./storage";
 import { insertWatchlistItemSchema, insertAlertSchema } from "@shared/schema";
 import axios from "axios";
 import { evaluateAlerts } from "./alertsEngine";
@@ -38,6 +38,12 @@ import {
   getTechnicalIndicators,
   getScorecardData,
 } from "./marketScorecard";
+import {
+  loadSymbolConfig,
+  reloadSymbolConfig,
+} from "./symbolRegistry";
+import { generateOAuthState, validateOAuthState, exchangeCodeForTokens, fetchUserInfo, refreshAccessToken, encryptToken, decryptToken } from "./oauth";
+import { OAUTH_PROVIDERS } from "./oauthProviders";
 
 function parseSymbols(value: unknown) {
   return String(value || "")
@@ -145,6 +151,16 @@ export async function registerRoutes(
   app.get("/api/finance/losers", handleFinance(async () => getMarketMovers("losers")));
   app.get("/api/finance/active", handleFinance(async () => getMarketMovers("active")));
   app.get("/api/finance/sentiment", handleFinance(async () => getMarketSentiment()));
+
+  // ─── Symbol config ────────────────────────────────────────────────────────
+  app.get("/api/symbols", (_req, res) => {
+    res.json(loadSymbolConfig());
+  });
+
+  app.post("/api/symbols/reload", (_req, res) => {
+    reloadSymbolConfig();
+    res.json({ ok: true });
+  });
 
   app.get("/api/finance/social-sentiment", handleFinance(async (req) => {
     const query: Record<string, string> = {};
@@ -517,6 +533,125 @@ export async function registerRoutes(
       const status = err.response?.status ?? 0;
       const msg = err.response?.data?.error?.message ?? err.message;
       res.json({ ok: false, status, error: msg });
+    }
+  });
+
+  // ─── OAuth Social Account Routes ────────────────────────────────────────────
+
+  app.get("/api/oauth/authorize", (req, res) => {
+    try {
+      const provider = String(req.query.provider || "");
+      if (!OAUTH_PROVIDERS[provider]) {
+        return res.status(400).json({ error: `Unknown provider: ${provider}` });
+      }
+      const { authUrl } = generateOAuthState(provider);
+      res.json({ authUrl });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/oauth/callback/:provider", async (req, res) => {
+    const { provider } = req.params;
+    try {
+      const { code, state, error } = req.query;
+
+      if (error) {
+        return res.redirect(`/#/settings?oauth_error=${provider}`);
+      }
+
+      if (!code || !state || !OAUTH_PROVIDERS[provider]) {
+        return res.redirect(`/#/settings?oauth_error=invalid_request`);
+      }
+
+      const oauthState = validateOAuthState(String(state));
+      if (!oauthState || oauthState.provider !== provider) {
+        return res.redirect(`/#/settings?oauth_error=invalid_state`);
+      }
+
+      const tokens = await exchangeCodeForTokens(provider, String(code), oauthState.codeVerifier);
+      const userInfo = await fetchUserInfo(provider, tokens.accessToken);
+
+      await extendedStorage!.upsertOauthConnection({
+        provider,
+        providerUserId: userInfo.userId,
+        displayName: userInfo.displayName,
+        accessToken: encryptToken(tokens.accessToken),
+        refreshToken: tokens.refreshToken ? encryptToken(tokens.refreshToken) : null,
+        tokenExpiresAt: tokens.expiresAt ?? null,
+        scope: tokens.scope ?? null,
+      });
+
+      res.redirect(`/#/settings?oauth_success=${provider}`);
+    } catch (error: any) {
+      console.error("OAuth callback error:", error);
+      res.redirect(`/#/settings?oauth_error=${provider}`);
+    }
+  });
+
+  app.get("/api/oauth/connections", async (_req, res) => {
+    try {
+      const connections = await extendedStorage!.getAllOauthConnections();
+      const safe = connections.map(c => ({
+        provider: c.provider,
+        displayName: c.displayName,
+        scope: c.scope,
+        tokenExpiresAt: c.tokenExpiresAt,
+        createdAt: c.createdAt,
+      }));
+      res.json(safe);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/oauth/connections/:provider", async (req, res) => {
+    try {
+      const { provider } = req.params;
+      if (!OAUTH_PROVIDERS[provider]) {
+        return res.status(400).json({ error: `Unknown provider: ${provider}` });
+      }
+      await extendedStorage!.deleteOauthConnection(provider);
+      res.json({ ok: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/oauth/test/:provider", async (req, res) => {
+    try {
+      const { provider } = req.params;
+      const conn = await extendedStorage!.getOauthConnection(provider);
+      if (!conn) {
+        return res.status(404).json({ error: "Not connected" });
+      }
+
+      let accessToken = decryptToken(conn.accessToken);
+
+      // Check if token needs refresh
+      if (conn.tokenExpiresAt && new Date(conn.tokenExpiresAt) < new Date()) {
+        if (conn.refreshToken) {
+          const tokens = await refreshAccessToken(provider, decryptToken(conn.refreshToken));
+          accessToken = tokens.accessToken;
+          await extendedStorage!.upsertOauthConnection({
+            provider,
+            providerUserId: conn.providerUserId,
+            displayName: conn.displayName,
+            accessToken: encryptToken(tokens.accessToken),
+            refreshToken: tokens.refreshToken ? encryptToken(tokens.refreshToken) : null,
+            tokenExpiresAt: tokens.expiresAt ?? null,
+            scope: tokens.scope ?? conn.scope,
+          });
+        } else {
+          return res.status(401).json({ error: "Token expired and no refresh token" });
+        }
+      }
+
+      // Test by fetching user info
+      const userInfo = await fetchUserInfo(provider, accessToken);
+      res.json({ ok: true, displayName: userInfo.displayName });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
