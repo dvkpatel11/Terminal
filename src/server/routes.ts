@@ -44,6 +44,7 @@ import {
 } from "./symbolRegistry";
 import { generateOAuthState, validateOAuthState, exchangeCodeForTokens, fetchUserInfo, refreshAccessToken, encryptToken, decryptToken, setAppCredentials, getAppCredentials, hasAppCredentials } from "./oauth";
 import { OAUTH_PROVIDERS } from "./oauthProviders";
+import discordRouter from "./discordRoutes";
 
 function parseSymbols(value: unknown) {
   return String(value || "")
@@ -683,6 +684,9 @@ export async function registerRoutes(
       res.status(500).json({ error: error.message });
     }
   });
+
+  // ─── Discord Bot Routes ──────────────────────────────────────────────────────
+  app.use(discordRouter);
 
   // ─── Realtime client WebSocket (live quote deltas) ─────────────────────────
   if (bus) {
