@@ -39,7 +39,7 @@ function formatUSD(val: number | null): string {
   return "$" + val.toFixed(0);
 }
 
-export default function OnChainPanel({ symbol }: Props) {
+export default function OnChainPanel({ symbol, onSymbol }: Props) {
   const { data, isLoading } = useOnChain(symbol);
   const txs = data?.transactions ?? [];
   const requiresApiKey = data?.requiresApiKey ?? false;
@@ -134,7 +134,12 @@ export default function OnChainPanel({ symbol }: Props) {
             <div key={tx.id} className="grid grid-cols-[1fr_130px_130px_80px] gap-2 px-5 py-2 hover:bg-white/[0.02] items-center">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-terminal text-[10px] font-bold text-foreground">{tx.symbol}</span>
+                  <button
+                    onClick={() => onSymbol?.(tx.symbol)}
+                    className="font-terminal text-[10px] font-bold text-foreground hover:text-primary"
+                  >
+                    {tx.symbol}
+                  </button>
                   <span className={`font-terminal text-[8px] tracking-wider ${typeColor(tx.type)}`}>{typeLabel(tx.type)}</span>
                   <span className="font-terminal text-[8px] text-muted-foreground">{tx.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                 </div>

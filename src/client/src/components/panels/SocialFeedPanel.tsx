@@ -94,7 +94,7 @@ function FeedItem({ post, onSymbol }: { post: SocialPost; onSymbol?: (s: string)
   );
 }
 
-function SentimentSidebar({ sentiment }: { sentiment: Record<string, { positive: number; negative: number; score: number; count: number }> }) {
+function SentimentSidebar({ sentiment, onSymbol }: { sentiment: Record<string, { positive: number; negative: number; score: number; count: number }>; onSymbol?: (ticker: string) => void }) {
   const sorted = useMemo(
     () => Object.entries(sentiment).sort((a, b) => b[1].count - a[1].count).slice(0, 20),
     [sentiment]
@@ -108,7 +108,12 @@ function SentimentSidebar({ sentiment }: { sentiment: Record<string, { positive:
       <div className="p-2 space-y-0.5">
         {sorted.map(([ticker, data]) => (
           <div key={ticker} className="flex items-center justify-between py-1 px-1 text-xs rounded hover:bg-white/[0.03]">
-            <span className="font-mono font-bold text-foreground">{ticker}</span>
+            <button
+              onClick={() => onSymbol?.(ticker)}
+              className="font-mono font-bold text-foreground hover:text-primary cursor-pointer"
+            >
+              {ticker}
+            </button>
             <span
               className={
                 data.score > 0.3
@@ -211,7 +216,7 @@ export default function SocialFeedPanel({ onSymbol, onNav }: Props) {
             ))
           )}
         </div>
-        <SentimentSidebar sentiment={sentiment} />
+        <SentimentSidebar sentiment={sentiment} onSymbol={onSymbol} />
       </div>
 
       <div className="shrink-0 px-3 py-1.5 border-t border-border text-[10px] text-muted-foreground/40 flex items-center justify-between bg-[#070707]">

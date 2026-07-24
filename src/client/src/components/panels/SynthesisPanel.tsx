@@ -329,6 +329,7 @@ export default function SynthesisPanel({ symbol, onNav, onSymbol }: Props) {
             variant="dense"
             maxItems={5}
             className="max-h-48"
+            onSymbol={onSymbol}
           />
         </PanelSection>
 

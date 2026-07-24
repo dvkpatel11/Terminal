@@ -4,6 +4,7 @@ import type { FeedItem, SocialPost } from "@/lib/useFinance";
 import { PLATFORM_BADGE } from "@/lib/useFinance";
 import type { ThreatLevel } from "@/lib/newsUtils";
 import { relativeTime, sentimentBorderColor, classifyThreat } from "@/lib/newsUtils";
+import { extractTickers } from "@shared/extractTickers";
 import NewsThumb from "./NewsThumb";
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
   variant: "dense" | "expanded" | "hero";
   isActive?: boolean;
   onClick?: () => void;
+  onSymbol?: (sym: string) => void;
   className?: string;
 }
 
@@ -42,6 +44,7 @@ export default function NewsCard({
   variant,
   isActive = false,
   onClick,
+  onSymbol,
   className,
 }: Props) {
   const handleHeadlineClick = useCallback(
@@ -105,6 +108,24 @@ export default function NewsCard({
             {relativeTime(item.publishedAt)}
           </span>
         </div>
+
+        {/* Ticker badges */}
+        {(() => {
+          const tickers = extractTickers(`${item.title} ${item.summary}`);
+          return tickers.length > 0 ? (
+            <div className="flex gap-1 mt-1">
+              {tickers.slice(0, 5).map((t) => (
+                <button
+                  key={t}
+                  onClick={(e) => { e.stopPropagation(); onSymbol?.(t); }}
+                  className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 font-mono"
+                >
+                  ${t}
+                </button>
+              ))}
+            </div>
+          ) : null;
+        })()}
       </div>
 
       {/* Thumbnail (expanded/hero only) */}

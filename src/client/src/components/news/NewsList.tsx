@@ -11,6 +11,7 @@ interface Props {
   /** Legacy: select a raw NewsItem */
   activeItemId?: string;
   onSelectItem?: (item: FeedItem) => void;
+  onSymbol?: (sym: string) => void;
   maxItems?: number;
   className?: string;
 }
@@ -22,6 +23,7 @@ export default function NewsList({
   onSelectFeedItem,
   activeItemId,
   onSelectItem,
+  onSymbol,
   maxItems,
   className,
 }: Props) {
@@ -85,6 +87,7 @@ export default function NewsList({
               variant={variant}
               isActive={isActive}
               onClick={() => handleSelect(fi)}
+              onSymbol={onSymbol}
             />
           );
         })
