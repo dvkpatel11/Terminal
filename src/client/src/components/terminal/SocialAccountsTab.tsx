@@ -1,6 +1,19 @@
 import { useState, useEffect } from "react";
-import { Check, ExternalLink, Loader2, Unplug, Key } from "lucide-react";
-import { useOAuthConnections, useConnectOAuth, useDisconnectOAuth, useTestOAuth } from "@/lib/useFinance";
+import { Check, ExternalLink, Loader2, Unplug, Key, X, Eye, EyeOff, AlertTriangle, CheckCircle2 } from "lucide-react";
+import {
+  useOAuthConnections,
+  useConnectOAuth,
+  useDisconnectOAuth,
+  useTestOAuth,
+  useDiscordStatus,
+  useDiscordSetToken,
+  useDiscordClearToken,
+  useDiscordGuilds,
+  useDiscordChannels,
+  useDiscordTrackedChannels,
+  useDiscordTrackChannel,
+  useDiscordUntrackChannel,
+} from "@/lib/useFinance";
 
 const PROVIDER_INFO: Record<string, { label: string; icon: string; color: string; description: string }> = {
   x: { label: "X / TWITTER", icon: "𝕏", color: "text-blue-400", description: "Access your personalized timeline and followed accounts" },
@@ -29,6 +42,60 @@ export default function SocialAccountsTab({ oauthSuccess, oauthError }: Props) {
   const [credentialStatus, setCredentialStatus] = useState<Record<string, boolean>>({});
   const [savingCredentials, setSavingCredentials] = useState<string | null>(null);
   const [showCredentials, setShowCredentials] = useState<Record<string, boolean>>({});
+
+  // Discord state
+  const [discordTokenInput, setDiscordTokenInput] = useState("");
+  const [discordTokenVisible, setDiscordTokenVisible] = useState(false);
+  const [discordError, setDiscordError] = useState<string | null>(null);
+  const [selectedGuild, setSelectedGuild] = useState<string | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
+
+  const { configured: discordConfigured, refetch: refetchDiscordStatus } = useDiscordStatus();
+  const setDiscordTokenMutation = useDiscordSetToken();
+  const clearDiscordTokenMutation = useDiscordClearToken();
+  const { guilds, refetch: refetchGuilds } = useDiscordGuilds();
+  const { channels, isLoading: channelsLoading } = useDiscordChannels(selectedGuild);
+  const { channels: trackedChannels } = useDiscordTrackedChannels();
+  const trackChannelMutation = useDiscordTrackChannel();
+  const untrackChannelMutation = useDiscordUntrackChannel();
+
+  const handleSetDiscordToken = async () => {
+    if (!discordTokenInput.trim()) return;
+    setDiscordError(null);
+    try {
+      await setDiscordTokenMutation.mutateAsync(discordTokenInput.trim());
+      setDiscordTokenInput("");
+      await refetchDiscordStatus();
+      refetchGuilds();
+    } catch (err: any) {
+      setDiscordError(err.message || "Failed to verify token");
+    }
+  };
+
+  const handleClearDiscordToken = async () => {
+    await clearDiscordTokenMutation.mutateAsync();
+    setSelectedGuild(null);
+    setSelectedChannel(null);
+    await refetchDiscordStatus();
+  };
+
+  const handleTrackChannel = async () => {
+    if (!selectedChannel || !selectedGuild) return;
+    const channel = channels.find((c: any) => c.id === selectedChannel);
+    const guild = guilds.find((g: any) => g.id === selectedGuild);
+    if (!channel || !guild) return;
+    await trackChannelMutation.mutateAsync({
+      channelId: channel.id,
+      channelName: channel.name,
+      guildId: guild.id,
+      guildName: guild.name,
+    });
+    setSelectedChannel(null);
+  };
+
+  const handleUntrackChannel = async (channelId: string) => {
+    await untrackChannelMutation.mutateAsync(channelId);
+  };
 
   // Load credential status on mount
   useEffect(() => {
@@ -288,6 +355,130 @@ export default function SocialAccountsTab({ oauthSuccess, oauthError }: Props) {
             </div>
           );
         })}
+      </div>
+
+      {/* ─── Discord Bot Section ─────────────────────────────────── */}
+      <div className="mt-4 border-t border-slate-700/50 pt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs text-slate-400 font-mono uppercase tracking-wider">Discord Bot</h3>
+          {discordConfigured ? (
+            <span className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400 bg-emerald-900/50 border border-emerald-700/50 rounded px-2 py-0.5">
+              <CheckCircle2 size={10} />
+              CONNECTED
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-[10px] font-mono text-red-400 bg-red-900/50 border border-red-700/50 rounded px-2 py-0.5">
+              <AlertTriangle size={10} />
+              NOT CONFIGURED
+            </span>
+          )}
+        </div>
+
+        <p className="text-xs text-slate-500 mb-3">
+          Bot token with View Channel + Read Message History permissions.
+        </p>
+
+        {/* Token Input */}
+        <div className="flex gap-2 mb-3">
+          <div className="relative flex-1">
+            <input
+              type={discordTokenVisible ? "text" : "password"}
+              value={discordTokenInput}
+              onChange={(e) => setDiscordTokenInput(e.target.value)}
+              placeholder="Enter bot token..."
+              className="w-full bg-slate-800/80 border border-slate-600/50 rounded px-3 py-2 pr-10 text-sm text-slate-200 font-mono placeholder:text-slate-600 focus:outline-none focus:border-cyan-600/50"
+            />
+            <button
+              onClick={() => setDiscordTokenVisible(!discordTokenVisible)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+            >
+              {discordTokenVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+          <button
+            onClick={handleSetDiscordToken}
+            disabled={!discordTokenInput.trim() || setDiscordTokenMutation.isPending}
+            className="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white px-3 py-2 rounded text-xs font-mono flex items-center gap-1.5"
+          >
+            {setDiscordTokenMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : null}
+            Verify & Save
+          </button>
+          {discordConfigured && (
+            <button
+              onClick={handleClearDiscordToken}
+              disabled={clearDiscordTokenMutation.isPending}
+              className="bg-red-600/80 hover:bg-red-500 disabled:opacity-50 text-white px-3 py-2 rounded text-xs font-mono flex items-center gap-1.5"
+            >
+              {clearDiscordTokenMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : null}
+              Disconnect
+            </button>
+          )}
+        </div>
+
+        {discordError && (
+          <p className="text-xs text-red-400 mb-3 font-mono">{discordError}</p>
+        )}
+
+        {/* Channel Picker */}
+        {discordConfigured && (
+          <div className="mb-3">
+            <h4 className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mb-2">Add Channel</h4>
+            <div className="flex gap-2">
+              <select
+                value={selectedGuild || ""}
+                onChange={(e) => { setSelectedGuild(e.target.value || null); setSelectedChannel(null); }}
+                className="flex-1 bg-slate-800/80 border border-slate-600/50 rounded px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-cyan-600/50"
+              >
+                <option value="">Select server...</option>
+                {guilds.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+              <select
+                value={selectedChannel || ""}
+                onChange={(e) => setSelectedChannel(e.target.value || null)}
+                disabled={!selectedGuild || channelsLoading}
+                className="flex-1 bg-slate-800/80 border border-slate-600/50 rounded px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-cyan-600/50 disabled:opacity-50"
+              >
+                <option value="">{channelsLoading ? "Loading..." : "Select channel..."}</option>
+                {channels.filter((c: any) => c.type === 0).map((c: any) => <option key={c.id} value={c.id}>#{c.name}</option>)}
+              </select>
+              <button
+                onClick={handleTrackChannel}
+                disabled={!selectedChannel || trackChannelMutation.isPending}
+                className="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white px-3 py-2 rounded text-xs font-mono"
+              >
+                {trackChannelMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : "Add"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tracked Channels */}
+        {discordConfigured && (
+          <div>
+            <h4 className="text-[10px] text-slate-500 font-mono uppercase tracking-wider mb-2">Tracked Channels</h4>
+            {trackedChannels.length === 0 ? (
+              <p className="text-xs text-slate-600 font-mono py-2">No channels tracked. Add one above.</p>
+            ) : (
+              <div className="space-y-1">
+                {trackedChannels.map((ch: any) => (
+                  <div key={ch.channelId} className="flex items-center justify-between bg-slate-800/40 rounded px-3 py-2 border border-slate-700/30">
+                    <div>
+                      <span className="text-sm text-slate-200 font-mono">#{ch.channelName}</span>
+                      <span className="text-xs text-slate-500 ml-2">in {ch.guildName}</span>
+                    </div>
+                    <button
+                      onClick={() => handleUntrackChannel(ch.channelId)}
+                      disabled={untrackChannelMutation.isPending}
+                      className="text-slate-500 hover:text-red-400 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="px-1 py-2">
