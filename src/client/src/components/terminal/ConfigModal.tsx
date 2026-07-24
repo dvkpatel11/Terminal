@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Settings, Key, Activity, Check, AlertTriangle, RefreshCw, Eye, EyeOff, ExternalLink, HelpCircle, Plus, Trash2, List, Plug, Monitor, Bell, Clock, MessageSquare } from "lucide-react";
+import { X, Settings, Activity, Check, RefreshCw, HelpCircle, Plus, Trash2, List, Plug, Monitor, Bell, Clock } from "lucide-react";
 import { PANEL_REGISTRY, PANELS_BY_CATEGORY, CATEGORY_ORDER, type PanelCategory } from "@/lib/panelRegistry";
 import type { ViewMode } from "@/lib/terminalTypes";
 import { useSymbolConfig } from "@/lib/useSymbolConfig";
 import SocialAccountsTab from "./SocialAccountsTab";
-import DiscordTab from "./DiscordTab";
 
 interface Props {
   open: boolean;
@@ -12,7 +11,7 @@ interface Props {
   onNav: (v: ViewMode) => void;
 }
 
-type ConfigTab = "status" | "keys" | "symbols" | "social" | "discord" | "display" | "notifications" | "refresh" | "general" | "help";
+type ConfigTab = "status" | "symbols" | "social" | "display" | "notifications" | "refresh" | "general" | "help";
 
 interface ProviderStatus {
   name: string;
@@ -29,13 +28,8 @@ interface SourceTestResult {
   body: string;
 }
 
-interface NvidiaKeyStatus {
-  configured: boolean;
-  valid: boolean;
-  testing: boolean;
-}
-
 const NVIDIA_KEY_STORAGE = "blmtrm_nvidia_key";
+
 const DEFAULT_SYMBOL_STORAGE = "blmtrm_default_symbol";
 const DISPLAY_SETTINGS_KEY = "blmtrm_display";
 const NOTIFICATION_SETTINGS_KEY = "blmtrm_notifications";
@@ -134,20 +128,6 @@ const PLATFORM_CONFIG: Record<string, { label: string; placeholder: string; colo
   discord: { label: "DISCORD", placeholder: "server/channel or discord.gg/invite", color: "text-indigo-400", icon: "D" },
 };
 
-function loadNvidiaKey(): string {
-  if (typeof window === "undefined") return "";
-  return localStorage.getItem(NVIDIA_KEY_STORAGE) ?? "";
-}
-
-function saveNvidiaKey(key: string) {
-  if (typeof window === "undefined") return;
-  if (key) {
-    localStorage.setItem(NVIDIA_KEY_STORAGE, key);
-  } else {
-    localStorage.removeItem(NVIDIA_KEY_STORAGE);
-  }
-}
-
 function loadDefaultSymbol(): string {
   if (typeof window === "undefined") return "AAPL";
   return localStorage.getItem(DEFAULT_SYMBOL_STORAGE) ?? "AAPL";
@@ -162,9 +142,6 @@ export default function ConfigModal({ open, onClose, onNav }: Props) {
   const [activeTab, setActiveTab] = useState<ConfigTab>("status");
   const [providers, setProviders] = useState<ProviderStatus[]>([]);
   const [testingAll, setTestingAll] = useState(false);
-  const [nvidiaKey, setNvidiaKey] = useState(loadNvidiaKey);
-  const [nvidiaKeyVisible, setNvidiaKeyVisible] = useState(false);
-  const [nvidiaStatus, setNvidiaStatus] = useState<NvidiaKeyStatus>({ configured: !!loadNvidiaKey(), valid: false, testing: false });
   const [defaultSymbol, setDefaultSymbol] = useState(loadDefaultSymbol);
   const [displaySettings, setDisplaySettings] = useState(loadDisplaySettings);
   const [notificationSettings, setNotificationSettings] = useState(loadNotificationSettings);
@@ -223,13 +200,14 @@ export default function ConfigModal({ open, onClose, onNav }: Props) {
   const testProvider = async (provider: typeof PROVIDERS[number]): Promise<ProviderStatus> => {
     const start = Date.now();
     if (!provider.testUrl) {
+      const nvidiaConfigured = !!localStorage.getItem(NVIDIA_KEY_STORAGE);
       return {
         name: provider.name,
         category: provider.category,
-        ok: nvidiaStatus.configured,
+        ok: nvidiaConfigured,
         latency: 0,
         lastCheck: new Date().toISOString(),
-        error: nvidiaStatus.configured ? undefined : "No API key configured",
+        error: nvidiaConfigured ? undefined : "No API key configured",
       };
     }
     try {
@@ -370,37 +348,12 @@ export default function ConfigModal({ open, onClose, onNav }: Props) {
     }
   }, []);
 
-  const testNvidiaKey = async () => {
-    setNvidiaStatus((s) => ({ ...s, testing: true }));
-    try {
-      const keyToTest = nvidiaKey || loadNvidiaKey();
-      const res = await fetch("/api/config/test-nvidia", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: keyToTest }),
-        signal: AbortSignal.timeout(15000),
-      });
-      const data = await res.json();
-      setNvidiaStatus({ configured: true, valid: data.ok, testing: false });
-    } catch {
-      setNvidiaStatus({ configured: true, valid: false, testing: false });
-    }
-  };
-
-  const saveNvidiaKeyAndTest = () => {
-    saveNvidiaKey(nvidiaKey);
-    setNvidiaStatus({ configured: !!nvidiaKey, valid: false, testing: false });
-    if (nvidiaKey) testNvidiaKey();
-  };
-
   if (!open) return null;
 
   const tabs: { id: ConfigTab; label: string; icon: typeof Settings }[] = [
     { id: "status", label: "API STATUS", icon: Activity },
-    { id: "keys", label: "API KEYS", icon: Key },
     { id: "symbols", label: "SYMBOLS", icon: List },
     { id: "social", label: "SOCIAL ACCOUNTS", icon: Plug },
-    { id: "discord", label: "DISCORD", icon: MessageSquare },
     { id: "display", label: "DISPLAY", icon: Monitor },
     { id: "notifications", label: "NOTIFICATIONS", icon: Bell },
     { id: "refresh", label: "DATA REFRESH", icon: Clock },
@@ -694,69 +647,8 @@ export default function ConfigModal({ open, onClose, onNav }: Props) {
             </div>
           )}
 
-          {activeTab === "keys" && (
-            <div className="p-4 space-y-4">
-              {/* NVIDIA API Key */}
-              <div className="border border-border/40 rounded-sm p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-terminal text-[10px] font-bold text-foreground/80">NVIDIA API KEY</span>
-                    <span className="font-terminal text-[7px] tracking-wider text-muted-foreground/50">AI AGENT</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {nvidiaStatus.configured && (
-                      <div className={`flex items-center gap-1 px-1.5 py-0.5 ${nvidiaStatus.valid ? "text-green-400/80 bg-green-500/10" : "text-yellow-400/80 bg-yellow-500/10"}`}>
-                        {nvidiaStatus.valid ? <Check className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
-                        <span className="font-terminal text-[8px]">{nvidiaStatus.valid ? "VALID" : "UNVERIFIED"}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 relative">
-                    <input
-                      type={nvidiaKeyVisible ? "text" : "password"}
-                      value={nvidiaKey}
-                      onChange={(e) => setNvidiaKey(e.target.value)}
-                      placeholder="nvapi-..."
-                      className="w-full bg-[#0a0a0a] border border-border/50 px-3 py-1.5 font-mono text-[10px] text-foreground/80 placeholder:text-muted-foreground/30 focus:outline-none focus:border-[hsl(186_45%_50%/0.4)] rounded-sm"
-                    />
-                    <button
-                      onClick={() => setNvidiaKeyVisible(!nvidiaKeyVisible)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-muted-foreground"
-                    >
-                      {nvidiaKeyVisible ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                    </button>
-                  </div>
-                  <button
-                    onClick={saveNvidiaKeyAndTest}
-                    className="px-2.5 py-1.5 font-terminal text-[8px] tracking-wider text-[hsl(186_45%_60%)] hover:bg-[hsl(186_45%_50%/0.08)] border border-[hsl(186_45%_50%/0.2)] rounded-sm transition-colors shrink-0"
-                  >
-                    SAVE & TEST
-                  </button>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <a
-                    href="https://build.nvidia.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 font-terminal text-[8px] text-[hsl(186_45%_55%)] hover:text-[hsl(186_45%_70%)] transition-colors"
-                  >
-                    <ExternalLink className="w-2.5 h-2.5" />
-                    <span>GET API KEY FROM NVIDIA</span>
-                  </a>
-                </div>
-                {nvidiaStatus.testing && (
-                  <div className="mt-2 font-terminal text-[8px] text-muted-foreground/50 animate-pulse">TESTING CONNECTION...</div>
-                )}
-              </div>
-
-              <div className="px-1 py-2">
-                <span className="font-terminal text-[8px] text-muted-foreground/40 tracking-wider">
-                  KEYS ARE STORED IN BROWSER LOCALSTORAGE AND NEVER SENT TO THIRD-PARTY SERVERS.
-                </span>
-              </div>
-            </div>
+          {activeTab === "social" && (
+            <SocialAccountsTab oauthSuccess={oauthSuccess} oauthError={oauthError} />
           )}
 
           {activeTab === "symbols" && (
@@ -893,14 +785,6 @@ export default function ConfigModal({ open, onClose, onNav }: Props) {
                 </div>
               )}
             </div>
-          )}
-
-          {activeTab === "social" && (
-            <SocialAccountsTab oauthSuccess={oauthSuccess} oauthError={oauthError} />
-          )}
-
-          {activeTab === "discord" && (
-            <DiscordTab />
           )}
 
           {activeTab === "display" && (
