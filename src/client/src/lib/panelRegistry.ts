@@ -6,7 +6,7 @@ import {
   Brain, CandlestickChart, HelpCircle, Table2,
   FileText, CircleDollarSign, Activity, BarChart3, TrendingUp,
   ChartLine, Banknote, Bitcoin, MessageCircle, Scan,
-  BarChart, PieChart, Target,
+  BarChart, PieChart, Target, Building2, Lightbulb,
 } from "lucide-react";
 import type { ViewMode, PanelProps } from "./terminalTypes";
 
@@ -50,6 +50,9 @@ const ScorecardPanel = lazy(() => import("@/components/panels/ScorecardPanel"));
 const SectorPanel = lazy(() => import("@/components/panels/SectorPanel"));
 const SocialFeedPanel = lazy(() => import("@/components/panels/SocialFeedPanel"));
 const PlaysPanel = lazy(() => import("@/components/panels/PlaysPanel"));
+const CompanyProfilePanel = lazy(() => import("@/components/panels/CompanyProfilePanel"));
+const ThesisPanel = lazy(() => import("@/components/panels/ThesisPanel"));
+const SynthesisPanel = lazy(() => import("@/components/panels/SynthesisPanel"));
 
 // ─── Panel definition ──────────────────────────────────────────────────────
 
@@ -212,12 +215,26 @@ export const PANEL_REGISTRY: Record<ViewMode, PanelDefinition> = {
     kbd: "I",
     needsSymbol: true,
     isSecurityView: true,
-    showInTopBar: true,
+    showInTopBar: false,
     category: "symbol",
-    quickAccess: true,
+    quickAccess: false,
     topBarLabel: "INTL",
     aliases: ["INTEL", "DES", "QUOTE", "QR"],
     component: IntelPanel,
+  },
+  synthesis: {
+    label: "SYNTHESIS",
+    code: "SYN",
+    icon: Brain,
+    kbd: "Y",
+    needsSymbol: true,
+    isSecurityView: true,
+    showInTopBar: true,
+    category: "symbol",
+    quickAccess: true,
+    topBarLabel: "SYN",
+    aliases: ["SYN", "SYNTHESIS"],
+    component: SynthesisPanel,
   },
   options: {
     label: "OPTIONS CHAIN",
@@ -343,6 +360,30 @@ export const PANEL_REGISTRY: Record<ViewMode, PanelDefinition> = {
     category: "symbol",
     aliases: ["EE", "EST"],
     component: EstimatesPanel,
+  },
+  profile: {
+    label: "COMPANY PROFILE",
+    code: "PROF",
+    icon: Building2,
+    kbd: "P",
+    needsSymbol: true,
+    isSecurityView: true,
+    showInTopBar: false,
+    category: "symbol",
+    aliases: ["PROF", "PROFILE"],
+    component: CompanyProfilePanel,
+  },
+  thesis: {
+    label: "AI THESIS",
+    code: "THES",
+    icon: Lightbulb,
+    kbd: "T",
+    needsSymbol: true,
+    isSecurityView: true,
+    showInTopBar: false,
+    category: "symbol",
+    aliases: ["THES", "THESIS"],
+    component: ThesisPanel,
   },
   curv: {
     label: "YIELD CURVE",

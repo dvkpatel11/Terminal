@@ -25,7 +25,10 @@ export type ViewMode =
   | "scorecard"
   | "sectors"
   | "social"
-  | "plays";
+  | "plays"
+  | "profile"
+  | "thesis"
+  | "synthesis";
 
 export type PaneId = "primary" | "secondary";
 
