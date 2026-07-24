@@ -61,7 +61,7 @@ export default function TabStrip({ tabs, activeTabId, onSelect, onClose }: Props
 
         const active = tab.id === activeTabId;
         const category: PanelCategory = meta.category;
-        const label = tab.symbol ? `${meta.code} ${tab.symbol}` : meta.code;
+        const label = tab.symbol || meta.code;
         const Icon = meta.icon as LucideIcon;
 
         return (
@@ -72,7 +72,7 @@ export default function TabStrip({ tabs, activeTabId, onSelect, onClose }: Props
             aria-controls={`panel-${tab.id}`}
             onClick={() => onSelect(tab.id)}
             className={cn(
-              "group relative flex items-center gap-1.5 px-2.5 h-full text-data-sm font-terminal border-r border-border/30 transition-colors duration-150 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan focus-visible:ring-inset",
+              "group relative flex items-center gap-1 px-2 h-full text-[9px] font-terminal border-r border-border/20 transition-colors duration-150 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan focus-visible:ring-inset",
               active
                 ? cn("border-b-2", CATEGORY_BORDER[category], CATEGORY_TEXT[category])
                 : "border-b-2 border-transparent text-muted-foreground hover:text-foreground",

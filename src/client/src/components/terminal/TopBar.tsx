@@ -41,43 +41,43 @@ interface NavGroup {
 const CATEGORY_THEME: Record<PanelCategory, { label: string; color: string; restingBg: string; activeBg: string; activeBorder: string; glow: string }> = {
   market: {
     label: "MARKET",
-    color: "text-market",
-    restingBg: "bg-market-muted",
-    activeBg: "bg-market-muted/14",
-    activeBorder: "border-b-market",
-    glow: "shadow-[0_1px_0_hsl(186_60%_50%/0.25)]",
+    color: "text-black",
+    restingBg: "bg-black/5",
+    activeBg: "bg-black/10",
+    activeBorder: "border-b-black",
+    glow: "shadow-[0_1px_0_rgba(0,0,0,0.25)]",
   },
   macro: {
     label: "MACRO",
-    color: "text-macro",
-    restingBg: "bg-macro-muted",
-    activeBg: "bg-macro-muted/14",
-    activeBorder: "border-b-macro",
-    glow: "shadow-[0_1px_0_hsl(38_50%_50%/0.25)]",
+    color: "text-black",
+    restingBg: "bg-black/5",
+    activeBg: "bg-black/10",
+    activeBorder: "border-b-black",
+    glow: "shadow-[0_1px_0_rgba(0,0,0,0.25)]",
   },
   intel: {
     label: "INTEL",
-    color: "text-intel",
-    restingBg: "bg-intel-muted",
-    activeBg: "bg-intel-muted/14",
-    activeBorder: "border-b-intel",
-    glow: "shadow-[0_1px_0_hsl(265_50%_50%/0.25)]",
+    color: "text-black",
+    restingBg: "bg-black/5",
+    activeBg: "bg-black/10",
+    activeBorder: "border-b-black",
+    glow: "shadow-[0_1px_0_rgba(0,0,0,0.25)]",
   },
   symbol: {
     label: "SYMBOL",
-    color: "text-market",
-    restingBg: "bg-market-muted",
-    activeBg: "bg-market-muted/14",
-    activeBorder: "border-b-market",
-    glow: "shadow-[0_1px_0_hsl(186_60%_50%/0.25)]",
+    color: "text-black",
+    restingBg: "bg-black/5",
+    activeBg: "bg-black/10",
+    activeBorder: "border-b-black",
+    glow: "shadow-[0_1px_0_rgba(0,0,0,0.25)]",
   },
   system: {
     label: "SYSTEM",
-    color: "text-intel",
-    restingBg: "bg-intel-muted",
-    activeBg: "bg-intel-muted/14",
-    activeBorder: "border-b-intel",
-    glow: "shadow-[0_1px_0_hsl(265_50%_50%/0.25)]",
+    color: "text-black",
+    restingBg: "bg-black/5",
+    activeBg: "bg-black/10",
+    activeBorder: "border-b-black",
+    glow: "shadow-[0_1px_0_rgba(0,0,0,0.25)]",
   },
 };
 
@@ -189,7 +189,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
   const dateStr = clock.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }).toUpperCase();
 
   return (
-    <header className="flex flex-col bg-gradient-to-b from-[#0e0e0e] to-[#090909] border-b border-border shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+    <header className="flex flex-col bg-gradient-to-b from-orange-500 to-orange-600 border-b border-orange-700 shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
       {/* Row 1: Branding | Global Nav | Market Status | spacer | Terminal Icon | Bell | Clock */}
       <div className="flex items-center h-10">
         <div className="flex items-center gap-2 px-3 h-full border-r border-border/70 bg-gradient-to-b from-market/90 to-market/70 min-w-[120px] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
@@ -208,14 +208,13 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
                   <button
                     key={tab.view}
                     onClick={() => onNav(tab.view)}
-                    className={`flex items-center gap-1.5 px-2.5 h-full font-terminal text-data-sm tracking-[0.12em] transition-colors duration-150 border-b-[1.5px] shrink-0 ${
+                    className={`flex items-center gap-1 px-2 h-full font-terminal text-data-xs tracking-[0.12em] transition-colors duration-150 border-b-[1.5px] shrink-0 ${
                       isActive
-                        ? `${group.color} ${group.activeBg} border-b-current ${group.glow}`
-                        : `${group.color}/60 ${group.restingBg} border-b-transparent hover:brightness-125`
+                        ? `${group.color} font-bold ${group.activeBg} border-b-current ${group.glow}`
+                        : `${group.color}/70 ${group.restingBg} border-b-transparent hover:bg-black/10`
                     }`}
                   >
-                    <tab.icon className="w-3 h-3 shrink-0 opacity-80" />
-                    {!compact && <span>{tab.code}</span>}
+                    <tab.icon className="w-3 h-3 shrink-0 opacity-70" />
                   </button>
                 );
               })}
@@ -229,12 +228,12 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         <div ref={symbolDropdownRef} className="relative h-full">
           <button
             onClick={() => setSymbolDropdownOpen(!symbolDropdownOpen)}
-            className="flex items-center gap-1.5 px-3 h-full hover:bg-white/[0.03] transition-colors duration-150 border-l border-border/70"
+            className="flex items-center gap-1.5 px-3 h-full hover:bg-black/10 transition-colors duration-150 border-l border-orange-700/70"
             data-testid="active-symbol"
           >
-            {!compact && <span className="font-terminal text-data-xs tracking-[0.15em] text-muted-foreground/50">ACTIVE</span>}
-            <span className="font-terminal text-data-md font-bold text-market">{activeSymbol}</span>
-            <ChevronDown className={`w-3 h-3 text-muted-foreground/50 transition-transform duration-150 ${symbolDropdownOpen ? "rotate-180" : ""}`} />
+            {!compact && <span className="font-terminal text-data-xs tracking-[0.15em] text-black/60">ACTIVE</span>}
+            <span className="font-terminal text-data-md font-bold text-black">{activeSymbol}</span>
+            <ChevronDown className={`w-3 h-3 text-black/60 transition-transform duration-150 ${symbolDropdownOpen ? "rotate-180" : ""}`} />
           </button>
 
           {symbolDropdownOpen && (
@@ -255,7 +254,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
                         onNav(item.view);
                       }}
                       disabled={!activeSymbol}
-                      className={`w-full flex items-center gap-3 px-3.5 py-2 font-terminal text-data-xs text-left transition-colors duration-150 ${
+                      className={`w-full flex items-center gap-2.5 px-3 py-1.5 font-terminal text-data-xs text-left transition-colors duration-150 ${
                         isActive
                           ? "text-market bg-market/6"
                           : activeSymbol
@@ -263,14 +262,8 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
                             : "text-muted-foreground/30 cursor-default"
                       }`}
                     >
-                      <item.icon className="w-3.5 h-3.5 shrink-0 opacity-70" />
-                      <span className="font-bold tracking-[0.12em] text-data-xs w-10 opacity-90">{item.code}</span>
-                      <span className="flex-1">{item.label}</span>
-                      {activeSymbol && (
-                        <span className="text-data-xs text-market border border-market/20 px-1.5 py-0.5 rounded-sm">
-                          {activeSymbol}
-                        </span>
-                      )}
+                      <item.icon className="w-3 h-3 shrink-0 opacity-70" />
+                      <span className="font-bold tracking-[0.12em] text-data-xs opacity-90">{item.code}</span>
                     </button>
                   );
                 })}
@@ -282,7 +275,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         {/* Terminal icon → command palette */}
         <button
           onClick={onCommandBarOpen}
-          className="flex items-center justify-center w-10 h-full hover:bg-white/[0.03] text-muted-foreground hover:text-market transition-colors duration-150 border-l border-border/70"
+          className="flex items-center justify-center w-10 h-full hover:bg-black/10 text-black/70 hover:text-black transition-colors duration-150 border-l border-orange-700/70"
           title="Command Palette (Ctrl+Space)"
           data-testid="cmd-palette-trigger"
         >
@@ -293,7 +286,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         <div ref={notificationsRef} className="relative h-full">
           <button
             onClick={() => setAlertConfigOpen(true)}
-            className="relative flex items-center justify-center w-11 h-full hover:bg-white/[0.03] text-muted-foreground hover:text-market transition-colors duration-150"
+            className="relative flex items-center justify-center w-11 h-full hover:bg-black/10 text-black/70 hover:text-black transition-colors duration-150"
             data-testid="nav-alerts"
           >
             <Bell className="w-3.5 h-3.5" />
@@ -308,7 +301,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         {/* Settings gear */}
         <button
           onClick={() => onConfigOpenChange(true)}
-          className="flex items-center justify-center w-10 h-full hover:bg-white/[0.03] text-muted-foreground hover:text-market transition-colors duration-150 border-l border-border/70"
+          className="flex items-center justify-center w-10 h-full hover:bg-black/10 text-black/70 hover:text-black transition-colors duration-150 border-l border-orange-700/70"
           title="Settings (Ctrl+,)"
           data-testid="settings-gear"
         >
@@ -316,20 +309,20 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         </button>
 
         {/* Clock */}
-        <div className="flex flex-col items-end justify-center px-3.5 h-full font-terminal border-l border-border/70">
-          <span className="text-data-sm font-terminal tabular-nums text-foreground/90 tracking-wide">{timeStr}</span>
-          {!compact && <span className="text-data-xs font-terminal tabular-nums text-muted-foreground/60 tracking-wider">{dateStr}</span>}
+        <div className="flex flex-col items-end justify-center px-3.5 h-full font-terminal border-l border-orange-700/70">
+          <span className="text-data-sm font-terminal tabular-nums text-black/90 tracking-wide">{timeStr}</span>
+          {!compact && <span className="text-data-xs font-terminal tabular-nums text-black/60 tracking-wider">{dateStr}</span>}
         </div>
 
         {/* Market status — rightmost */}
-        <div className="flex items-center gap-1.5 px-3 h-full border-l border-border/70">
+        <div className="flex items-center gap-1.5 px-3 h-full border-l border-orange-700/70">
           {mktStatus.pulse && (
             <div className="relative w-1.5 h-1.5">
-              <div className={`absolute inset-0 rounded-full ${mktStatus.color === "text-up" ? "bg-positive" : "bg-market"} animate-ping opacity-75`} />
-              <div className={`w-1.5 h-1.5 rounded-full ${mktStatus.color === "text-up" ? "bg-positive" : "bg-market"}`} />
+              <div className={`absolute inset-0 rounded-full ${mktStatus.color === "text-up" ? "bg-positive" : "bg-black"} animate-ping opacity-75`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${mktStatus.color === "text-up" ? "bg-positive" : "bg-black"}`} />
             </div>
           )}
-          <span className={`font-terminal text-data-sm tracking-[0.18em] font-semibold ${mktStatus.color}`}>{mktStatus.label}</span>
+          <span className={`font-terminal text-data-sm tracking-[0.18em] font-semibold text-black`}>{mktStatus.label}</span>
         </div>
       </div>
 
