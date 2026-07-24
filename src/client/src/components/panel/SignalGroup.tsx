@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import type { Signal } from "@/lib/signals";
-import { tally } from "@/lib/signals";
+import type { Signal } from "@shared/signals";
+import { tally } from "@shared/signals";
 import PanelSection from "./PanelSection";
 import SignalRow from "./SignalRow";
 

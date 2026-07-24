@@ -3,6 +3,7 @@ import { Search, LineChart, Newspaper, Bot, Filter, Star, BellRing, Globe2, Brie
 import { getCommandAliasView, parseTerminalCommand, type ParsedTerminalCommand } from "@/lib/terminalCommands";
 import type { ViewMode } from "@/lib/terminalTypes";
 import { PANEL_REGISTRY, ALL_VIEW_MODES } from "@/lib/panelRegistry";
+import { useSymbolConfig } from "@/lib/useSymbolConfig";
 
 interface Props {
   onClose: () => void;
@@ -36,8 +37,6 @@ const VIEW_LABELS: Record<ViewMode, string> = Object.fromEntries(
   ALL_VIEW_MODES.map((v) => [v, PANEL_REGISTRY[v].label]),
 ) as Record<ViewMode, string>;
 
-const POPULAR_TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "META", "JPM", "BTC-USD", "ETH-USD", "GC=F", "SPY"];
-
 function loadRecentCommands(): string[] {
   if (typeof window === "undefined") return [];
   try {
@@ -67,6 +66,8 @@ export default function CommandBar({ onClose, onExecute, onConfigOpen }: Props) 
   const [selected, setSelected] = useState(0);
   const [recentCommands, setRecentCommands] = useState<string[]>(() => loadRecentCommands());
   const inputRef = useRef<HTMLInputElement>(null);
+  const { data: config } = useSymbolConfig();
+  const POPULAR_TICKERS = config?.popularTickers ?? [];
 
   useEffect(() => {
     inputRef.current?.focus();

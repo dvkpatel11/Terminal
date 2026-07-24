@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from "child_process";
 import { buildDataStatus } from "./dataStatus";
+import { resilientFetch } from "./providerUtils";
 
 const OPENBB_PORT = 6901;
 const OPENBB_BASE = `http://127.0.0.1:${OPENBB_PORT}`;
@@ -63,7 +64,10 @@ async function pollOpenBBReady(): Promise<void> {
   const maxAttempts = 120; // 2 minutes
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      const res = await fetch(`${OPENBB_BASE}/docs`, { signal: AbortSignal.timeout(3000) });
+      const res = await resilientFetch(
+        { name: "openbb", retry: { maxAttempts: 1, baseDelayMs: 500 }, circuitBreaker: { threshold: 10, cooldownMs: 30_000 } },
+        `${OPENBB_BASE}/docs`,
+      );
       if (res.ok) {
         openbbReady = true;
         console.log(`[openbb] API server ready on :${OPENBB_PORT}`);
@@ -93,15 +97,13 @@ async function waitForOpenBB(timeout = 120_000): Promise<void> {
 export async function openbbFetch(path: string, timeout = 30_000): Promise<any> {
   await waitForOpenBB();
   const url = `${OPENBB_BASE}${path}`;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    if (!res.ok) throw new Error(`OpenBB ${res.status}: ${res.statusText}`);
-    return await res.json();
-  } finally {
-    clearTimeout(timer);
-  }
+  console.log(`[openbb] fetching: ${path}`);
+  const res = await resilientFetch(
+    { name: "openbb", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
+    url,
+  );
+  if (!res.ok) throw new Error(`OpenBB ${res.status}: ${res.statusText}`);
+  return await res.json();
 }
 
 function extractResults(data: any): any[] {

@@ -1,31 +1,11 @@
 import { useState } from "react";
 import { useQuotes } from "@/lib/useFinance";
 import { formatBig, formatPrice, formatPct, formatChange, pctClass } from "@/lib/finance";
+import { useSymbolConfig } from "@/lib/useSymbolConfig";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowUpDown } from "lucide-react";
 
 interface Props { onSymbol: (sym: string) => void }
-
-const CRYPTO_SYMBOLS = [
-  "BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD",
-  "ADA-USD", "DOGE-USD", "DOT-USD", "LINK-USD",
-  "AVAX-USD", "MATIC-USD", "UNI-USD", "LTC-USD",
-];
-
-const CRYPTO_LABELS: Record<string, string> = {
-  "BTC-USD": "Bitcoin",
-  "ETH-USD": "Ethereum",
-  "SOL-USD": "Solana",
-  "XRP-USD": "XRP",
-  "ADA-USD": "Cardano",
-  "DOGE-USD": "Dogecoin",
-  "DOT-USD": "Polkadot",
-  "LINK-USD": "Chainlink",
-  "AVAX-USD": "Avalanche",
-  "MATIC-USD": "Polygon",
-  "UNI-USD": "Uniswap",
-  "LTC-USD": "Litecoin",
-};
 
 type SortField = "symbol" | "price" | "changePercent" | "marketCap" | "volume";
 type SortDir = "asc" | "desc";
@@ -33,6 +13,10 @@ type SortDir = "asc" | "desc";
 export default function CryptoPanel({ onSymbol }: Props) {
   const [sortField, setSortField] = useState<SortField>("marketCap");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const { data: config } = useSymbolConfig();
+  const CRYPTO_SYMBOLS = config?.crypto?.symbols ?? [];
+  const CRYPTO_LABELS = config?.crypto?.labels ?? {};
 
   const { data: quotes, isLoading } = useQuotes(CRYPTO_SYMBOLS);
 
@@ -53,7 +37,7 @@ export default function CryptoPanel({ onSymbol }: Props) {
   const SortHeader = ({ field, label }: { field: SortField; label: string }) => (
     <th className="text-left py-2 px-3 cursor-pointer hover:text-[hsl(186,45%,55%)] select-none" onClick={() => toggleSort(field)}>
       <div className="flex items-center gap-1">
-        <span className="font-terminal text-[9px] tracking-wider">{label}</span>
+        <span className="font-terminal text-[10px] tracking-wider">{label}</span>
         {sortField === field && (
           <span className="text-[hsl(186,45%,55%)]">{sortDir === "desc" ? "▼" : "▲"}</span>
         )}
@@ -104,8 +88,8 @@ export default function CryptoPanel({ onSymbol }: Props) {
                 >
                   <td className="py-2 px-3">
                     <div className="flex items-center gap-2">
-                      <span className="font-terminal text-[11px] font-bold text-[hsl(186,45%,55%)]">{ticker}</span>
-                      <span className="font-terminal text-[9px] text-muted-foreground">{CRYPTO_LABELS[q.symbol] ?? q.name}</span>
+                      <span className="font-terminal text-[12px] font-bold text-[hsl(186,45%,55%)]">{ticker}</span>
+                      <span className="font-terminal text-[10px] text-muted-foreground">{CRYPTO_LABELS[q.symbol] ?? q.name}</span>
                     </div>
                   </td>
                   <td className="py-2 px-3 font-terminal text-[11px] tabular-nums font-bold">${formatPrice(q.price)}</td>

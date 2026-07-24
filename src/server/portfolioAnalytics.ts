@@ -1,3 +1,5 @@
+import { getDefaultBenchmark } from "./symbolRegistry";
+
 interface PortfolioPositionInput {
   symbol: string;
   shares: number;
@@ -152,7 +154,7 @@ export function calculatePortfolioAnalytics(input: PortfolioAnalyticsInput): Por
   const portfolioSeries = buildPortfolioValueSeries(input.positions, input.histories, input.benchmark);
   if (portfolioSeries.length < 2) {
     return {
-      benchmarkSymbol: "SPY",
+      benchmarkSymbol: getDefaultBenchmark(),
       portfolioReturnPct: null,
       benchmarkReturnPct: null,
       activeReturnPct: null,
@@ -178,7 +180,7 @@ export function calculatePortfolioAnalytics(input: PortfolioAnalyticsInput): Por
   const benchmarkReturns = computeDailyReturns(benchmarkValues);
 
   return {
-    benchmarkSymbol: "SPY",
+    benchmarkSymbol: getDefaultBenchmark(),
     portfolioReturnPct,
     benchmarkReturnPct,
     activeReturnPct,

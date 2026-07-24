@@ -1,13 +1,16 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import type { NewsItem } from "@/lib/finance";
+import type { FeedItem } from "@/lib/useFinance";
 import NewsCard from "./NewsCard";
 
 interface Props {
-  items: NewsItem[];
+  items: FeedItem[];
   variant: "dense" | "expanded" | "hero";
+  activeFeedItem?: FeedItem | null;
+  onSelectFeedItem?: (item: FeedItem) => void;
+  /** Legacy: select a raw NewsItem */
   activeItemId?: string;
-  onSelectItem?: (item: NewsItem) => void;
+  onSelectItem?: (item: FeedItem) => void;
   maxItems?: number;
   className?: string;
 }
@@ -15,6 +18,8 @@ interface Props {
 export default function NewsList({
   items,
   variant,
+  activeFeedItem,
+  onSelectFeedItem,
   activeItemId,
   onSelectItem,
   maxItems,
@@ -22,6 +27,14 @@ export default function NewsList({
 }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const displayItems = maxItems ? items.slice(0, maxItems) : items;
+
+  const handleSelect = useCallback(
+    (item: FeedItem) => {
+      onSelectFeedItem?.(item);
+      onSelectItem?.(item);
+    },
+    [onSelectFeedItem, onSelectItem],
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -33,15 +46,15 @@ export default function NewsList({
         setSelectedIndex((i) => Math.max(i - 1, 0));
       } else if (e.key === "Enter") {
         e.preventDefault();
-        const item = displayItems[selectedIndex];
-        if (item) window.open(item.url, "_blank", "noopener,noreferrer");
+        const fi = displayItems[selectedIndex];
+        if (fi) window.open(fi.item.url, "_blank", "noopener,noreferrer");
       } else if (e.key === " ") {
         e.preventDefault();
-        const item = displayItems[selectedIndex];
-        if (item) onSelectItem?.(item);
+        const fi = displayItems[selectedIndex];
+        if (fi) handleSelect(fi);
       }
     },
-    [displayItems, selectedIndex, onSelectItem]
+    [displayItems, selectedIndex, handleSelect],
   );
 
   useEffect(() => {
@@ -52,24 +65,29 @@ export default function NewsList({
     <div
       className={cn("flex flex-col overflow-y-auto scrollbar-thin", className)}
       role="list"
-      aria-label="News articles"
+      aria-label="News feed"
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >
       {displayItems.length === 0 ? (
         <div className="flex items-center justify-center py-8 text-muted-foreground text-xs font-terminal">
-          No news available
+          No items available
         </div>
       ) : (
-        displayItems.map((item, index) => (
-          <NewsCard
-            key={`${item.url}-${item.publishedAt}`}
-            item={item}
-            variant={variant}
-            isActive={item.url === activeItemId || index === selectedIndex}
-            onClick={() => onSelectItem?.(item)}
-          />
-        ))
+        displayItems.map((fi, index) => {
+          const isActive = activeFeedItem
+            ? fi.kind === activeFeedItem.kind && fi.item === activeFeedItem.item
+            : fi.kind === "news" && fi.item.url === activeItemId || index === selectedIndex;
+          return (
+            <NewsCard
+              key={fi.kind === "news" ? fi.item.url : fi.item.id}
+              feedItem={fi}
+              variant={variant}
+              isActive={isActive}
+              onClick={() => handleSelect(fi)}
+            />
+          );
+        })
       )}
     </div>
   );

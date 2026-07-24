@@ -62,7 +62,7 @@ export default function SectorPanel({ onSymbol }: Props) {
           <span className="panel-label">SECTOR PERFORMANCE</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`font-terminal text-[9px] px-2 py-0.5 border ${
+          <span className={`font-terminal text-[10px] px-2 py-0.5 border ${
             rotationSignal === "DEFENSIVE"
               ? "text-[hsl(0_80%_55%)] border-[hsl(0_80%_55%)]/30"
               : rotationSignal === "GROWTH"
@@ -71,7 +71,7 @@ export default function SectorPanel({ onSymbol }: Props) {
           }`}>
             {rotationSignal} ROTATION
           </span>
-          <span className={`font-terminal text-[9px] ${pctClass(avgChange)}`}>
+          <span className={`font-terminal text-[10px] ${pctClass(avgChange)}`}>
             AVG: {avgChange >= 0 ? "+" : ""}{avgChange.toFixed(2)}%
           </span>
         </div>
@@ -80,7 +80,7 @@ export default function SectorPanel({ onSymbol }: Props) {
       {/* Content */}
       <div className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-4">
         {/* Sort buttons */}
-        <div className="flex items-center gap-2 text-[9px]">
+        <div className="flex items-center gap-2 text-[10px]">
           <span className="text-muted-foreground">SORT:</span>
           {[
             { key: "changePercent" as SortKey, label: "1D" },
@@ -111,14 +111,14 @@ export default function SectorPanel({ onSymbol }: Props) {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/30">
-                <th className="text-left py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">SECTOR</th>
-                <th className="text-right py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">PRICE</th>
-                <th className="text-right py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">1D</th>
-                <th className="text-right py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">WOW</th>
-                <th className="text-right py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">MOM</th>
-                <th className="text-right py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">YTD</th>
-                <th className="text-right py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">RS</th>
-                <th className="w-24 py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">RELATIVE</th>
+                <th className="text-left py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">SECTOR</th>
+                <th className="text-right py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">PRICE</th>
+                <th className="text-right py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">1D</th>
+                <th className="text-right py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">WOW</th>
+                <th className="text-right py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">MOM</th>
+                <th className="text-right py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">YTD</th>
+                <th className="text-right py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">RS</th>
+                <th className="w-24 py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">RELATIVE</th>
               </tr>
             </thead>
             <tbody>
@@ -135,28 +135,28 @@ export default function SectorPanel({ onSymbol }: Props) {
                   >
                     <td className="py-2.5">
                       <div className="flex items-center gap-2">
-                        <span className="font-terminal text-[10px] text-foreground font-medium">{sector.label}</span>
+                        <span className="font-terminal text-[11px] text-foreground font-medium">{sector.label}</span>
                         {isLeader && <TrendingUp className="w-3 h-3 text-up" />}
                         {isLaggard && <TrendingDown className="w-3 h-3 text-down" />}
                       </div>
                     </td>
                     <td className="text-right py-2.5">
-                      <span className="font-terminal text-[10px] tabular-nums text-foreground">
+                      <span className="font-terminal text-[11px] tabular-nums text-foreground">
                         {formatPrice(sector.price)}
                       </span>
                     </td>
                     <td className="text-right py-2.5">
-                      <span className={`font-terminal text-[10px] tabular-nums ${pctClass(sector.changePercent)}`}>
+                      <span className={`font-terminal text-[11px] tabular-nums ${pctClass(sector.changePercent)}`}>
                         {sector.changePercent >= 0 ? "+" : ""}{sector.changePercent.toFixed(2)}%
                       </span>
                     </td>
                     <td className="text-right py-2.5">
-                      <span className={`font-terminal text-[10px] tabular-nums ${pctClass(sector.weekChange)}`}>
+                      <span className={`font-terminal text-[11px] tabular-nums ${pctClass(sector.weekChange)}`}>
                         {sector.weekChange >= 0 ? "+" : ""}{sector.weekChange.toFixed(2)}%
                       </span>
                     </td>
                     <td className="text-right py-2.5">
-                      <span className={`font-terminal text-[10px] tabular-nums ${pctClass(sector.monthChange)}`}>
+                      <span className={`font-terminal text-[11px] tabular-nums ${pctClass(sector.monthChange)}`}>
                         {sector.monthChange >= 0 ? "+" : ""}{sector.monthChange.toFixed(2)}%
                       </span>
                     </td>

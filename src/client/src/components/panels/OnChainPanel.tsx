@@ -83,6 +83,9 @@ export default function OnChainPanel({ symbol }: Props) {
 
   const totalUSD = txs.reduce((s, t) => s + (t.usdAmount ?? 0), 0);
   const uniqueChains = Array.from(new Set(txs.map(t => t.blockchain)));
+  const exchangeIn = txs.filter(t => t.type === "exchange_in").reduce((s, t) => s + (t.usdAmount ?? 0), 0);
+  const exchangeOut = txs.filter(t => t.type === "exchange_out").reduce((s, t) => s + (t.usdAmount ?? 0), 0);
+  const netFlow = exchangeOut - exchangeIn; // positive = net outflow (bullish)
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -97,7 +100,7 @@ export default function OnChainPanel({ symbol }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 px-5 py-3 border-b border-border bg-[#060606]">
+      <div className="grid grid-cols-4 gap-3 px-5 py-3 border-b border-border bg-[#060606]">
         <div className="text-center">
           <div className="font-terminal text-[9px] text-muted-foreground tracking-wider">TRANSACTIONS</div>
           <div className="font-terminal text-lg font-bold tabular-nums mt-0.5">{txs.length}</div>
@@ -105,6 +108,13 @@ export default function OnChainPanel({ symbol }: Props) {
         <div className="text-center">
           <div className="font-terminal text-[9px] text-muted-foreground tracking-wider">TOTAL VALUE</div>
           <div className="font-terminal text-lg font-bold tabular-nums mt-0.5 text-[hsl(186,45%,55%)]">{formatUSD(totalUSD)}</div>
+        </div>
+        <div className="text-center">
+          <div className="font-terminal text-[9px] text-muted-foreground tracking-wider">NET FLOW</div>
+          <div className={`font-terminal text-lg font-bold tabular-nums mt-0.5 ${netFlow >= 0 ? "text-up" : "text-down"}`}>
+            {netFlow >= 0 ? "+" : ""}{formatUSD(netFlow)}
+          </div>
+          <div className="font-terminal text-[7px] text-muted-foreground/50">{netFlow >= 0 ? "OUTFLOW" : "INFLOW"}</div>
         </div>
         <div className="text-center">
           <div className="font-terminal text-[9px] text-muted-foreground tracking-wider">{uniqueChains.length > 1 ? "CHAINS" : "CHAIN"}</div>

@@ -27,7 +27,7 @@ function latencyClass(ms: number) {
 
 export default function StatusBar() {
   const { data: health } = useApiHealth();
-  const { connected } = useRealtime();
+  const { connected, stale } = useRealtime();
   const [clock, setClock] = useState(() => new Date());
 
   useEffect(() => {
@@ -37,6 +37,12 @@ export default function StatusBar() {
 
   const timeStr = clock.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
   const isLive = health?.ok;
+
+  const wsLabel = connected ? (stale ? "WS STALE" : "WS") : "WS OFF";
+  const wsColor = connected ? (stale ? "text-yellow-500" : "text-cyan") : "text-negative";
+  const wsDot = connected
+    ? (stale ? "bg-yellow-500 animate-pulse" : "bg-cyan animate-pulse")
+    : "bg-negative";
 
   return (
     <footer className="flex items-center justify-between h-6 px-3 bg-gradient-to-b from-surface-2 to-surface-1 border-t border-border/40 shrink-0 text-data-xs font-terminal tabular-nums tracking-wide shadow-[0_-1px_2px_rgba(0,0,0,0.3)] relative z-10">
@@ -57,9 +63,9 @@ export default function StatusBar() {
 
         <span className="text-muted-foreground/30">|</span>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-cyan animate-pulse" : "bg-yellow-500"}`} />
-          <span className={connected ? "text-cyan" : "text-yellow-500"}>
-            {connected ? "WS" : "WS OFF"}
+          <span className={`w-1.5 h-1.5 rounded-full ${wsDot}`} />
+          <span className={wsColor}>
+            {wsLabel}
           </span>
         </div>
       </div>

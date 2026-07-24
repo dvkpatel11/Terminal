@@ -1,5 +1,7 @@
 import { buildDataStatus, type DataStatus, type DataFreshness } from "./dataStatus";
 import { extendedStorage } from "./storage";
+import { getSectorEtfs, getSampleSymbols, getScorecardAssets, getVixTerms } from "./symbolRegistry";
+import { resilientFetch, fetchText } from "./providerUtils";
 
 // ─── Cache ───────────────────────────────────────────────────────────────────
 
@@ -206,9 +208,11 @@ export interface ScorecardRow {
 
 async function fetchYahooQuote(symbol: string): Promise<any> {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d`;
-  const response = await fetch(url, {
-    headers: { "User-Agent": "blmtrm/1.0" },
-  });
+  const response = await resilientFetch(
+    { name: "yahoo", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
+    url,
+    { headers: { "User-Agent": "blmtrm/1.0" } },
+  );
   if (!response.ok) throw new Error(`Yahoo fetch failed: ${response.status}`);
   return response.json();
 }
@@ -242,19 +246,7 @@ export async function getSectorPerformance(): Promise<SectorPerformance[]> {
   const cached = getCached<SectorPerformance[]>(cacheKey);
   if (cached) return cached;
 
-  const SECTOR_ETFS = [
-    { symbol: "XLK", label: "Technology", sector: "Technology" },
-    { symbol: "XLV", label: "Health Care", sector: "Healthcare" },
-    { symbol: "XLF", label: "Financials", sector: "Financial Services" },
-    { symbol: "XLE", label: "Energy", sector: "Energy" },
-    { symbol: "XLI", label: "Industrials", sector: "Industrials" },
-    { symbol: "XLC", label: "Comm Services", sector: "Communication Services" },
-    { symbol: "XLP", label: "Consumer Staples", sector: "Consumer Defensive" },
-    { symbol: "XLU", label: "Utilities", sector: "Utilities" },
-    { symbol: "XLRE", label: "Real Estate", sector: "Real Estate" },
-    { symbol: "XLB", label: "Materials", sector: "Basic Materials" },
-    { symbol: "XLY", label: "Consumer Disc.", sector: "Consumer Cyclical" },
-  ];
+  const SECTOR_ETFS = getSectorEtfs();
 
   const symbols = [...SECTOR_ETFS.map(e => e.symbol), "^GSPC"];
   const quotes = await fetchYahooQuotes(symbols);
@@ -287,7 +279,7 @@ export async function getSectorPerformance(): Promise<SectorPerformance[]> {
         monthChange: 0,
         ytdChange: 0,
         relativeStrength: 0,
-        status: { ...status, freshness: "reference" as DataFreshness },
+        status: { ...status, freshness: "reference" as DataFreshness, isFallback: true },
       };
     }
 
@@ -344,13 +336,7 @@ export async function getMarketBreadth(): Promise<MarketBreadth> {
 
   const status = buildDataStatus({ provider: "yahoo", freshness: "delayed" });
 
-  const SAMPLE_SYMBOLS = [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "AVGO", "ORCL", "CRM",
-    "JPM", "BAC", "WFC", "GS", "MS", "BLK", "SCHW", "C", "AXP", "USB",
-    "UNH", "JNJ", "LLY", "PFE", "ABBV", "MRK", "TMO", "ABT", "DHR", "BMY",
-    "XOM", "CVX", "COP", "SLB", "EOG", "MPC", "PSX", "VLO", "OXY", "HES",
-    "PG", "KO", "PEP", "WMT", "COST", "HD", "MCD", "NKE", "SBUX", "TGT",
-  ];
+  const SAMPLE_SYMBOLS = getSampleSymbols();
 
   try {
     const quotes = await fetchYahooQuotes(SAMPLE_SYMBOLS);
@@ -434,12 +420,8 @@ export async function getCreditSpreads(): Promise<CreditSpread> {
 
   try {
     const [igText, hyText] = await Promise.all([
-      fetch("https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAMLC0A0CM&cosd=2024-01-01", {
-        headers: { "User-Agent": "blmtrm/1.0" },
-      }).then(r => r.text()),
-      fetch("https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAMLH0A0HYM2&cosd=2024-01-01", {
-        headers: { "User-Agent": "blmtrm/1.0" },
-      }).then(r => r.text()),
+      fetchText("https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAMLC0A0CM&cosd=2024-01-01"),
+      fetchText("https://fred.stlouisfed.org/graph/fredgraph.csv?id=BAMLH0A0HYM2&cosd=2024-01-01"),
     ]);
 
     const parseFredCsv = (text: string): number[] => {
@@ -522,7 +504,7 @@ export async function getVixTermStructure(): Promise<VixTermStructure> {
   const status = buildDataStatus({ provider: "cboe", freshness: "daily" });
 
   try {
-    const symbols = ["^VIX", "^VIX2", "^VIX3M"];
+    const symbols = getVixTerms().map(t => t.symbol);
     const quotes = await fetchYahooQuotes(symbols);
 
     const spot = quotes["^VIX"]?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.slice(-1)[0] ?? 0;
@@ -713,7 +695,7 @@ export async function getTechnicalIndicators(symbol: string): Promise<TechnicalI
         vwap: null,
         support: null,
         resistance: null,
-        status: { ...status, freshness: "reference" },
+        status: { ...status, freshness: "reference", isFallback: true },
       };
     }
 
@@ -777,23 +759,7 @@ export async function getScorecardData(): Promise<ScorecardRow[]> {
   const cached = getCached<ScorecardRow[]>(cacheKey);
   if (cached) return cached;
 
-  const SCORECARD_ASSETS = [
-    { symbol: "^GSPC", label: "S&P 500", category: "equity" },
-    { symbol: "^IXIC", label: "Nasdaq 100", category: "equity" },
-    { symbol: "^RUT", label: "Russell 2000", category: "equity" },
-    { symbol: "^FTSE", label: "FTSE 100", category: "equity" },
-    { symbol: "^GDAXI", label: "DAX", category: "equity" },
-    { symbol: "^N225", label: "Nikkei 225", category: "equity" },
-    { symbol: "DX-Y.NYB", label: "DXY (Dollar)", category: "fx" },
-    { symbol: "GC=F", label: "Gold", category: "commodity" },
-    { symbol: "CL=F", label: "WTI Crude", category: "commodity" },
-    { symbol: "SI=F", label: "Silver", category: "commodity" },
-    { symbol: "HG=F", label: "Copper", category: "commodity" },
-    { symbol: "BTC-USD", label: "Bitcoin", category: "crypto" },
-    { symbol: "^VIX", label: "VIX", category: "volatility" },
-    { symbol: "^TNX", label: "US 10Y Yield", category: "rates" },
-    { symbol: "^TYX", label: "US 30Y Yield", category: "rates" },
-  ];
+  const SCORECARD_ASSETS = getScorecardAssets();
 
   const symbols = SCORECARD_ASSETS.map(a => a.symbol);
   const quotes = await fetchYahooQuotes(symbols);
@@ -818,7 +784,7 @@ export async function getScorecardData(): Promise<ScorecardRow[]> {
         high52Pct: 0,
         low52Pct: 0,
         keyLevel: "—",
-        status: { ...status, freshness: "reference" },
+        status: { ...status, freshness: "reference", isFallback: true },
       };
     }
 

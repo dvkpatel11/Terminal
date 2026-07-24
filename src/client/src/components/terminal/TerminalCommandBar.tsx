@@ -3,6 +3,7 @@ import { Search, History, TerminalSquare, Brain } from "lucide-react";
 import { getCommandAliasView, parseTerminalCommand, type ParsedTerminalCommand } from "@/lib/terminalCommands";
 import type { ViewMode } from "@/lib/terminalTypes";
 import { PANEL_REGISTRY } from "@/lib/panelRegistry";
+import { useSymbolConfig } from "@/lib/useSymbolConfig";
 
 interface Props {
   currentSymbol: string;
@@ -11,7 +12,6 @@ interface Props {
 }
 
 const RECENTS_KEY = "terminal-command-recents";
-const POPULAR_TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "META", "JPM", "BTC-USD", "ETH-USD", "GC=F", "SPY"];
 
 function loadRecentCommands(): string[] {
   if (typeof window === "undefined") return [];
@@ -37,6 +37,8 @@ export default function TerminalCommandBar({ currentSymbol, currentView, onExecu
   const [recentCommands, setRecentCommands] = useState<string[]>(() => loadRecentCommands());
   const inputRef = useRef<HTMLInputElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
+  const { data: config } = useSymbolConfig();
+  const POPULAR_TICKERS = config?.popularTickers ?? [];
 
   const currentReg = PANEL_REGISTRY[currentView];
 

@@ -4,9 +4,9 @@ import {
   LayoutDashboard, LineChart, Newspaper,
   Bot, Filter, Star, BellRing, Globe2, Briefcase,
   Brain, CandlestickChart, HelpCircle, Table2,
-  FileText, CircleDollarSign, Activity, BarChart3, TrendingUp,
+  FileText, CircleDollarSign, Activity, TrendingUp,
   ChartLine, Banknote, Bitcoin, MessageCircle, Scan,
-  BarChart, PieChart, Target, Building2, Lightbulb,
+  BarChart, PieChart, Target,
 } from "lucide-react";
 import type { ViewMode, PanelProps } from "./terminalTypes";
 
@@ -38,8 +38,7 @@ const HelpPanel = lazy(() => import("@/components/panels/HelpPanel"));
 const HistoricalPricesPanel = lazy(() => import("@/components/panels/HistoricalPricesPanel"));
 const FinancialsPanel = lazy(() => import("@/components/panels/FinancialsPanel"));
 const DividendsPanel = lazy(() => import("@/components/panels/DividendsPanel"));
-const EstimatesPanel = lazy(() => import("@/components/panels/EstimatesPanel"));
-const KeyRatiosPanel = lazy(() => import("@/components/panels/KeyRatiosPanel"));
+const CompanyProfilePanel = lazy(() => import("@/components/panels/CompanyProfilePanel"));
 const YieldCurvePanel = lazy(() => import("@/components/panels/YieldCurvePanel"));
 const FxDashboardPanel = lazy(() => import("@/components/panels/FxDashboardPanel"));
 const CryptoPanel = lazy(() => import("@/components/panels/CryptoPanel"));
@@ -50,7 +49,6 @@ const ScorecardPanel = lazy(() => import("@/components/panels/ScorecardPanel"));
 const SectorPanel = lazy(() => import("@/components/panels/SectorPanel"));
 const SocialFeedPanel = lazy(() => import("@/components/panels/SocialFeedPanel"));
 const PlaysPanel = lazy(() => import("@/components/panels/PlaysPanel"));
-const CompanyProfilePanel = lazy(() => import("@/components/panels/CompanyProfilePanel"));
 const ThesisPanel = lazy(() => import("@/components/panels/ThesisPanel"));
 const SynthesisPanel = lazy(() => import("@/components/panels/SynthesisPanel"));
 
@@ -336,54 +334,6 @@ export const PANEL_REGISTRY: Record<ViewMode, PanelDefinition> = {
     category: "symbol",
     aliases: ["DVD"],
     component: DividendsPanel,
-  },
-  key: {
-    label: "KEY RATIOS & METRICS",
-    code: "KEY",
-    icon: BarChart3,
-    kbd: "K",
-    needsSymbol: true,
-    isSecurityView: true,
-    showInTopBar: false,
-    category: "symbol",
-    aliases: ["KEY"],
-    component: KeyRatiosPanel,
-  },
-  ee: {
-    label: "ANALYST ESTIMATES",
-    code: "EE",
-    icon: TrendingUp,
-    kbd: "9",
-    needsSymbol: true,
-    isSecurityView: true,
-    showInTopBar: false,
-    category: "symbol",
-    aliases: ["EE", "EST"],
-    component: EstimatesPanel,
-  },
-  profile: {
-    label: "COMPANY PROFILE",
-    code: "PROF",
-    icon: Building2,
-    kbd: "P",
-    needsSymbol: true,
-    isSecurityView: true,
-    showInTopBar: false,
-    category: "symbol",
-    aliases: ["PROF", "PROFILE"],
-    component: CompanyProfilePanel,
-  },
-  thesis: {
-    label: "AI THESIS",
-    code: "THES",
-    icon: Lightbulb,
-    kbd: "T",
-    needsSymbol: true,
-    isSecurityView: true,
-    showInTopBar: false,
-    category: "symbol",
-    aliases: ["THES", "THESIS"],
-    component: ThesisPanel,
   },
   curv: {
     label: "YIELD CURVE",

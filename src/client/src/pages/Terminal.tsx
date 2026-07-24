@@ -112,7 +112,7 @@ export default function Terminal() {
 
   const handleSymbol = useCallback(
     (sym: string) => {
-      openView("intel", sym, "primary");
+      openView("synthesis", sym, "primary");
     },
     [openView],
   );
@@ -129,7 +129,7 @@ export default function Terminal() {
 
   const handlePaneSymbol = useCallback(
     (paneId: PaneId, symbol: string) => {
-        openView("intel", symbol, paneId as "primary" | "secondary");
+        openView("synthesis", symbol, paneId as "primary" | "secondary");
     },
     [openView],
   );
@@ -167,9 +167,9 @@ export default function Terminal() {
         <PanelErrorBoundary key={`${pane.view}:${pane.symbol}`} panelName={panelName}>
           <Suspense fallback={<PanelLoadingSkeleton rows={6} />}>
             {needsSymbol ? (
-              <PanelComponent symbol={pane.symbol} onNav={onNav} onSymbol={onSymbol} />
+              <PanelComponent symbol={pane.symbol} onNav={onNav} onSymbol={onSymbol} view={pane.view} />
             ) : (
-              <PanelComponent onSymbol={onSymbol} onNav={onNav} />
+              <PanelComponent onSymbol={onSymbol} onNav={onNav} view={pane.view} />
             )}
           </Suspense>
         </PanelErrorBoundary>

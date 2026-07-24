@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Globe2 } from "lucide-react";
+import { ExternalLink, Globe2, Clock } from "lucide-react";
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 
 import DataStatusBadge from "@/components/data/DataStatusBadge";
@@ -7,6 +7,7 @@ import Sparkline from "@/components/ui/sparkline";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { EconomicCalendarEvent, EconomicsSnapshotMetric } from "@/lib/finance";
 import { useEconomicCalendar, useEconomicEventDetail, useEconomics, useYieldCurve, useOHLCV } from "@/lib/useFinance";
+import { useSymbolConfig } from "@/lib/useSymbolConfig";
 
 function formatMetricValue(metric: EconomicsSnapshotMetric) {
   if (metric.unit === "%") return `${metric.value.toFixed(2)}%`;
@@ -43,6 +44,73 @@ function categoryLabel(category: EconomicCalendarEvent["category"]) {
   return labels[category];
 }
 
+function computeCountdown(dateStr: string, timeCt: string): string | null {
+  // Parse "MM/DD/YYYY" date + "HH:MM AM/PM CT" into a UTC-ish timestamp
+  const dateParts = dateStr.split("/");
+  if (dateParts.length !== 3) return null;
+  const [mm, dd, yyyy] = dateParts.map(Number);
+
+  // Parse CT time like "8:30 AM CT"
+  const timeMatch = timeCt.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!timeMatch) return null;
+  let hours = parseInt(timeMatch[1], 10);
+  const minutes = parseInt(timeMatch[2], 10);
+  const ampm = timeMatch[3].toUpperCase();
+  if (ampm === "PM" && hours < 12) hours += 12;
+  if (ampm === "AM" && hours === 12) hours = 0;
+  // CT = UTC-5 (CST) or UTC-5 (CDT) — approximate as UTC-5
+  const utcMs = Date.UTC(yyyy, mm - 1, dd, hours + 5, minutes, 0);
+
+  const diff = utcMs - Date.now();
+  if (diff <= 0) return null;
+
+  const totalMinutes = Math.floor(diff / 60_000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hrs = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const mins = totalMinutes % 60;
+
+  if (days > 0) return `${days}d ${hrs}h ${mins}m`;
+  if (hrs > 0) return `${hrs}h ${mins}m`;
+  return `${mins}m`;
+}
+
+function NextReleaseCountdown({ calendar }: { calendar: EconomicCalendarEvent[] }) {
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const nextEvent = useMemo(() => {
+    const now = Date.now();
+    return calendar.find((e) => {
+      const d = new Date(`${e.date}T12:00:00Z`).getTime();
+      return d >= now - 86_400_000; // today or future
+    }) ?? calendar[0] ?? null;
+  }, [calendar, tick]);
+
+  if (!nextEvent) return null;
+
+  const countdown = computeCountdown(nextEvent.date, nextEvent.timeCt);
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 bg-[hsl(186,45%,50%)/8] border border-[hsl(186,45%,50%)]/20">
+      <Clock className="w-3.5 h-3.5 text-[hsl(186,45%,55%)] shrink-0" />
+      <span className="font-terminal text-[9px] text-muted-foreground tracking-wider">NEXT:</span>
+      <span className="font-terminal text-[10px] text-foreground font-bold">{nextEvent.title}</span>
+      {countdown && (
+        <span className="font-terminal text-[10px] text-[hsl(186,45%,55%)] font-mono ml-auto shrink-0">
+          IN {countdown}
+        </span>
+      )}
+      <span className="font-terminal text-[9px] text-muted-foreground shrink-0">
+        {formatEventDate(nextEvent.date)} · {nextEvent.timeCt}
+      </span>
+    </div>
+  );
+}
+
 function snapshotRows(metrics: Array<{ key: string; metric: EconomicsSnapshotMetric }>) {
   return metrics.map(({ key, metric }) => {
     const delta = metric.value - metric.prev;
@@ -73,10 +141,12 @@ export default function EconomicsPanel() {
   const { data: calendar = [], isLoading: calendarLoading } = useEconomicCalendar();
   const { data: ycHistory = [], isLoading: ycLoading } = useYieldCurve();
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const { data: symbolConfig } = useSymbolConfig();
 
-  const { data: eurUsdSeries } = useOHLCV("EURUSD=X", "1M", "1d");
-  const { data: gbpUsdSeries } = useOHLCV("GBPUSD=X", "1M", "1d");
-  const { data: usdJpySeries } = useOHLCV("JPY=X", "1M", "1d");
+  const yahooFx = symbolConfig?.fx.yahooSymbols ?? {};
+  const { data: eurUsdSeries } = useOHLCV(yahooFx.EURUSD ?? "EURUSD=X", "1M", "1d");
+  const { data: gbpUsdSeries } = useOHLCV(yahooFx.GBPUSD ?? "GBPUSD=X", "1M", "1d");
+  const { data: usdJpySeries } = useOHLCV(yahooFx.USDJPY ?? "JPY=X", "1M", "1d");
   const { data: dxySeries } = useOHLCV("DX-Y.NYB", "1M", "1d");
 
   useEffect(() => {
@@ -290,7 +360,9 @@ export default function EconomicsPanel() {
               </div>
             </div>
 
-            <div className="min-h-[420px] border border-border bg-[#060606] flex overflow-hidden">
+            <NextReleaseCountdown calendar={calendar} />
+
+            <div className="min-h-[420px] border border-border border-t-0 bg-[#060606] flex overflow-hidden">
               <div className="w-[40%] min-w-[320px] border-r border-border overflow-y-auto scrollbar-thin">
                 {calendarLoading ? (
                   <div className="p-4 space-y-3">

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { Signal } from "@/lib/signals";
+import type { Signal } from "@shared/signals";
 import SignalDot from "./SignalDot";
 
 interface Props {

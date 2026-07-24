@@ -1,4 +1,5 @@
 import { extendedStorage } from './storage';
+import { resilientFetch } from './providerUtils';
 
 const WHALE_ALERT_BASE = 'https://api.whale-alert.io/v1';
 
@@ -61,9 +62,10 @@ function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
 }
 
 async function fetchWhaleTransactions(apiKey: string): Promise<WhaleTransaction[]> {
-  const resp = await fetch(`${WHALE_ALERT_BASE}/transactions?api_key=${apiKey}&limit=20`, {
-    signal: AbortSignal.timeout(10_000),
-  });
+  const resp = await resilientFetch(
+    { name: "yahoo", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
+    `${WHALE_ALERT_BASE}/transactions?api_key=${apiKey}&limit=20`,
+  );
   if (!resp.ok) throw new Error(`Whale Alert HTTP ${resp.status}`);
   const json = (await resp.json()) as any;
   return (json.transactions || []).map((tx: any) => ({
@@ -84,7 +86,7 @@ async function fetchWhaleTransactions(apiKey: string): Promise<WhaleTransaction[
 
 export async function handleOnChainRequest(query: Record<string, string>): Promise<OnChainResponse> {
   const apiKey = process.env.WHALE_ALERT_API_KEY || '';
-  const symbol = query.symbol ? query.symbol.toUpperCase() : undefined;
+  const symbol = query.symbol ? query.symbol.toUpperCase().replace(/-USD$/, "") : undefined;
 
   if (!apiKey) {
     return { transactions: [], source: 'none', requiresApiKey: true };

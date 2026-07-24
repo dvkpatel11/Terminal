@@ -1,8 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Quote, OHLCVSeries, NewsItem, NewsArticle, PortfolioAnalytics, PortfolioPositionInput, EconomicsSnapshot, EconomicCalendarEvent, EconomicEventDetail, DataStatus } from "./finance";
-import { useRealtime } from "./realtime";
+import { useRealtime, type LiveQuote } from "./realtime";
 
 // Finance data hooks — all fetched from /api/finance/* proxy
+
+/** Overlay live WebSocket price onto a polled quote. */
+export function applyLiveOverlay(q: Quote, live: Record<string, LiveQuote>): Quote {
+  const l = live[q.symbol.toUpperCase()];
+  if (!l || !Number.isFinite(l.price)) return q;
+  const prev = q.previousClose || q.price;
+  const change = l.price - prev;
+  const isCrypto = q.assetClass === "crypto" || q.symbol.endsWith("-USD");
+  return {
+    ...q,
+    price: l.price,
+    change,
+    changePercent: prev ? (change / prev) * 100 : 0,
+    isLive: true,
+    quoteSource: isCrypto ? "Binance (live)" : "Live",
+  };
+}
 
 /**
  * Polled quotes, overlaid with live prices from the realtime bus.
@@ -20,22 +37,7 @@ export function useQuotes(symbols: string[]) {
       if (!res.ok) throw new Error("Failed to fetch quotes");
       return res.json();
     },
-    select: (data) =>
-      data.map((q) => {
-        const l = live[q.symbol.toUpperCase()];
-        if (!l || !Number.isFinite(l.price)) return q;
-        const prev = q.previousClose || q.price;
-        const change = l.price - prev;
-        const isCrypto = q.assetClass === "crypto" || q.symbol.endsWith("-USD");
-        return {
-          ...q,
-          price: l.price,
-          change,
-          changePercent: prev ? (change / prev) * 100 : 0,
-          isLive: true,
-          quoteSource: isCrypto ? "Binance (live)" : "Live",
-        };
-      }),
+    select: (data) => data.map((q) => applyLiveOverlay(q, live)),
     refetchInterval: 15000, // poll keeps name/metadata fresh; live overlays the price
     staleTime: 10000,
     enabled: symbols.length > 0,
@@ -43,6 +45,8 @@ export function useQuotes(symbols: string[]) {
 }
 
 export function useQuote(symbol: string) {
+  const { quotes: live } = useRealtime();
+
   return useQuery<Quote>({
     queryKey: ["/api/finance/quote", symbol],
     queryFn: async () => {
@@ -51,6 +55,7 @@ export function useQuote(symbol: string) {
       const data = await res.json();
       return data[0];
     },
+    select: (q) => applyLiveOverlay(q, live),
     refetchInterval: 10000,
     staleTime: 8000,
     enabled: !!symbol,
@@ -85,6 +90,8 @@ export function useMarketSentiment() {
 }
 
 export function useMarketGainers() {
+  const { quotes: live } = useRealtime();
+
   return useQuery<Quote[]>({
     queryKey: ["/api/finance/gainers"],
     queryFn: async () => {
@@ -92,12 +99,15 @@ export function useMarketGainers() {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
+    select: (data) => data.map((q) => applyLiveOverlay(q, live)),
     refetchInterval: 30000,
     staleTime: 25000,
   });
 }
 
 export function useMarketLosers() {
+  const { quotes: live } = useRealtime();
+
   return useQuery<Quote[]>({
     queryKey: ["/api/finance/losers"],
     queryFn: async () => {
@@ -105,12 +115,15 @@ export function useMarketLosers() {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
+    select: (data) => data.map((q) => applyLiveOverlay(q, live)),
     refetchInterval: 30000,
     staleTime: 25000,
   });
 }
 
 export function useMostActive() {
+  const { quotes: live } = useRealtime();
+
   return useQuery<Quote[]>({
     queryKey: ["/api/finance/active"],
     queryFn: async () => {
@@ -118,6 +131,7 @@ export function useMostActive() {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
+    select: (data) => data.map((q) => applyLiveOverlay(q, live)),
     refetchInterval: 30000,
     staleTime: 25000,
   });
@@ -255,7 +269,9 @@ export function useIndexSparklines() {
 }
 
 export function useScreener(filters: Record<string, string>) {
+  const { quotes: live } = useRealtime();
   const params = new URLSearchParams(filters).toString();
+
   return useQuery<Quote[]>({
     queryKey: ["/api/finance/screener", params],
     queryFn: async () => {
@@ -263,6 +279,7 @@ export function useScreener(filters: Record<string, string>) {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
+    select: (data) => data.map((q) => applyLiveOverlay(q, live)),
     staleTime: 60000,
   });
 }
@@ -753,11 +770,56 @@ export interface SocialFeedResponse {
   error?: string;
 }
 
-const SOCIAL_STORAGE_KEY = "terminal-social-sources";
+// ─── Unified Feed Item (news + social) ─────────────────────────────────────
+
+export type FeedItem =
+  | { kind: "news"; item: NewsItem }
+  | { kind: "social"; item: SocialPost };
+
+/** Platform badge colors for social items in the unified feed. */
+export const PLATFORM_BADGE: Record<string, { bg: string; text: string; label: string }> = {
+  reddit: { bg: "bg-orange-500/20", text: "text-orange-400", label: "REDDIT" },
+  x: { bg: "bg-blue-500/20", text: "text-blue-400", label: "X" },
+  truth: { bg: "bg-gray-500/20", text: "text-gray-400", label: "TRUTH" },
+};
+
+/**
+ * Rank a feed item by recency, engagement, and sentiment.
+ * Higher score = should appear higher in the feed.
+ */
+function feedItemScore(item: FeedItem): number {
+  const now = Date.now();
+  if (item.kind === "news") {
+    const age = now - new Date(item.item.publishedAt).getTime();
+    const hoursOld = Math.max(0.1, age / 3_600_000);
+    const recency = 1 / Math.pow(hoursOld, 0.6); // decay over time
+    const sentimentBoost =
+      item.item.sentiment === "positive" ? 0.15 :
+      item.item.sentiment === "negative" ? 0.1 : 0;
+    return recency + sentimentBoost;
+  }
+  // Social post
+  const age = now - new Date(item.item.createdAt).getTime();
+  const hoursOld = Math.max(0.1, age / 3_600_000);
+  const recency = 1 / Math.pow(hoursOld, 0.6);
+  const engagement = Math.log10(Math.max(1, item.item.engagementScore)) * 0.3;
+  const sentimentBoost = Math.abs(item.item.sentiment.score) * 0.15;
+  return recency + engagement + sentimentBoost;
+}
+
+/** Merge news and social posts into a single ranked feed. */
+export function mergeFeed(news: NewsItem[], posts: SocialPost[]): FeedItem[] {
+  const items: FeedItem[] = [
+    ...news.map((item) => ({ kind: "news" as const, item })),
+    ...posts.map((item) => ({ kind: "social" as const, item })),
+  ];
+  items.sort((a, b) => feedItemScore(b) - feedItemScore(a));
+  return items;
+}
 
 export function useStoredSocialSources(): string[] {
   try {
-    const raw = localStorage.getItem(SOCIAL_STORAGE_KEY);
+    const raw = localStorage.getItem("terminal-social-sources");
     if (raw) {
       const sources = JSON.parse(raw) as { platform: string; identifier: string; enabled: boolean }[];
       return sources
@@ -768,13 +830,16 @@ export function useStoredSocialSources(): string[] {
   return [];
 }
 
-export function useSocialFeed(sources?: string[]) {
+export function useSocialFeed(sources?: string[], symbol?: string) {
   const sourcesParam = sources?.length ? sources.join("|") : "";
   return useQuery<SocialFeedResponse>({
-    queryKey: ["/api/finance/social/feed", sourcesParam],
+    queryKey: ["/api/finance/social/feed", sourcesParam, symbol ?? ""],
     queryFn: async () => {
-      const params = sourcesParam ? `?sources=${encodeURIComponent(sourcesParam)}` : "";
-      const res = await fetch(`/api/finance/social/feed${params}`);
+      const params = new URLSearchParams();
+      if (sourcesParam) params.set("sources", sourcesParam);
+      if (symbol) params.set("symbol", symbol);
+      const qs = params.toString();
+      const res = await fetch(`/api/finance/social/feed${qs ? `?${qs}` : ""}`);
       if (!res.ok) throw new Error("Failed to fetch social feed");
       return res.json();
     },
@@ -987,4 +1052,100 @@ export function useDiscordMessages() {
     enabled: false,
   });
   return { posts: data?.posts ?? [], isLoading, refetch };
+}
+
+// ─── AI Sentiment & Thesis Hooks ──────────────────────────────────────────
+
+export interface SentimentTag {
+  sentiment: "bullish" | "bearish" | "neutral";
+  confidence: number;
+  tickers: string[];
+  rationale_short: string;
+}
+
+export interface SentimentTagResult {
+  tag: SentimentTag;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  latencyMs: number;
+}
+
+export interface TradeThesis {
+  symbol: string;
+  direction: "long" | "short";
+  thesis_summary: string;
+  bull_case: string;
+  bear_case: string;
+  key_catalysts: string[];
+  invalidation_level: number;
+  risk_status: "low" | "medium" | "high" | "critical";
+  upside_status: "favorable" | "neutral" | "unfavorable";
+  downside_status: "limited" | "moderate" | "severe";
+  confidence: number;
+  generated_at: string;
+}
+
+export interface ThesisResult {
+  thesis: TradeThesis;
+  dataFeeds: {
+    fundamentals: boolean;
+    technicals: boolean;
+    macro: boolean;
+    news: boolean;
+    social: boolean;
+    scorecard: boolean;
+  };
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  latencyMs: number;
+}
+
+/** Tag a single social post's sentiment via Claude. */
+export function useTagSentiment() {
+  return useMutation({
+    mutationFn: async (input: { text: string; title?: string; platform?: string; author?: string; tickers?: string[] }) => {
+      const res = await fetch("/api/ai/sentiment/tag", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) throw new Error("Sentiment tagging failed");
+      return res.json() as Promise<SentimentTagResult>;
+    },
+  });
+}
+
+/** Generate a trade thesis for a symbol. */
+export function useGenerateThesis() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { symbol: string; direction: "long" | "short"; entryPrice?: number; size?: number; thesis?: string }) => {
+      const res = await fetch("/api/ai/thesis/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) throw new Error("Thesis generation failed");
+      return res.json() as Promise<ThesisResult>;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/thesis", variables.symbol] });
+    },
+  });
+}
+
+/** Fetch cached thesis for a symbol. */
+export function useThesis(symbol: string, enabled = true) {
+  return useQuery<ThesisResult | { error: string }>({
+    queryKey: ["/api/ai/thesis", symbol],
+    queryFn: async () => {
+      const res = await fetch(`/api/ai/thesis/${encodeURIComponent(symbol)}`);
+      if (!res.ok) throw new Error("Failed to fetch thesis");
+      return res.json();
+    },
+    staleTime: 60_000,
+    enabled,
+  });
 }

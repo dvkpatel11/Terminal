@@ -206,6 +206,29 @@ export function getProfile(symbol: string): InstrumentProfile | undefined {
   return loadSymbolConfig().profileCatalog[symbol];
 }
 
+/** Build a lowercase company name → ticker map from the profile catalog. */
+let _companyNameMap: Map<string, string> | null = null;
+export function getCompanyNameMap(): Map<string, string> {
+  if (_companyNameMap) return _companyNameMap;
+  const catalog = getProfileCatalog();
+  const map = new Map<string, string>();
+  for (const [ticker, profile] of Object.entries(catalog)) {
+    if (profile.name) {
+      // Index by full name and by cleaned/shortened variants
+      const lower = profile.name.toLowerCase();
+      if (!map.has(lower)) map.set(lower, ticker);
+      // Also index "Company Inc" → ticker by stripping suffixes
+      const cleaned = lower
+        .replace(/\b(inc\.?|corp\.?|corporation|co\.?|company|ltd\.?|limited|plc|group|holdings?|technologies|technology)\b/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (cleaned && cleaned !== lower && !map.has(cleaned)) map.set(cleaned, ticker);
+    }
+  }
+  _companyNameMap = map;
+  return map;
+}
+
 export function getIndexDescriptions(): Record<string, string> {
   return loadSymbolConfig().indexDescriptions ?? {};
 }

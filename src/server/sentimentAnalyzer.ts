@@ -1,16 +1,6 @@
-const COMMON_TICKERS = new Set([
-  'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'TSLA', 'NVDA', 'META',
-  'NFLX', 'AMD', 'INTC', 'IBM', 'ORCL', 'CRM', 'ADBE', 'QCOM', 'TXN',
-  'AVGO', 'COST', 'WMT', 'HD', 'LOW', 'DIS', 'NKE', 'MCD', 'SBUX',
-  'BA', 'JPM', 'GS', 'BAC', 'C', 'WFC', 'V', 'MA', 'PYPL', 'SQ',
-  'GME', 'AMC', 'BB', 'PLTR', 'SNAP', 'RBLX', 'UBER', 'LYFT',
-  'BTC', 'ETH', 'SOL', 'DOGE', 'ADA', 'XRP', 'DOT', 'LINK', 'AVAX',
-  'MATIC', 'ATOM', 'UNI', 'ALGO', 'FIL', 'NEAR', 'APT', 'SUI',
-  'SPY', 'QQQ', 'IWM', 'DIA', 'SPX', 'VIX', 'TLT',
-  'COIN', 'HOOD', 'MSTR', 'SHOP',
-  'TD', 'RY', 'CNQ', 'ENB', 'BNS', 'SU', 'CP', 'TRI', 'BCE',
-  'NIO', 'RIVN', 'LCID', 'F', 'GM', 'AAL', 'DAL', 'UAL', 'CCL', 'NCLH',
-]);
+import { getCommonTickers, getCompanyNameMap } from './symbolRegistry';
+
+const COMMON_TICKERS = getCommonTickers();
 
 const POSITIVE_WORDS =
   /\b(bullish|moon|pump|buy|long|hodl|lambo|rocket|beat|win|profit|mooning|breakout|strong|growth|green|upgrade|surge|soar|alpha|moonbag|diamond)\b/gi;
@@ -21,14 +11,37 @@ const NEGATION_WORDS =
 
 export function extractTickers(text: string): string[] {
   const found: string[] = [];
+  const seen = new Set<string>();
+
+  // 1. Dollar cashtags: $TSLA, $AAPL
   const dollarMatches = Array.from(text.matchAll(/\$([A-Z]{2,5})\b/g));
   for (const m of dollarMatches) {
-    found.push(m[1]);
+    if (!seen.has(m[1])) { seen.add(m[1]); found.push(m[1]); }
   }
+
+  // 2. Bare tickers from whitelist
   const bareMatches = Array.from(text.matchAll(/\b([A-Z]{2,5})\b/g));
   for (const m of bareMatches) {
-    if (COMMON_TICKERS.has(m[1])) found.push(m[1]);
+    if (COMMON_TICKERS.has(m[1]) && !seen.has(m[1])) { seen.add(m[1]); found.push(m[1]); }
   }
+
+  // 3. Company name aliases (e.g. "Tesla" → TSLA, "Apple" → AAPL)
+  const lowerText = text.toLowerCase();
+  const companyNameMap = getCompanyNameMap();
+  for (const [name, ticker] of Array.from(companyNameMap.entries())) {
+    if (seen.has(ticker)) continue;
+    // Use word-boundary-aware search for company names
+    const idx = lowerText.indexOf(name);
+    if (idx !== -1) {
+      const before = idx === 0 || /\s/.test(lowerText[idx - 1]);
+      const after = idx + name.length >= lowerText.length || /[\s,;.!?)\]]/.test(lowerText[idx + name.length]);
+      if (before && after) {
+        seen.add(ticker);
+        found.push(ticker);
+      }
+    }
+  }
+
   return found;
 }
 

@@ -1,22 +1,11 @@
 import { useState } from "react";
 import { useQuotes } from "@/lib/useFinance";
 import { formatPrice, formatPct, formatChange, formatBig, pctClass } from "@/lib/finance";
+import { useSymbolConfig } from "@/lib/useSymbolConfig";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowUpDown } from "lucide-react";
 
 interface Props { onSymbol: (sym: string) => void }
-
-const FX_PAIRS = ["EURUSD", "GBPUSD", "USDJPY", "USDCHF", "AUDUSD", "USDCAD", "NZDUSD"];
-
-const FX_LABELS: Record<string, string> = {
-  EURUSD: "EUR/USD",
-  GBPUSD: "GBP/USD",
-  USDJPY: "USD/JPY",
-  USDCHF: "USD/CHF",
-  AUDUSD: "AUD/USD",
-  USDCAD: "USD/CAD",
-  NZDUSD: "NZD/USD",
-};
 
 type SortField = "symbol" | "price" | "changePercent" | "change";
 type SortDir = "asc" | "desc";
@@ -24,6 +13,10 @@ type SortDir = "asc" | "desc";
 export default function FxDashboardPanel({ onSymbol }: Props) {
   const [sortField, setSortField] = useState<SortField>("symbol");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const { data: config } = useSymbolConfig();
+  const FX_PAIRS = config?.fx?.pairs ?? [];
+  const FX_LABELS = config?.fx?.labels ?? {};
 
   const { data: quotes, isLoading } = useQuotes(FX_PAIRS);
 

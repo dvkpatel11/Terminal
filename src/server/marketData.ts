@@ -1,8 +1,9 @@
 import { XMLParser } from "fast-xml-parser";
 import { buildDataStatus, type DataStatus } from "./dataStatus";
-import { fetchText, getCached, setCached } from "./providerUtils";
+import { fetchText, getCached, setCached, resilientFetchJson, resilientFetch } from "./providerUtils";
 import { fetchOpenBBFundamentals, fetchOpenBBOptions, fetchOpenBBYieldCurve } from "./openbbProvider";
 import { extendedStorage } from "./storage";
+import { getLiveMacroSnapshot } from "./economicsData";
 import {
   getScreenerUniverse,
   getPeerMap,
@@ -278,7 +279,10 @@ function getAllUniqueSources(): RssFeedConfig[] {
 export async function testNewsSource(url: string): Promise<{ ok: boolean; latency: number; statusCode: number }> {
   const start = Date.now();
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    const response = await resilientFetch(
+      { name: "generic", retry: { maxAttempts: 1, baseDelayMs: 500 }, circuitBreaker: { threshold: 10, cooldownMs: 30_000 } },
+      url,
+    );
     return { ok: response.ok, latency: Date.now() - start, statusCode: response.status };
   } catch {
     return { ok: false, latency: Date.now() - start, statusCode: 0 };
@@ -298,7 +302,10 @@ export async function getNewsSourceStatuses() {
 
 export async function fetchNewsSourceContent(url: string): Promise<{ ok: boolean; statusCode: number; body: string }> {
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    const response = await resilientFetch(
+      { name: "generic", retry: { maxAttempts: 1, baseDelayMs: 500 }, circuitBreaker: { threshold: 10, cooldownMs: 30_000 } },
+      url,
+    );
     const text = await response.text();
     return { ok: response.ok, statusCode: response.status, body: text.slice(0, 2000) };
   } catch (e) {
@@ -492,19 +499,22 @@ function getRangeDays(range: string) {
 }
 
 
-async function fetchJson<T>(url: string, timeoutMs?: number) {
-  const init: RequestInit = {
-    headers: {
-      "User-Agent": "blmtrm/1.0",
-      Accept: "application/json,text/plain;q=0.9,*/*;q=0.8",
+async function fetchJson<T>(url: string, timeoutMs?: number, provider = "yahoo"): Promise<T> {
+  return resilientFetchJson<T>(
+    {
+      name: provider,
+      retry: { maxAttempts: 2, baseDelayMs: 1000 },
+      circuitBreaker: { threshold: 5, cooldownMs: 60_000 },
     },
-  };
-  if (timeoutMs) init.signal = AbortSignal.timeout(timeoutMs);
-  const response = await fetch(url, init);
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} ${response.statusText} for ${url}`);
-  }
-  return response.json() as Promise<T>;
+    url,
+    {
+      headers: {
+        "User-Agent": "blmtrm/1.0",
+        Accept: "application/json,text/plain;q=0.9,*/*;q=0.8",
+      },
+      signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
+    },
+  );
 }
 
 export function parseStooqCurrent(csv: string): CurrentQuoteSnapshot {
@@ -899,7 +909,7 @@ async function getCryptoYearRange(id: string, attempt = 0): Promise<{ high: numb
 
   try {
     const url = `https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=365&interval=daily`;
-    const data = await fetchJson<{ prices: [number, number][] }>(url, 8000);
+    const data = await fetchJson<{ prices: [number, number][] }>(url, 8000, "coingecko");
     const prices = (data.prices ?? [])
       .map((point) => point?.[1])
       .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
@@ -934,7 +944,7 @@ async function getCoinGeckoQuotes(symbols: string[]): Promise<Map<string, Quote>
 
   try {
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(",")}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`;
-    const payload = await fetchJson<Record<string, { usd: number; usd_market_cap?: number; usd_24h_vol?: number; usd_24h_change?: number }>>(url);
+    const payload = await fetchJson<Record<string, { usd: number; usd_market_cap?: number; usd_24h_vol?: number; usd_24h_change?: number }>>(url, undefined, "coingecko");
 
     for (const symbol of uncached) {
       const profile = getProfile(symbol);
@@ -1143,6 +1153,8 @@ export async function getOHLCV(symbol: string, range = "1Y", interval: OhlcvInte
       const requestDays = interval === "5m" || interval === "15m" ? 1 : Math.min(days, 365);
       const payload = await fetchJson<{ prices: [number, number][]; total_volumes: [number, number][] }>(
         `https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=${requestDays}`,
+        undefined,
+        "coingecko",
       );
       const points = payload.prices.map(([timestamp, price], index) => ({
         timestamp,
@@ -1367,43 +1379,77 @@ export async function getEconomicsSnapshot() {
   let usdJpy = 150.0;
   let gold = 3000;
   let oil = 70;
+  let dxy = 104.5;
 
-  try {
-    const [commodities, eurUsdCsv, gbpUsdCsv, usdJpyCsv, goldCsv] = await Promise.all([
-      getQuotes(getEconomicsCommodities()),
-      fetchText("https://stooq.com/q/l/?s=eurusd&i=5"),
-      fetchText("https://stooq.com/q/l/?s=gbpusd&i=5"),
-      fetchText("https://stooq.com/q/l/?s=usdjpy&i=5"),
-      fetchText("https://stooq.com/q/l/?s=xauusd&i=5"),
-    ]);
+  // Fetch live macro data from FRED in parallel with forex/commodities
+  const [liveMacro, commodities, eurUsdCsv, gbpUsdCsv, usdJpyCsv, goldCsv, dxyCsv] = await Promise.all([
+    getLiveMacroSnapshot().catch(() => null),
+    getQuotes(getEconomicsCommodities()).catch(() => []),
+    fetchText("https://stooq.com/q/l/?s=eurusd&i=5").catch(() => ""),
+    fetchText("https://stooq.com/q/l/?s=gbpusd&i=5").catch(() => ""),
+    fetchText("https://stooq.com/q/l/?s=usdjpy&i=5").catch(() => ""),
+    fetchText("https://stooq.com/q/l/?s=xauusd&i=5").catch(() => ""),
+    fetchText("https://stooq.com/q/l/?s=dx-y.nya&i=5").catch(() => ""),
+  ]);
 
-    eurUsd = parseStooqCurrent(eurUsdCsv).close;
-    gbpUsd = parseStooqCurrent(gbpUsdCsv).close;
-    usdJpy = parseStooqCurrent(usdJpyCsv).close;
-    gold = parseStooqCurrent(goldCsv).close;
-    oil = commodities.find((item) => item.symbol === getEconomicsCommodities()[1])?.price ?? oil;
-  } catch {
-    // Keep the fallback snapshot when live provider calls fail.
-  }
+  // Parse forex/commodities with fallbacks
+  try { if (eurUsdCsv) eurUsd = parseStooqCurrent(eurUsdCsv).close; } catch { /* keep fallback */ }
+  try { if (gbpUsdCsv) gbpUsd = parseStooqCurrent(gbpUsdCsv).close; } catch { /* keep fallback */ }
+  try { if (usdJpyCsv) usdJpy = parseStooqCurrent(usdJpyCsv).close; } catch { /* keep fallback */ }
+  try { if (goldCsv) gold = parseStooqCurrent(goldCsv).close; } catch { /* keep fallback */ }
+  try { if (dxyCsv) dxy = parseStooqCurrent(dxyCsv).close; } catch { /* keep fallback */ }
+  const oilQuote = commodities.find((item) => item.symbol === getEconomicsCommodities()[1]);
+  if (oilQuote?.price) oil = oilQuote.price;
+
+  // Track which fields are using hardcoded fallback defaults
+  const usingFallbacks = {
+    gdp: liveMacro?.gdp == null,
+    cpi: liveMacro?.cpi == null,
+    unemployment: liveMacro?.unemployment == null,
+    fedFunds: liveMacro?.fedFunds == null,
+    t10y: liveMacro?.t10y == null,
+    t2y: liveMacro?.t2y == null,
+    t30y: liveMacro?.t30y == null,
+    dxy: dxyCsv === "",
+  };
+
+  const anyFallback = Object.values(usingFallbacks).some(Boolean);
+
+  // Use live FRED values when available, otherwise fall back to hardcoded defaults
+  const gdpValue = liveMacro?.gdp ?? 2.5;
+  const gdpPrev = liveMacro?.gdpPrev ?? 3.1;
+  const cpiValue = liveMacro?.cpi ?? 3.1;
+  const cpiPrev = liveMacro?.cpiPrev ?? 3.4;
+  const unemploymentValue = liveMacro?.unemployment ?? 3.7;
+  const unemploymentPrev = liveMacro?.unemploymentPrev ?? 3.9;
+  const fedFundsValue = liveMacro?.fedFunds ?? 5.33;
+  const fedFundsPrev = liveMacro?.fedFundsPrev ?? 5.5;
+  const t10yValue = liveMacro?.t10y ?? 4.52;
+  const t10yPrev = liveMacro?.t10yPrev ?? 4.44;
+  const t2yValue = liveMacro?.t2y ?? 4.89;
+  const t2yPrev = liveMacro?.t2yPrev ?? 4.91;
+  const t30yValue = liveMacro?.t30y ?? 4.72;
+  const t30yPrev = liveMacro?.t30yPrev ?? 4.68;
 
   return {
-    gdp: { value: 2.5, prev: 3.1, label: "US GDP Growth (QoQ)", unit: "%" },
-    cpi: { value: 3.1, prev: 3.4, label: "CPI Inflation (YoY)", unit: "%" },
-    unemployment: { value: 3.7, prev: 3.9, label: "Unemployment Rate", unit: "%" },
-    fedFunds: { value: 5.33, prev: 5.5, label: "Fed Funds Rate", unit: "%" },
-    t10y: { value: 4.52, prev: 4.44, label: "10Y Treasury Yield", unit: "%" },
-    t2y: { value: 4.89, prev: 4.91, label: "2Y Treasury Yield", unit: "%" },
-    t30y: { value: 4.72, prev: 4.68, label: "30Y Treasury Yield", unit: "%" },
-    dolllarIndex: { value: 104.5, prev: 102.8, label: "USD Index (DXY)", unit: "" },
+    gdp: { value: gdpValue, prev: gdpPrev, label: "US GDP Growth (QoQ)", unit: "%" },
+    cpi: { value: cpiValue, prev: cpiPrev, label: "CPI Inflation (YoY)", unit: "%" },
+    unemployment: { value: unemploymentValue, prev: unemploymentPrev, label: "Unemployment Rate", unit: "%" },
+    fedFunds: { value: fedFundsValue, prev: fedFundsPrev, label: "Fed Funds Rate", unit: "%" },
+    t10y: { value: t10yValue, prev: t10yPrev, label: "10Y Treasury Yield", unit: "%" },
+    t2y: { value: t2yValue, prev: t2yPrev, label: "2Y Treasury Yield", unit: "%" },
+    t30y: { value: t30yValue, prev: t30yPrev, label: "30Y Treasury Yield", unit: "%" },
+    dolllarIndex: { value: round(dxy, 2), prev: round(dxy * 0.997, 2), label: "USD Index (DXY)", unit: "" },
     eurUsd: { value: round(eurUsd, 4), prev: round(eurUsd * 0.997, 4), label: "EUR/USD", unit: "" },
     gbpUsd: { value: round(gbpUsd, 4), prev: round(gbpUsd * 0.997, 4), label: "GBP/USD", unit: "" },
     usdJpy: { value: round(usdJpy, 4), prev: round(usdJpy * 0.998, 4), label: "USD/JPY", unit: "" },
     gold: { value: round(gold, 2), prev: round(gold * 0.995, 2), label: "Gold ($/oz)", unit: "" },
     oil: { value: round(oil, 2), prev: round(oil * 1.01, 2), label: "WTI Crude ($/bbl)", unit: "" },
     status: buildDataStatus({
-      provider: "Mixed public snapshot",
-      freshness: "snapshot",
-      delayLabel: "Snapshot / mixed-source view",
+      provider: liveMacro ? "FRED + Mixed public snapshot" : "Mixed public snapshot",
+      freshness: anyFallback ? "snapshot" : "current",
+      isFallback: anyFallback,
+      delayLabel: liveMacro?.asOf ? `FRED as of ${liveMacro.asOf}` : "Snapshot / mixed-source view",
     }),
   };
 }
@@ -1420,10 +1466,9 @@ async function getYahooCrumb(): Promise<{ crumb: string; cookie: string }> {
   }
 
   // Get session cookie
-  const sessionRes = await fetch("https://finance.yahoo.com/quote/MU/", {
+  const sessionRes = await resilientFetch(YAHOO_PROVIDER, "https://finance.yahoo.com/quote/MU/", {
     headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
     redirect: "manual",
-    signal: AbortSignal.timeout(10000),
   });
   const setCookies = sessionRes.headers.getSetCookie();
   const cookie = setCookies
@@ -1433,12 +1478,11 @@ async function getYahooCrumb(): Promise<{ crumb: string; cookie: string }> {
   if (!cookie) throw new Error("Failed to get Yahoo session cookie");
 
   // Get crumb
-  const crumbRes = await fetch("https://query2.finance.yahoo.com/v1/test/getcrumb", {
+  const crumbRes = await resilientFetch(YAHOO_PROVIDER, "https://query2.finance.yahoo.com/v1/test/getcrumb", {
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       Cookie: cookie,
     },
-    signal: AbortSignal.timeout(10000),
   });
 
   if (!crumbRes.ok) throw new Error(`Yahoo crumb ${crumbRes.status}`);
@@ -1461,12 +1505,11 @@ async function fetchYahooFundamentals(symbol: string): Promise<Record<string, an
   ].join(",");
 
   const url = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules}&crumb=${encodeURIComponent(crumb)}`;
-  const res = await fetch(url, {
+  const res = await resilientFetch(YAHOO_PROVIDER, url, {
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       Cookie: cookie,
     },
-    signal: AbortSignal.timeout(10000),
   });
 
   if (!res.ok) throw new Error(`Yahoo quoteSummary ${res.status}`);
@@ -1544,7 +1587,7 @@ export async function getFundamentals(symbol: string) {
   // Yahoo Finance fallback when OpenBB is unavailable
   try {
     const data = await fetchYahooFundamentals(symbol);
-    data.status = buildDataStatus({ provider: "Yahoo Finance", freshness: "reference" });
+    data.status = buildDataStatus({ provider: "Yahoo Finance", freshness: "reference", isFallback: true });
     return setCached(fundamentalsCache, cacheKey, data, 5 * 60_000);
   } catch (fallbackError) {
     console.error(`Yahoo fundamentals fallback error for ${symbol}:`, fallbackError);
@@ -1606,3 +1649,57 @@ export async function getYieldCurve() {
 const fundamentalsCache = new Map<string, { expiresAt: number; value: any }>();
 const optionsCache = new Map<string, { expiresAt: number; value: any }>();
 const yieldCurveCache = new Map<string, { expiresAt: number; value: any }>();
+
+// ─── Corporate Events (earnings, dividends) ─────────────────────────────────
+
+export interface CorporateEvent {
+  date: string;
+  type: "earnings" | "dividend";
+  label: string;
+}
+
+const eventsCache = new Map<string, { expiresAt: number; value: CorporateEvent[] }>();
+const EVENTS_TTL_MS = 60 * 60_000; // 1 hour
+
+const YAHOO_PROVIDER = { name: "yahoo", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } } as const;
+
+export async function getEventsForSymbol(symbol: string): Promise<CorporateEvent[]> {
+  const cacheKey = `events:${symbol}`;
+  const cached = getCached(eventsCache, cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=3mo&interval=1d&includeTimestamps=true`;
+    const response = await resilientFetch(YAHOO_PROVIDER, url, { headers: { "User-Agent": "blmtrm/1.0" } });
+    if (!response.ok) return setCached(eventsCache, cacheKey, [], EVENTS_TTL_MS);
+
+    const events: CorporateEvent[] = [];
+    const calendarUrl = `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=calendarEvents`;
+    try {
+      const calRes = await resilientFetch(YAHOO_PROVIDER, calendarUrl, { headers: { "User-Agent": "blmtrm/1.0" } });
+      if (calRes.ok) {
+        const calData = await calRes.json();
+        const calEvents = calData?.quoteSummary?.result?.[0]?.calendarEvents;
+        if (calEvents?.earnings?.earningsDate) {
+          for (const ed of calEvents.earnings.earningsDate) {
+            const ts = ed?.raw ?? ed;
+            if (typeof ts === "number") {
+              const d = new Date(ts * 1000);
+              events.push({ date: d.toISOString().slice(0, 10), type: "earnings", label: "Earnings" });
+            }
+          }
+        }
+        if (calEvents?.dividends?.exDividendDate) {
+          const ts = calEvents.dividends.exDividendDate?.raw ?? calEvents.dividends.exDividendDate;
+          if (typeof ts === "number") {
+            const d = new Date(ts * 1000);
+            events.push({ date: d.toISOString().slice(0, 10), type: "dividend", label: "Ex-Dividend" });
+          }
+        }
+      }
+    } catch {}
+    return setCached(eventsCache, cacheKey, events, EVENTS_TTL_MS);
+  } catch {
+    return [];
+  }
+}

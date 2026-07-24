@@ -68,7 +68,6 @@
 
   "vixTerms": [
     { "symbol": "^VIX", "label": "VIX (Spot)", "tenor": "spot" },
-    { "symbol": "^VIX2", "label": "VIX (2M)", "tenor": "2m" },
     { "symbol": "^VIX3M", "label": "VIX (3M)", "tenor": "3m" }
   ],
 
@@ -137,7 +136,7 @@
     "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "AVGO", "ORCL", "CRM",
     "JPM", "BAC", "WFC", "GS", "MS", "BLK", "SCHW", "C", "AXP", "USB",
     "UNH", "JNJ", "LLY", "PFE", "ABBV", "MRK", "TMO", "ABT", "DHR", "BMY",
-    "XOM", "CVX", "COP", "SLB", "EOG", "MPC", "PSX", "VLO", "OXY", "HES",
+    "XOM", "CVX", "COP", "SLB", "EOG", "MPC", "PSX", "VLO", "OXY", "DVN",
     "PG", "KO", "PEP", "WMT", "COST", "HD", "MCD", "NKE", "SBUX", "TGT"
   ],
 
@@ -198,6 +197,7 @@
     "CVX": { "name": "Chevron Corp.", "exchange": "NYSE", "sector": "Energy", "marketCap": 2.9e11, "referencePrice": 160, "eps": 10.4, "assetClass": "equity" },
     "COP": { "name": "ConocoPhillips", "exchange": "NYSE", "sector": "Energy", "marketCap": 1.4e11, "referencePrice": 112, "eps": 8.7, "assetClass": "equity" },
     "SLB": { "name": "Schlumberger", "exchange": "NYSE", "sector": "Energy", "marketCap": 6.5e10, "referencePrice": 50, "eps": 3.4, "assetClass": "equity" },
+    "DVN": { "name": "Devon Energy", "exchange": "NYSE", "sector": "Energy", "marketCap": 3.5e10, "referencePrice": 45, "eps": 4.8, "assetClass": "equity" },
     "UNH": { "name": "UnitedHealth Group", "exchange": "NYSE", "sector": "Healthcare", "marketCap": 4.5e11, "referencePrice": 560, "eps": 27.5, "assetClass": "equity" },
     "JNJ": { "name": "Johnson & Johnson", "exchange": "NYSE", "sector": "Healthcare", "marketCap": 3.9e11, "referencePrice": 155, "eps": 10.1, "assetClass": "equity" },
     "PFE": { "name": "Pfizer Inc.", "exchange": "NYSE", "sector": "Healthcare", "marketCap": 1.8e11, "referencePrice": 28, "eps": 2.6, "assetClass": "equity" },

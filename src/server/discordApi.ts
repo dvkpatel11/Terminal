@@ -1,5 +1,7 @@
 // src/server/discordApi.ts
 
+import { resilientFetch } from "./providerUtils";
+
 const BASE_URL = "https://discord.com/api/v10";
 
 export interface DiscordGuild {
@@ -62,18 +64,15 @@ async function discordFetch<T>(
     "Content-Type": "application/json",
   };
 
-  const res = await fetch(url, {
-    method: options?.method || "GET",
-    headers,
-    body: options?.body ? JSON.stringify(options.body) : undefined,
-  });
-
-  if (res.status === 429) {
-    const body = await res.json();
-    const retryAfter = (body.retry_after || 1) * 1000;
-    await new Promise((r) => setTimeout(r, retryAfter));
-    return discordFetch<T>(token, path, options);
-  }
+  const res = await resilientFetch(
+    { name: "discord", retry: { maxAttempts: 3, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
+    url,
+    {
+      method: options?.method || "GET",
+      headers,
+      body: options?.body ? JSON.stringify(options.body) : undefined,
+    },
+  );
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

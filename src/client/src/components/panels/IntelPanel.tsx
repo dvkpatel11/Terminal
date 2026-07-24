@@ -12,7 +12,7 @@ import { useQuote, useOHLCV, useNews, useFundamentals, useOnChain } from "@/lib/
 import { useWorkspaceStore } from "@/lib/workspaceStore";
 import { useSymbolConfig } from "@/lib/useSymbolConfig";
 import type { ViewMode } from "@/lib/terminalTypes";
-import { sigMA, sig52w, sigPE, sigFwdPE, sigEvEbitda, sigMargin, sigGrowth, sigAnalystUpside, sigAnalystRec, sigDebtEquity, sigDividend, tally, type Signal } from "@/lib/signals";
+import { sigMA, sig52w, sigPE, sigFwdPE, sigEvEbitda, sigMargin, sigGrowth, sigAnalystUpside, sigAnalystRec, sigDebtEquity, sigDividend, tally, type Signal } from "@shared/signals";
 
 interface Props {
   symbol: string;
@@ -258,7 +258,7 @@ export default function IntelPanel({ symbol, onNav }: Props) {
 
             <PanelSection title="LATEST HEADLINES">
               <NewsList
-                items={news ?? []}
+                items={(news ?? []).map((n) => ({ kind: "news" as const, item: n }))}
                 variant="dense"
                 maxItems={5}
                 className="max-h-48"
@@ -337,7 +337,7 @@ export default function IntelPanel({ symbol, onNav }: Props) {
 
           <PanelSection title="LATEST HEADLINES">
             <NewsList
-              items={news ?? []}
+              items={(news ?? []).map((n) => ({ kind: "news" as const, item: n }))}
               variant="dense"
               maxItems={5}
               className="max-h-48"
@@ -452,7 +452,7 @@ export default function IntelPanel({ symbol, onNav }: Props) {
             </PanelSection>
 
             <PanelSection title="LATEST HEADLINES">
-              <NewsList items={news ?? []} variant="dense" maxItems={5} className="max-h-48" />
+              <NewsList items={(news ?? []).map(item => ({ kind: "news" as const, item }))} variant="dense" maxItems={5} className="max-h-48" />
             </PanelSection>
           </div>
 
@@ -557,7 +557,7 @@ export default function IntelPanel({ symbol, onNav }: Props) {
             </PanelSection>
 
             <PanelSection title="LATEST HEADLINES">
-              <NewsList items={news ?? []} variant="dense" maxItems={5} className="max-h-48" />
+              <NewsList items={(news ?? []).map(item => ({ kind: "news" as const, item }))} variant="dense" maxItems={5} className="max-h-48" />
             </PanelSection>
           </div>
 
@@ -751,7 +751,7 @@ export default function IntelPanel({ symbol, onNav }: Props) {
 
           <PanelSection title="LATEST HEADLINES">
             <NewsList
-              items={news ?? []}
+              items={(news ?? []).map((n) => ({ kind: "news" as const, item: n }))}
               variant="dense"
               maxItems={5}
               className="max-h-48"

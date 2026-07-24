@@ -1,4 +1,6 @@
 import { extendedStorage } from './storage';
+import { getOptionsFlowDefaults } from './symbolRegistry';
+import { resilientFetch } from './providerUtils';
 
 const FETCH_TIMEOUT = 8000;
 
@@ -69,7 +71,10 @@ function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
 async function fetchPutCallRatio(): Promise<SummaryResponse> {
   return cached('options-summary', async () => {
     try {
-      const resp = await fetch('https://cdn.cboe.com/api/global/us_options/market_statistics/open_interest.json', { signal: AbortSignal.timeout(FETCH_TIMEOUT) });
+      const resp = await resilientFetch(
+        { name: "yahoo", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
+        'https://cdn.cboe.com/api/global/us_options/market_statistics/open_interest.json',
+      );
       if (resp.ok) {
         const data = (await resp.json()) as any;
         const stats = data?.data || data;
@@ -105,7 +110,7 @@ interface OptionData {
   openInterest: number;
 }
 
-const DEFAULT_SYMBOLS = ['AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMZN', 'META', 'GOOGL', 'SPY', 'QQQ'];
+const DEFAULT_SYMBOLS = getOptionsFlowDefaults();
 
 async function fetchUnusualActivity(symbols: string[]): Promise<UnusualActivity[]> {
   const cacheKey = `unusual:${symbols.slice().sort().join(',')}`;
@@ -147,10 +152,11 @@ async function fetchUnusualActivity(symbols: string[]): Promise<UnusualActivity[
 
 async function fetchOptionChain(symbol: string): Promise<{ calls: OptionData[]; puts: OptionData[]; underlyingPrice: number } | null> {
   try {
-    const resp = await fetch(`https://query1.finance.yahoo.com/v7/finance/options/${encodeURIComponent(symbol)}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT),
-    });
+    const resp = await resilientFetch(
+      { name: "yahoo", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
+      `https://query1.finance.yahoo.com/v7/finance/options/${encodeURIComponent(symbol)}`,
+      { headers: { 'User-Agent': 'Mozilla/5.0' } },
+    );
     if (!resp.ok) return null;
     const data = (await resp.json()) as any;
     const result = data?.optionChain?.result?.[0];

@@ -1,9 +1,180 @@
 import { buildDataStatus, type DataStatus } from "./dataStatus";
-import { fetchText, getCached, setCached } from "./providerUtils";
+import { fetchText, getCached, setCached, resilientFetch } from "./providerUtils";
 import { extendedStorage } from "./storage";
 
 export type EconomicEventCategory = "inflation" | "labor" | "growth" | "policy" | "consumption" | "activity" | "housing";
 export type EconomicEventImportance = "high" | "medium";
+
+// ─── Live Macro Snapshot (FRED) ───────────────────────────────────────────────
+
+const FRED_API_BASE = "https://api.stlouisfed.org/fred";
+const MACRO_TTL_MS = 4 * 60 * 60_000; // 4 hours — these are monthly/daily releases
+
+const macroSnapshotCache = new Map<string, { expiresAt: number; value: LiveMacroSnapshot }>();
+
+export interface LiveMacroSnapshot {
+  gdp: number | null;          // GDPC1  — real GDP growth QoQ annualised (%)
+  gdpPrev: number | null;
+  cpi: number | null;          // CPIAUCSL — CPI YoY (%)
+  cpiPrev: number | null;
+  unemployment: number | null; // UNRATE
+  unemploymentPrev: number | null;
+  fedFunds: number | null;     // FEDFUNDS
+  fedFundsPrev: number | null;
+  t10y: number | null;         // DGS10
+  t10yPrev: number | null;
+  t2y: number | null;          // DGS2
+  t2yPrev: number | null;
+  t30y: number | null;         // DGS30
+  t30yPrev: number | null;
+  asOf: string | null;         // ISO date of most recent observation
+}
+
+async function fetchFredSeries(seriesId: string, apiKey: string): Promise<{ value: number | null; prev: number | null; date: string | null }> {
+  const url = `${FRED_API_BASE}/series/observations?series_id=${seriesId}&api_key=${apiKey}&sort_order=desc&limit=2&file_type=json`;
+  try {
+    const resp = await resilientFetch(
+      { name: "fred", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
+      url,
+      { headers: { "User-Agent": "blmtrm/1.0" } },
+    );
+    if (!resp.ok) {
+      console.warn(`[fred] ${seriesId} fetch failed: ${resp.status}`);
+      return { value: null, prev: null, date: null };
+    }
+    const data = await resp.json() as { observations?: Array<{ date: string; value: string }> };
+    const obs = (data.observations ?? []).filter((o) => o.value !== "." && o.value !== "");
+    if (!obs.length) return { value: null, prev: null, date: null };
+    const latest = parseFloat(obs[0].value);
+    const prev = obs.length >= 2 ? parseFloat(obs[1].value) : null;
+    return {
+      value: Number.isFinite(latest) ? latest : null,
+      prev: Number.isFinite(prev) ? prev : null,
+      date: obs[0].date ?? null,
+    };
+  } catch (err) {
+    console.warn(`[fred] ${seriesId} error:`, err instanceof Error ? err.message : err);
+    return { value: null, prev: null, date: null };
+  }
+}
+
+export async function getLiveMacroSnapshot(): Promise<LiveMacroSnapshot> {
+  const cacheKey = "live-macro";
+  const cached = getCached(macroSnapshotCache, cacheKey);
+  if (cached) return cached;
+
+  const apiKey = process.env.FRED_API_KEY;
+  if (!apiKey) {
+    return {
+      gdp: null, gdpPrev: null, cpi: null, cpiPrev: null,
+      unemployment: null, unemploymentPrev: null, fedFunds: null, fedFundsPrev: null,
+      t10y: null, t10yPrev: null, t2y: null, t2yPrev: null, t30y: null, t30yPrev: null,
+      asOf: null,
+    };
+  }
+
+  const [gdpRes, cpiRes, urateRes, ffRes, t10Res, t2Res, t30Res] = await Promise.all([
+    fetchFredSeries("GDPC1", apiKey),
+    fetchFredSeries("CPIAUCSL", apiKey),
+    fetchFredSeries("UNRATE", apiKey),
+    fetchFredSeries("FEDFUNDS", apiKey),
+    fetchFredSeries("DGS10", apiKey),
+    fetchFredSeries("DGS2", apiKey),
+    fetchFredSeries("DGS30", apiKey),
+  ]);
+
+  // GDPC1 is a level, not a growth rate — compute QoQ annualised % change
+  let gdpGrowth: number | null = null;
+  let gdpGrowthPrev: number | null = null;
+  if (gdpRes.value !== null) {
+    const url = `${FRED_API_BASE}/series/observations?series_id=GDPC1&api_key=${apiKey}&sort_order=desc&limit=5&file_type=json`;
+    try {
+      const resp = await resilientFetch(
+        { name: "fred", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
+        url,
+        { headers: { "User-Agent": "blmtrm/1.0" } },
+      );
+      if (resp.ok) {
+        const data = await resp.json() as { observations?: Array<{ value: string }> };
+        const obs = (data.observations ?? []).filter((o) => o.value !== "." && o.value !== "");
+        if (obs.length >= 2) {
+          const curr = parseFloat(obs[0].value);
+          const prev = parseFloat(obs[1].value);
+          if (Number.isFinite(curr) && Number.isFinite(prev) && prev > 0) {
+            gdpGrowth = Math.round(((Math.pow(curr / prev, 4) - 1) * 100) * 10) / 10;
+          }
+        }
+        if (obs.length >= 4) {
+          // Previous quarter growth: use obs[1] vs obs[2]
+          const p1 = parseFloat(obs[1].value);
+          const p2 = parseFloat(obs[2].value);
+          if (Number.isFinite(p1) && Number.isFinite(p2) && p2 > 0) {
+            gdpGrowthPrev = Math.round(((Math.pow(p1 / p2, 4) - 1) * 100) * 10) / 10;
+          }
+        }
+      }
+    } catch { /* use null */ }
+  }
+
+  // CPI: compute YoY % change from 13 observations (current vs 12 months ago)
+  let cpiYoy: number | null = null;
+  let cpiYoyPrev: number | null = null;
+  if (cpiRes.value !== null) {
+    const url = `${FRED_API_BASE}/series/observations?series_id=CPIAUCSL&api_key=${apiKey}&sort_order=desc&limit=14&file_type=json`;
+    try {
+      const resp = await resilientFetch(
+        { name: "fred", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
+        url,
+        { headers: { "User-Agent": "blmtrm/1.0" } },
+      );
+      if (resp.ok) {
+        const data = await resp.json() as { observations?: Array<{ value: string }> };
+        const obs = (data.observations ?? []).filter((o) => o.value !== "." && o.value !== "");
+        if (obs.length >= 13) {
+          const curr = parseFloat(obs[0].value);
+          const yearAgo = parseFloat(obs[12].value);
+          if (Number.isFinite(curr) && Number.isFinite(yearAgo) && yearAgo > 0) {
+            cpiYoy = Math.round(((curr / yearAgo - 1) * 100) * 10) / 10;
+          }
+        }
+        if (obs.length >= 14) {
+          // Previous month YoY: obs[1] vs obs[13]
+          const p1 = parseFloat(obs[1].value);
+          const p1yAgo = parseFloat(obs[13].value);
+          if (Number.isFinite(p1) && Number.isFinite(p1yAgo) && p1yAgo > 0) {
+            cpiYoyPrev = Math.round(((p1 / p1yAgo - 1) * 100) * 10) / 10;
+          }
+        }
+      }
+    } catch { /* use null */ }
+  }
+
+  // Use the most recent date across all fetched series as the snapshot asOf
+  const dates = [gdpRes.date, cpiRes.date, urateRes.date, ffRes.date, t10Res.date].filter(Boolean) as string[];
+  const asOf = dates.length ? dates.sort().at(-1)! : null;
+
+  const snapshot: LiveMacroSnapshot = {
+    gdp: gdpGrowth,
+    gdpPrev: gdpGrowthPrev,
+    cpi: cpiYoy,
+    cpiPrev: cpiYoyPrev,
+    unemployment: urateRes.value,
+    unemploymentPrev: urateRes.prev,
+    fedFunds: ffRes.value,
+    fedFundsPrev: ffRes.prev,
+    t10y: t10Res.value,
+    t10yPrev: t10Res.prev,
+    t2y: t2Res.value,
+    t2yPrev: t2Res.prev,
+    t30y: t30Res.value,
+    t30yPrev: t30Res.prev,
+    asOf,
+  };
+
+  setCached(macroSnapshotCache, cacheKey, snapshot, MACRO_TTL_MS);
+  console.log(`[fred] macro snapshot refreshed (asOf: ${asOf})`);
+  return snapshot;
+}
 
 export interface EconomicCalendarEvent {
   id: string;

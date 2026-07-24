@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuote, useQuotes, useMarketGainers, useMarketLosers, useMostActive, useMarketSentiment, useNews, useIndexSparklines, useScorecard, useMarketBreadth, useCreditSpreads, useVixTermStructure, useSectorPerformance } from "@/lib/useFinance";
-import { formatPrice, pctClass, INDICES } from "@/lib/finance";
+import { formatPrice, pctClass } from "@/lib/finance";
+import { useSymbolConfig } from "@/lib/useSymbolConfig";
 import type { Quote } from "@/lib/finance";
 import Sparkline from "@/components/ui/sparkline";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -58,6 +59,8 @@ function ScorecardCell({ value, format = "price" }: { value: number; format?: "p
 }
 
 export default function MarketOverview({ onSymbol, onNav }: Props) {
+  const { data: config } = useSymbolConfig();
+  const INDICES = config?.indices ?? [];
   const indexSymbols = INDICES.map(i => i.symbol);
   const { data: indices, isLoading: idxLoad } = useQuotes(indexSymbols);
   const { data: sparklines } = useIndexSparklines();
@@ -186,6 +189,11 @@ export default function MarketOverview({ onSymbol, onNav }: Props) {
                           {q.change >= 0 ? "+" : ""}{q.change.toFixed(2)}
                         </span>
                       </div>
+                      {q.volume > 0 && (
+                        <div className="font-terminal text-[7px] text-muted-foreground/50 tabular-nums">
+                          VOL {q.volume >= 1e9 ? `${(q.volume / 1e9).toFixed(1)}B` : q.volume >= 1e6 ? `${(q.volume / 1e6).toFixed(1)}M` : q.volume.toLocaleString()}
+                        </div>
+                      )}
                     </>
                   )
                 ) : (
@@ -485,7 +493,7 @@ export default function MarketOverview({ onSymbol, onNav }: Props) {
             <span className="font-terminal text-[9px] text-muted-foreground">LIVE</span>
           </div>
           <NewsList
-            items={news ?? []}
+            items={(news ?? []).map((n) => ({ kind: "news" as const, item: n }))}
             variant="dense"
             maxItems={10}
             className="flex-1"

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useScreener } from "@/lib/useFinance";
-import { formatPrice, formatPct, formatBig, pctClass, SCREENER_SECTORS } from "@/lib/finance";
+import { formatPrice, formatPct, formatBig, pctClass } from "@/lib/finance";
+import { useSymbolConfig } from "@/lib/useSymbolConfig";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowUpDown, SlidersHorizontal } from "lucide-react";
 
@@ -15,6 +16,9 @@ export default function ScreenerPanel({ onSymbol }: Props) {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [minPe, setMinPe] = useState("");
   const [maxPe, setMaxPe] = useState("");
+
+  const { data: config } = useSymbolConfig();
+  const SCREENER_SECTORS = config?.screenerSectors ?? [];
 
   const filters: Record<string, string> = { sector };
   if (minPe) filters.minPe = minPe;

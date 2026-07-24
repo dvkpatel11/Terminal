@@ -11,6 +11,8 @@ import { getDiscordTrackedChannels } from './symbolRegistry';
 import { getDiscordBotToken } from './discordBot';
 import { getMessages } from './discordApi';
 import { normalizeDiscordMessage } from './discordMessages';
+import { getRedditToken } from './redditAuth';
+import { resilientFetch } from './providerUtils';
 
 const FETCH_TIMEOUT = 8000;
 const REDDIT_USER_AGENT = 'TerminalApp/1.0';
@@ -125,29 +127,18 @@ async function redditFetch(url: string, userToken?: string): Promise<any> {
   if (userToken) {
     headers['Authorization'] = `Bearer ${userToken}`;
   } else {
-    const clientId = process.env.REDDIT_CLIENT_ID;
-    const clientSecret = process.env.REDDIT_CLIENT_SECRET;
-
-    if (clientId && clientSecret) {
-      const tokenResp = await fetch('https://www.reddit.com/api/v1/access_token', {
-        method: 'POST',
-        headers: {
-          Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': REDDIT_USER_AGENT,
-        },
-        body: 'grant_type=client_credentials',
-      });
-      if (tokenResp.ok) {
-        const tokenData = (await tokenResp.json()) as any;
-        if (tokenData.access_token) {
-          headers['Authorization'] = `Bearer ${tokenData.access_token}`;
-        }
-      }
+    // Use the shared cached token — avoids re-fetching client_credentials on every call.
+    const token = await getRedditToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
   }
 
-  const resp = await fetch(url, { headers, signal: AbortSignal.timeout(FETCH_TIMEOUT) });
+  const resp = await resilientFetch(
+    { name: "reddit", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
+    url,
+    { headers },
+  );
   if (!resp.ok) throw new Error(`Reddit ${resp.status}`);
   return resp.json();
 }
@@ -206,10 +197,11 @@ export async function fetchRedditPosts(subreddits: string[], userToken?: string)
 
 async function fetchTwitterUserId(username: string, bearer: string): Promise<string | null> {
   try {
-    const resp = await fetch(`${TWITTER_API}/users/by/username/${username}`, {
-      headers: { Authorization: `Bearer ${bearer}` },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT),
-    });
+    const resp = await resilientFetch(
+      { name: "twitter", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
+      `${TWITTER_API}/users/by/username/${username}`,
+      { headers: { Authorization: `Bearer ${bearer}` } },
+    );
     if (!resp.ok) return null;
     const data = (await resp.json()) as any;
     return data.data?.id || null;
@@ -219,12 +211,10 @@ async function fetchTwitterUserId(username: string, bearer: string): Promise<str
 }
 
 async function fetchTwitterTweets(userId: string, bearer: string): Promise<any[]> {
-  const resp = await fetch(
+  const resp = await resilientFetch(
+    { name: "twitter", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
     `${TWITTER_API}/users/${userId}/tweets?max_results=10&tweet.fields=public_metrics,created_at`,
-    {
-      headers: { Authorization: `Bearer ${bearer}` },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT),
-    }
+    { headers: { Authorization: `Bearer ${bearer}` } },
   );
   if (!resp.ok) throw new Error(`Twitter ${resp.status}`);
   const data = (await resp.json()) as any;
@@ -289,9 +279,9 @@ async function resolveTruthAccountId(handle: string): Promise<string | null> {
   const known = TRUTH_ACCOUNT_IDS[handle.toLowerCase()];
   if (known) return known;
   try {
-    const resp = await fetch(
+    const resp = await resilientFetch(
+      { name: "twitter", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
       `${TRUTH_API_BASE}/accounts/search?q=${encodeURIComponent(handle)}&limit=1`,
-      { signal: AbortSignal.timeout(FETCH_TIMEOUT) }
     );
     if (!resp.ok) return null;
     const data = (await resp.json()) as any[];
@@ -310,9 +300,9 @@ export async function fetchTruthPosts(handles: string[]): Promise<SocialPost[]> 
         const accountId = await resolveTruthAccountId(handle);
         if (!accountId) return [];
 
-        const resp = await fetch(
+        const resp = await resilientFetch(
+          { name: "twitter", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
           `${TRUTH_API_BASE}/accounts/${accountId}/statuses?limit=15&exclude_replies=true&exclude_reblogs=true`,
-          { signal: AbortSignal.timeout(FETCH_TIMEOUT) }
         );
         if (!resp.ok) throw new Error(`TruthSocial ${resp.status}`);
 
@@ -405,6 +395,7 @@ function aggregateSentiment(posts: SocialPost[]): Record<string, { positive: num
 export async function getSocialFeed(
   config: SocialSourceConfig[],
   useUserTokens: boolean = false,
+  symbol?: string,
 ): Promise<SocialFeedResponse> {
   // Load user tokens if requested
   const userTokens: Record<string, string> = {};
@@ -444,18 +435,23 @@ export async function getSocialFeed(
   const allPosts = [...allReddit, ...allX, ...allTruth, ...allDiscord]
     .sort((a, b) => b.engagementScore - a.engagementScore);
 
-  const byAccount = [...allPosts].sort((a, b) => {
+  // Filter by symbol if provided — match against extracted tickers
+  const filteredPosts = symbol
+    ? allPosts.filter(p => p.tickers.some(t => t.toUpperCase() === symbol))
+    : allPosts;
+
+  const byAccount = [...filteredPosts].sort((a, b) => {
     if (a.accountName !== b.accountName) return a.accountName.localeCompare(b.accountName);
     return b.engagementScore - a.engagementScore;
   });
 
-  const sentiment = aggregateSentiment(allPosts);
+  const sentiment = aggregateSentiment(filteredPosts);
 
   return {
-    posts: allPosts,
+    posts: filteredPosts,
     byPlatform,
     byAccount,
     sentiment,
-    source: allPosts.length > 0 ? 'live' : 'none',
+    source: filteredPosts.length > 0 ? 'live' : 'none',
   };
 }

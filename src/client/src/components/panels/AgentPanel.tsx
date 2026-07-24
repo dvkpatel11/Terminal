@@ -1,11 +1,59 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Bot, Send, Trash2, Zap, ChevronDown } from "lucide-react";
+import { Bot, Send, Trash2, Zap, ChevronDown, Crosshair } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SKILLS, DEFAULT_SKILL_ID, type Skill } from "@/lib/skills";
+import type { ViewMode } from "@/lib/terminalTypes";
 
-interface Props { onSymbol: (sym: string) => void }
+interface Skill {
+  id: string;
+  label: string;
+  description: string;
+  defaultPrompts: string[];
+}
+
+const FALLBACK_SKILLS: Skill[] = [
+  { id: "analyst", label: "EQUITY ANALYST", description: "Deep equity analysis", defaultPrompts: [
+    "Analyze AAPL: bull vs bear case with fair value estimate",
+    "Compare NVDA vs AMD on valuation and growth metrics",
+    "What are the key risks for TSLA in Q2 2026?",
+    "Score MSFT on RSI, MACD, and Bollinger Bands",
+  ]},
+  { id: "macro", label: "MACRO STRATEGIST", description: "Macro economics and policy", defaultPrompts: [
+    "What does the yield curve signal about recession probability?",
+    "How should I position for rate cuts in 2026?",
+    "Analyze current Fed impact on equities and credit",
+    "What's the sector rotation signal from the Scorecard?",
+  ]},
+  { id: "quant", label: "QUANT RESEARCHER", description: "Quantitative analysis", defaultPrompts: [
+    "Calculate optimal position size for SPY with 2% risk",
+    "Analyze correlation between VIX term structure and SPY returns",
+    "What options strategy for earnings volatility?",
+    "Evaluate breadth signals: A/D ratio, stocks above DMA",
+  ]},
+  { id: "crypto", label: "CRYPTO ANALYST", description: "On-chain and DeFi", defaultPrompts: [
+    "Analyze BTC on-chain: whale activity and exchange flows",
+    "What does NVT ratio signal about BTC valuation?",
+    "Compare ETH vs SOL fundamentals",
+    "How does crypto correlate with traditional risk assets?",
+  ]},
+];
+
+const VIEW_LABELS: Record<string, string> = {
+  market: "Market Overview", chart: "Chart", news: "News Feed", agent: "AI Agent",
+  screener: "Screener", watchlist: "Watchlist", alerts: "Alerts", economics: "Economics",
+  portfolio: "Portfolio", intel: "Intel Dashboard", options: "Options Chain",
+  sentiment: "Sentiment", optflow: "Options Flow", onchain: "On-Chain",
+  scorecard: "Scorecard", sectors: "Sector Performance", social: "Social Feed",
+  fa: "Financials", dvd: "Dividends", key: "Key Ratios", ee: "Estimates",
+  profile: "Company Profile", thesis: "AI Thesis", crypto: "Crypto", plays: "Trade Ideas",
+};
+
+interface Props {
+  onSymbol: (sym: string) => void;
+  symbol?: string;
+  view?: ViewMode;
+}
 
 function MessageBubble({ msg }: { msg: { role: string; content: string } }) {
   const isUser = msg.role === "user";
@@ -37,17 +85,27 @@ function MessageBubble({ msg }: { msg: { role: string; content: string } }) {
   );
 }
 
-export default function AgentPanel({ onSymbol }: Props) {
+export default function AgentPanel({ onSymbol, symbol, view }: Props) {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [activeSkill, setActiveSkill] = useState(DEFAULT_SKILL_ID);
+  const [activeSkill, setActiveSkill] = useState("analyst");
   const [skillDropdownOpen, setSkillDropdownOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
 
-  const currentSkill = SKILLS.find(s => s.id === activeSkill) ?? SKILLS[0];
+  const { data: serverSkills } = useQuery<Skill[]>({
+    queryKey: ["/api/chat/skills"],
+    queryFn: async () => {
+      const res = await fetch("/api/chat/skills");
+      return res.json();
+    },
+    staleTime: 300_000,
+  });
+
+  const skills = serverSkills ?? FALLBACK_SKILLS;
+  const currentSkill = skills.find(s => s.id === activeSkill) ?? skills[0];
 
   const { data: messages = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/chat"],
@@ -92,7 +150,12 @@ export default function AgentPanel({ onSymbol }: Props) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg, skill: activeSkill }),
+        body: JSON.stringify({
+          message: msg,
+          skill: activeSkill,
+          symbol: symbol ?? undefined,
+          view: view ?? undefined,
+        }),
       });
 
       const reader = res.body!.getReader();
@@ -140,6 +203,15 @@ export default function AgentPanel({ onSymbol }: Props) {
           <Zap className="w-4 h-4 text-[hsl(186_45%_55%)]" />
           <span className="panel-label">BLMTRM AI AGENT</span>
           <span className="font-terminal text-[8px] text-muted-foreground border border-border px-1.5 py-0.5">MINIMAX M3</span>
+          {symbol && (
+            <span className="flex items-center gap-1 font-terminal text-[9px] text-[hsl(186_45%_55%)] bg-[hsl(186_45%_50%/0.1)] border border-[hsl(186_45%_50%/0.2)] px-1.5 py-0.5">
+              <Crosshair size={9} />
+              {symbol}
+              {view && view !== "agent" && (
+                <span className="text-muted-foreground/50 ml-1">· {VIEW_LABELS[view] ?? view}</span>
+              )}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -149,13 +221,13 @@ export default function AgentPanel({ onSymbol }: Props) {
               onClick={() => setSkillDropdownOpen(!skillDropdownOpen)}
               className="flex items-center gap-1.5 px-2 py-1 font-terminal text-[9px] tracking-wider text-[hsl(186_45%_55%)] bg-[hsl(186_45%_50%/0.08)] border border-[hsl(186_45%_50%/0.2)] hover:bg-[hsl(186_45%_50%/0.15)] transition-colors"
             >
-              <span>{currentSkill.label}</span>
+              <span>{currentSkill?.label ?? "SELECT SKILL"}</span>
               <ChevronDown className={`w-3 h-3 transition-transform ${skillDropdownOpen ? "rotate-180" : ""}`} />
             </button>
 
             {skillDropdownOpen && (
               <div className="absolute right-0 top-full mt-1 w-[220px] bg-[#0c0c0c] border border-border/70 shadow-[0_8px_32px_rgba(0,0,0,0.6)] z-50">
-                {SKILLS.map((skill) => (
+                {skills.map((skill) => (
                   <button
                     key={skill.id}
                     onClick={() => { setActiveSkill(skill.id); setSkillDropdownOpen(false); }}
@@ -199,14 +271,20 @@ export default function AgentPanel({ onSymbol }: Props) {
               <div className="font-terminal text-[10px] text-muted-foreground/60 text-center max-w-sm">
                 Ask about markets, analyze stocks, get macro insights, or discuss trading strategies.
               </div>
+              {symbol && (
+                <div className="font-terminal text-[10px] text-[hsl(186_45%_55%)] flex items-center gap-1">
+                  <Crosshair size={10} />
+                  Context: {symbol} · {VIEW_LABELS[view ?? ""] ?? "No panel"}
+                </div>
+              )}
               <div className="font-terminal text-[9px] text-[hsl(186_45%_55%)] tracking-wider">
-                SKILL: {currentSkill.label}
+                SKILL: {currentSkill?.label}
               </div>
             </div>
 
             {/* Quick prompts */}
             <div className="grid grid-cols-1 gap-2 w-full max-w-md">
-              {currentSkill.defaultPrompts.map((p, i) => (
+              {currentSkill?.defaultPrompts.map((p, i) => (
                 <button
                   key={i}
                   onClick={() => sendMessage(p)}
@@ -247,7 +325,7 @@ export default function AgentPanel({ onSymbol }: Props) {
           <input
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="ASK ABOUT MARKETS, STOCKS, MACRO..."
+            placeholder={symbol ? `ASK ABOUT ${symbol}...` : "ASK ABOUT MARKETS, STOCKS, MACRO..."}
             disabled={isStreaming}
             className="flex-1 bg-transparent font-terminal text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none disabled:opacity-50"
             data-testid="agent-input"

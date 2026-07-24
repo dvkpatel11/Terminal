@@ -1,17 +1,13 @@
 import type { IncomingHttpHeaders } from 'node:http';
 import { extendedStorage } from './storage';
+import { getCommonTickers } from './symbolRegistry';
+import { getRedditToken } from './redditAuth';
+import { resilientFetch } from './providerUtils';
 
 const FETCH_TIMEOUT = 8000;
 const REDDIT_USER_AGENT = 'MyDailyMonitor/1.0';
 
-const COMMON_TICKERS = new Set([
-  'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'TSLA', 'NVDA', 'META',
-  'NFLX', 'AMD', 'INTC', 'IBM', 'ORCL', 'CRM', 'ADBE', 'QCOM', 'TXN',
-  'AVGO', 'COST', 'WMT', 'HD', 'LOW', 'DIS', 'NKE', 'MCD', 'SBUX',
-  'BA', 'JPM', 'GS', 'BAC', 'C', 'WFC', 'V', 'MA', 'PYPL', 'SQ',
-  'GME', 'AMC', 'BB', 'PLTR', 'SNAP', 'RBLX', 'UBER', 'LYFT',
-  'BTC', 'ETH', 'SOL', 'DOGE', 'ADA', 'XRP', 'DOT', 'LINK', 'AVAX',
-]);
+const COMMON_TICKERS = getCommonTickers();
 
 interface PostBase {
   title: string;
@@ -104,29 +100,19 @@ function extractTickers(title: string, selftext: string): string[] {
 }
 
 async function redditFetch(url: string): Promise<any> {
-  const clientId = process.env.REDDIT_CLIENT_ID;
-  const clientSecret = process.env.REDDIT_CLIENT_SECRET;
   const headers: Record<string, string> = { 'User-Agent': REDDIT_USER_AGENT };
 
-  if (clientId && clientSecret) {
-    const tokenResp = await fetch('https://www.reddit.com/api/v1/access_token', {
-      method: 'POST',
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': REDDIT_USER_AGENT,
-      },
-      body: 'grant_type=client_credentials',
-    });
-    if (tokenResp.ok) {
-      const tokenData = (await tokenResp.json()) as any;
-      if (tokenData.access_token) {
-        headers['Authorization'] = `Bearer ${tokenData.access_token}`;
-      }
-    }
+  // Use the shared cached token — avoids re-fetching client_credentials on every call.
+  const token = await getRedditToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const resp = await fetch(url, { headers, signal: AbortSignal.timeout(FETCH_TIMEOUT) });
+  const resp = await resilientFetch(
+    { name: "reddit", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
+    url,
+    { headers },
+  );
   if (!resp.ok) throw new Error(`Reddit ${resp.status}`);
   return resp.json();
 }

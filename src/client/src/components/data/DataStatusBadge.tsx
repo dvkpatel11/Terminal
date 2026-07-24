@@ -7,6 +7,8 @@ interface Props {
   showAsOf?: boolean;
   /** Show a relative "updated Xs ago" stamp instead of the absolute timestamp. */
   relative?: boolean;
+  /** When true, overrides LED to amber and label to STALE regardless of freshness. */
+  stale?: boolean;
 }
 
 function getLedColor(freshness: DataStatus["freshness"]) {
@@ -75,22 +77,34 @@ function useRelativeAsOf(iso?: string): string | null {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export default function DataStatusBadge({ status, compact = false, showAsOf = false, relative = false }: Props) {
+export default function DataStatusBadge({ status, compact = false, showAsOf = false, relative = false, stale = false }: Props) {
   const ledSize = compact ? "w-1.5 h-1.5" : "w-2 h-2";
   const textSize = compact ? "text-[8px]" : "text-[9px]";
 
   const relativeText = useRelativeAsOf(relative ? status.asOf ?? undefined : undefined);
 
+  const ledClass = stale
+    ? "bg-amber-500 shadow-[0_0_4px_rgba(245,158,11,0.5)] animate-pulse"
+    : status.isFallback
+      ? "bg-orange-500 shadow-[0_0_4px_rgba(249,115,22,0.4)] animate-pulse"
+      : getLedColor(status.freshness);
+  const label = stale ? "STALE" : status.isFallback ? "FALLBACK" : getLabel(status.freshness);
+
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
       <div className="flex items-center gap-1">
-        <span className={`${ledSize} rounded-full shrink-0 ${getLedColor(status.freshness)}`} />
+        <span className={`${ledSize} rounded-full shrink-0 ${ledClass}`} />
         <span className={`font-terminal text-muted-foreground/70 ${textSize}`}>
-          {getLabel(status.freshness)}
+          {label}
         </span>
         <span className={`font-terminal text-muted-foreground/40 ${textSize}`}>
           {status.provider.toUpperCase()}
         </span>
+        {status.isFallback && (
+          <span className={`font-terminal text-orange-400/60 ${textSize}`}>
+            FALLBACK
+          </span>
+        )}
       </div>
       {relative && relativeText && (
         <span className={`font-terminal text-muted-foreground/50 ${textSize}`}>

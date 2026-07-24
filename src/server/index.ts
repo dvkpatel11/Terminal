@@ -6,6 +6,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(__dirname, "../.env") });
 
 import express, { type Request, Response, NextFunction } from "express";
+import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -37,6 +38,17 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+// ── Rate limiting ──────────────────────────────────────────────────────────
+// Global limiter: 300 requests per 15 minutes per IP on all /api routes.
+const globalApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests — please slow down." },
+});
+app.use("/api", globalApiLimiter);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -76,6 +88,11 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // ── Data source startup logging ──
+  log("starting data sources...", "startup");
+
+  // OpenBB: Python API server for fundamentals, options, yield curve
+  log("[openbb] starting API server on port 6901...", "startup");
   startOpenBBServer();
 
   // ── Realtime quote bus + Finnhub WebSocket ──
@@ -92,6 +109,7 @@ app.use((req, res, next) => {
   const FINNHUB_CRYPTO: CryptoSymbolMap = {};
 
   if (process.env.FINNHUB_API_KEY) {
+    log(`[finnhub] connecting with ${FINNHUB_EQUITIES.length} equity symbols...`, "startup");
     finnhubStop = startFinnhub({
       bus,
       token: process.env.FINNHUB_API_KEY,
@@ -104,6 +122,8 @@ app.use((req, res, next) => {
 
   // Binance public WS: genuinely realtime crypto with NO API key. Always on.
   const BINANCE_CRYPTO: BinanceSymbolMap = getBinanceSymbolMap() as BinanceSymbolMap;
+  const binanceSymbols = Object.keys(BINANCE_CRYPTO);
+  log(`[binance] connecting for ${binanceSymbols.length} crypto streams (${binanceSymbols.join(", ")})...`, "startup");
   const binanceStop = startBinance({ bus, symbolMap: BINANCE_CRYPTO }).stop;
 
   // Alerts: evaluate against live bus prices when available, else the

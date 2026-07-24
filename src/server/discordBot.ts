@@ -1,3 +1,5 @@
+import { resilientFetch } from "./providerUtils";
+
 let discordBotToken: string | null = null;
 
 export function setDiscordBotToken(token: string): void {
@@ -22,9 +24,11 @@ export async function verifyBotToken(token: string): Promise<{
   error?: string;
 }> {
   try {
-    const res = await fetch("https://discord.com/api/v10/users/@me", {
-      headers: { Authorization: `Bot ${token}` },
-    });
+    const res = await resilientFetch(
+      { name: "discord", retry: { maxAttempts: 2, baseDelayMs: 1000 }, circuitBreaker: { threshold: 5, cooldownMs: 60_000 } },
+      "https://discord.com/api/v10/users/@me",
+      { headers: { Authorization: `Bot ${token}` } },
+    );
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       return { ok: false, error: `Invalid token (${res.status}): ${body.message || "unknown error"}` };

@@ -32,7 +32,7 @@ import {
   CHART_COLORS,
   type OHLCVBar,
   type TimeValue,
-} from "@/lib/chartCalculations";
+} from "@shared/chartCalculations";
 
 interface Props {
   symbol: string;
@@ -357,6 +357,24 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
       }
       candleSeriesRef.current = mainSeries;
 
+      // Event markers (earnings, dividends)
+      if (events.length > 0 && ohlcvBars.length > 0) {
+        const timeToNum = (t: string | number) => typeof t === "number" ? t : Math.floor(new Date(t).getTime() / 1000);
+        const barTimes = new Set(ohlcvBars.map(b => b.time));
+        const markers = events
+          .filter(e => barTimes.has(timeToNum(e.date) as any))
+          .map(e => ({
+            time: timeToNum(e.date) as any,
+            position: "aboveBar" as const,
+            color: e.type === "earnings" ? "#f59e0b" : e.type === "dividend" ? "#10b981" : "#8b5cf6",
+            shape: e.type === "earnings" ? "circle" as const : "arrowDown" as const,
+            text: e.label,
+          }));
+        if (markers.length > 0) {
+          try { mainSeries.setMarkers(markers); } catch { /* lightweight-charts compat */ }
+        }
+      }
+
       // Volume overlay
       const volumeSeries = chart.addSeries(HistogramSeries, {
         color: CHART_COLORS.volumeUp, priceFormat: { type: "volume" }, priceScaleId: "volume",
@@ -467,8 +485,8 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
         addRsiRefLine(70, "hsl(0,80%,55%)", true);    // Overbought - red dashed
         addRsiRefLine(50, "hsl(0,0%,55%)", false);    // Midline - gray solid
 
-        // Configure RSI price scale
-        chart.priceScale("rsi").applyOptions({
+        // Configure RSI price scale (paneIndex 1 = RSI pane)
+        chart.priceScale("rsi", 1).applyOptions({
           scaleMargins: { top: 0.1, bottom: 0.1 },
           autoScale: true,
         });
@@ -525,8 +543,8 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
         });
         zeroLine.setData(zeroData as any);
 
-        // Configure MACD price scale
-        chart.priceScale("macd").applyOptions({
+        // Configure MACD price scale (paneIndex 2 = MACD pane)
+        chart.priceScale("macd", 2).applyOptions({
           scaleMargins: { top: 0.1, bottom: 0.1 },
           autoScale: true,
         });

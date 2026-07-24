@@ -10,20 +10,20 @@ interface Props {
 function ScorecardCell({ value, format = "price" }: { value: number; format?: "price" | "pct" | "bps" }) {
   if (format === "pct") {
     return (
-      <span className={`font-terminal text-[10px] tabular-nums ${pctClass(value)}`}>
+      <span className={`font-terminal text-[11px] tabular-nums ${pctClass(value)}`}>
         {value >= 0 ? "+" : ""}{value.toFixed(2)}%
       </span>
     );
   }
   if (format === "bps") {
     return (
-      <span className={`font-terminal text-[10px] tabular-nums ${pctClass(value)}`}>
+      <span className={`font-terminal text-[11px] tabular-nums ${pctClass(value)}`}>
         {value >= 0 ? "+" : ""}{(value * 100).toFixed(0)}bps
       </span>
     );
   }
   return (
-    <span className="font-terminal text-[10px] tabular-nums text-foreground">
+    <span className="font-terminal text-[11px] tabular-nums text-foreground">
       {formatPrice(value)}
     </span>
   );
@@ -39,7 +39,7 @@ function CategoryBadge({ category }: { category: string }) {
     rates: "text-amber-400 border-amber-400/30",
   };
   return (
-    <span className={`text-[7px] px-1 py-0.5 border ${colors[category] ?? "text-muted-foreground border-border"}`}>
+    <span className={`text-[8px] px-1 py-0.5 border ${colors[category] ?? "text-muted-foreground border-border"}`}>
       {category.toUpperCase()}
     </span>
   );
@@ -78,7 +78,7 @@ export default function ScorecardPanel({ onSymbol }: Props) {
         </div>
         <div className="flex items-center gap-3">
           {breadth && (
-            <div className="flex items-center gap-1.5 text-[9px]">
+            <div className="flex items-center gap-1.5 text-[10px]">
               <Activity className="w-3 h-3 text-muted-foreground" />
               <span className={pctClass(breadth.advanceDeclineRatio - 1)}>
                 A/D: {breadth.advanceDeclineRatio.toFixed(2)}
@@ -86,7 +86,7 @@ export default function ScorecardPanel({ onSymbol }: Props) {
             </div>
           )}
           {credit && (
-            <div className="flex items-center gap-1.5 text-[9px]">
+            <div className="flex items-center gap-1.5 text-[10px]">
               <AlertTriangle className="w-3 h-3 text-muted-foreground" />
               <span className={credit.trend === "widening" ? "text-down" : credit.trend === "tightening" ? "text-up" : "text-muted-foreground"}>
                 IG: {credit.igOas.toFixed(0)}bps {credit.trend === "widening" ? "↑" : credit.trend === "tightening" ? "↓" : "→"}
@@ -108,14 +108,14 @@ export default function ScorecardPanel({ onSymbol }: Props) {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border/30">
-                  <th className="text-left py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">INDEX</th>
-                  <th className="text-right py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">LEVEL</th>
-                  <th className="text-right py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">1D</th>
-                  <th className="text-right py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">WOW</th>
-                  <th className="text-right py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">MOM</th>
-                  <th className="text-right py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">YTD</th>
-                  <th className="text-right py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">52W%</th>
-                  <th className="text-right py-1.5 font-terminal text-[8px] text-muted-foreground tracking-wider">LEVELS</th>
+                  <th className="text-left py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">INDEX</th>
+                  <th className="text-right py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">LEVEL</th>
+                  <th className="text-right py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">1D</th>
+                  <th className="text-right py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">WOW</th>
+                  <th className="text-right py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">MOM</th>
+                  <th className="text-right py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">YTD</th>
+                  <th className="text-right py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">52W%</th>
+                  <th className="text-right py-1.5 font-terminal text-[9px] text-muted-foreground tracking-wider">LEVELS</th>
                 </tr>
               </thead>
               <tbody>
@@ -127,12 +127,12 @@ export default function ScorecardPanel({ onSymbol }: Props) {
                   >
                     <td className="py-2">
                       <div className="flex items-center gap-2">
-                        <span className="font-terminal text-[10px] text-foreground font-medium">{row.label}</span>
+                        <span className="font-terminal text-[11px] text-foreground font-medium">{row.label}</span>
                         <CategoryBadge category={row.category} />
                       </div>
                     </td>
                     <td className="text-right py-2">
-                      <span className="font-terminal text-[11px] tabular-nums text-foreground font-medium">
+                      <span className="font-terminal text-[12px] tabular-nums text-foreground font-medium">
                         {formatPrice(row.price)}
                       </span>
                     </td>
@@ -141,12 +141,12 @@ export default function ScorecardPanel({ onSymbol }: Props) {
                     <td className="text-right py-2"><ScorecardCell value={row.monthChange} format="pct" /></td>
                     <td className="text-right py-2"><ScorecardCell value={row.ytdChange} format="pct" /></td>
                     <td className="text-right py-2">
-                      <span className={`font-terminal text-[10px] tabular-nums ${row.high52Pct > -5 ? "text-up" : row.high52Pct < -15 ? "text-down" : "text-muted-foreground"}`}>
+                      <span className={`font-terminal text-[11px] tabular-nums ${row.high52Pct > -5 ? "text-up" : row.high52Pct < -15 ? "text-down" : "text-muted-foreground"}`}>
                         {row.high52Pct.toFixed(1)}%
                       </span>
                     </td>
                     <td className="text-right py-2">
-                      <span className="font-terminal text-[9px] text-muted-foreground">{row.keyLevel}</span>
+                      <span className="font-terminal text-[10px] text-muted-foreground">{row.keyLevel}</span>
                     </td>
                   </tr>
                 ))}

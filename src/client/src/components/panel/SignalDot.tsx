@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { SignalLevel } from "@/lib/signals";
+import type { SignalLevel } from "@shared/signals";
 
 interface Props {
   level: SignalLevel;

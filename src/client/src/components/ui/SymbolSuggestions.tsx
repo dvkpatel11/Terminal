@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSymbolConfig } from "@/lib/useSymbolConfig";
 
 interface SearchResult {
   symbol: string;
@@ -12,9 +13,10 @@ interface Props {
   onSelect: (symbol: string) => void;
 }
 
-const POPULAR_TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "GOOGL", "AMZN", "META", "JPM"];
-
 export default function SymbolSuggestions({ query, onSelect }: Props) {
+  const { data: config } = useSymbolConfig();
+  const POPULAR_TICKERS = config?.popularTickers?.slice(0, 8) ?? [];
+
   const { data: results = [], isLoading } = useQuery<SearchResult[]>({
     queryKey: ["/api/finance/search", query],
     queryFn: async () => {

@@ -76,7 +76,7 @@ export default function WatchlistPanel({ onSymbol, onNav }: Props) {
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-[#070707] shrink-0">
         <Star className="w-4 h-4" style={{ color: ACCENT }} />
         <span className="panel-label">WATCHLIST</span>
-        <span className="font-terminal text-[9px] text-muted-foreground ml-2">{watchlist.length} SYMBOLS</span>
+        <span className="font-terminal text-[10px] text-muted-foreground ml-2">{watchlist.length} SYMBOLS</span>
       </div>
 
       {/* Add form */}
@@ -110,7 +110,7 @@ export default function WatchlistPanel({ onSymbol, onNav }: Props) {
         <div className="w-[280px] shrink-0 flex flex-col border-r border-border">
           <div className="grid grid-cols-[1fr_70px_60px] gap-px px-3 py-1.5 border-b border-border bg-[#0a0a0a] shrink-0">
             {["TICKER", "PRICE", "CHG%"].map((h, i) => (
-              <span key={i} className={`font-terminal text-[8px] tracking-wider text-muted-foreground ${i > 0 ? "text-right" : ""}`}>{h}</span>
+              <span key={i} className={`font-terminal text-[9px] tracking-wider text-muted-foreground ${i > 0 ? "text-right" : ""}`}>{h}</span>
             ))}
           </div>
           <div className="flex-1 overflow-y-auto scrollbar-thin">
@@ -134,12 +134,12 @@ export default function WatchlistPanel({ onSymbol, onNav }: Props) {
                 >
                   <div className="flex items-center gap-1.5 min-w-0">
                     <Star className="w-2.5 h-2.5 shrink-0" style={{ color: ACCENT, fill: ACCENT }} />
-                    <span className="font-terminal text-[11px] font-bold truncate" style={{ color: ACCENT }}>{w.symbol}</span>
+                    <span className="font-terminal text-[12px] font-bold truncate" style={{ color: ACCENT }}>{w.symbol}</span>
                   </div>
-                  <span className="font-terminal text-[11px] tabular-nums text-right text-foreground">
+                  <span className="font-terminal text-[12px] tabular-nums text-right text-foreground">
                     {q ? `$${formatPrice(q.price)}` : "—"}
                   </span>
-                  <span className={`font-terminal text-[10px] tabular-nums font-semibold text-right ${q ? pctClass(q.changePercent) : "text-muted-foreground"}`}>
+                  <span className={`font-terminal text-[11px] tabular-nums font-semibold text-right ${q ? pctClass(q.changePercent) : "text-muted-foreground"}`}>
                     {q ? `${q.changePercent >= 0 ? "▲" : "▼"}${Math.abs(q.changePercent).toFixed(2)}%` : "—"}
                   </span>
                   <button
@@ -249,7 +249,7 @@ export default function WatchlistPanel({ onSymbol, onNav }: Props) {
                         </div>
                       ) : (
                         <NewsList
-                          items={news}
+                          items={news.map((n) => ({ kind: "news" as const, item: n }))}
                           variant="dense"
                           maxItems={20}
                           className="flex-1"
