@@ -1,6 +1,6 @@
 import type { DataFreshness } from "./finance";
 
-export type ChartInterval = "5m" | "15m" | "1h" | "1d";
+export type ChartInterval = "5m" | "15m" | "1h" | "1d" | "1w" | "1m";
 
 interface SeriesPoint {
   date: string;
@@ -17,7 +17,7 @@ export function supportsIntradayCharts(freshness: DataFreshness | null | undefin
 }
 
 export function getAllowedIntervals(supportsIntraday: boolean): ChartInterval[] {
-  return supportsIntraday ? ["5m", "15m", "1h", "1d"] : ["1d"];
+  return supportsIntraday ? ["5m", "15m", "1h", "1d", "1w", "1m"] : ["1d", "1w", "1m"];
 }
 
 

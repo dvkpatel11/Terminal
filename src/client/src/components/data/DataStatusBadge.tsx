@@ -91,7 +91,13 @@ export default function DataStatusBadge({ status, compact = false, showAsOf = fa
   const label = stale ? "STALE" : status.isFallback ? "FALLBACK" : getLabel(status.freshness);
 
   return (
-    <div className="flex items-center gap-1.5 flex-wrap">
+    <div
+      className="flex items-center gap-1.5 flex-wrap"
+      title={status.isFallback
+        ? `${status.provider} is a fallback source. Primary provider unavailable. Data may differ.`
+        : undefined
+      }
+    >
       <div className="flex items-center gap-1">
         <span className={`${ledSize} rounded-full shrink-0 ${ledClass}`} />
         <span className={`font-terminal text-muted-foreground/70 ${textSize}`}>

@@ -77,7 +77,7 @@ interface MeasureState {
   endY: number;
 }
 
-const RANGES = ["1D", "5D", "1M", "3M", "6M", "1Y", "2Y"] as const;
+const RANGES = ["1D", "5D", "1M", "3M", "6M", "1Y", "2Y", "5Y", "MAX"] as const;
 const CHART_TYPES = ["CANDLE", "LINE", "AREA"] as const;
 const PIVOT_PERIODS = ["DAILY", "WEEKLY", "MONTHLY"] as const;
 const FIB_LEVELS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
@@ -92,6 +92,8 @@ const INDICATOR_KEYS = ["RSI", "MACD"] as const;
 function getAllowedRanges(interval: ChartInterval): ReadonlyArray<(typeof RANGES)[number]> {
   if (interval === "5m" || interval === "15m") return ["1D"];
   if (interval === "1h") return ["1D", "5D", "1M", "3M"];
+  if (interval === "1w") return ["6M", "1Y", "2Y", "5Y", "MAX"];
+  if (interval === "1m") return ["1Y", "2Y", "5Y", "MAX"];
   return [...RANGES];
 }
 

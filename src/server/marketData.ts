@@ -22,7 +22,7 @@ export interface OHLCVBar {
   volume: number;
 }
 
-export type OhlcvInterval = "5m" | "15m" | "1h" | "1d";
+export type OhlcvInterval = "5m" | "15m" | "1h" | "1d" | "1w" | "1m";
 
 export interface Quote {
   symbol: string;
