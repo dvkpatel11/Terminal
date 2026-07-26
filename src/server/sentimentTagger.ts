@@ -1,14 +1,14 @@
 /**
- * Post-level sentiment tagger using Claude Haiku.
+ * Post-level sentiment tagger using NVIDIA free model (llama-3.1-8b-instant).
  *
  * Given a post's text and optional ticker context, returns structured
- * sentiment classification. Optimized for low cost/latency — uses
- * Haiku model with minimal tokens.
+ * sentiment classification. Optimized for zero cost — uses NVIDIA NIM
+ * free tier with minimal tokens.
  *
  * Output: { sentiment, confidence, tickers, rationale_short }
  */
 
-import { claudeMessages, parseClaudeJson } from "./claudeApi";
+import { resilientFetch } from "./providerUtils";
 import { extractTickers } from "./sentimentAnalyzer";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -60,8 +60,12 @@ Rules:
 
 // ─── Public API ────────────────────────────────────────────────────────────
 
+const NVIDIA_API_URL = process.env.NVIDIA_API_URL ?? "https://integrate.api.nvidia.com/v1/chat/completions";
+const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY ?? "";
+const NVIDIA_MODEL = "nvidia/llama-3.1-8b-instant";
+
 /**
- * Tag a single post's sentiment via Claude Haiku.
+ * Tag a single post's sentiment via NVIDIA free model.
  * Uses the rule-based extractTickers as pre-hints to reduce model hallucination.
  */
 export async function tagPostSentiment(
@@ -81,14 +85,56 @@ export async function tagPostSentiment(
     fullText.slice(0, 2000),  // cap input to control cost
   ].filter(Boolean).join("\n");
 
-  const result = await claudeMessages(
-    TAGGER_SYSTEM,
-    [{ role: "user", content: userMessage }],
-    "haiku",
-    256,  // minimal output tokens — structured JSON only
+  if (!NVIDIA_API_KEY) {
+    // Fallback: return neutral with low confidence when API not configured
+    return {
+      tag: { sentiment: "neutral", confidence: 0.1, tickers: hintTickers, rationale_short: "NVIDIA API not configured" },
+      model: "fallback",
+      inputTokens: 0,
+      outputTokens: 0,
+      latencyMs: 0,
+    };
+  }
+
+  const start = Date.now();
+
+  const res = await resilientFetch(
+    {
+      name: "nvidia-sentiment",
+      retry: { maxAttempts: 2, baseDelayMs: 1000 },
+      circuitBreaker: { threshold: 5, cooldownMs: 60_000 },
+    },
+    NVIDIA_API_URL,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${NVIDIA_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: NVIDIA_MODEL,
+        messages: [
+          { role: "system", content: TAGGER_SYSTEM },
+          { role: "user", content: userMessage },
+        ],
+        max_tokens: 256,
+        temperature: 0.3,
+        top_p: 0.9,
+      }),
+    },
   );
 
-  const tag = parseClaudeJson<SentimentTag>(result.content);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as any;
+    const msg = body?.error?.message || res.statusText;
+    throw new Error(`NVIDIA API ${res.status}: ${msg}`);
+  }
+
+  const data = await res.json() as any;
+  const content = data.choices?.[0]?.message?.content ?? "";
+  const latencyMs = Date.now() - start;
+
+  const tag = parseNvidiaJson<SentimentTag>(content);
 
   // Validate and clamp
   if (!["bullish", "bearish", "neutral"].includes(tag.sentiment)) {
@@ -100,11 +146,19 @@ export async function tagPostSentiment(
 
   return {
     tag,
-    model: result.model,
-    inputTokens: result.inputTokens,
-    outputTokens: result.outputTokens,
-    latencyMs: result.latencyMs,
+    model: data.model ?? NVIDIA_MODEL,
+    inputTokens: data.usage?.prompt_tokens ?? 0,
+    outputTokens: data.usage?.completion_tokens ?? 0,
+    latencyMs,
   };
+}
+
+function parseNvidiaJson<T>(content: string): T {
+  let cleaned = content.trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "");
+  }
+  return JSON.parse(cleaned) as T;
 }
 
 /**

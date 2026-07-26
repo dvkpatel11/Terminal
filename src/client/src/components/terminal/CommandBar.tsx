@@ -126,7 +126,7 @@ export default function CommandBar({ onClose, onExecute, onConfigOpen }: Props) 
   const tickerResults = filteredTickers.map((ticker) => ({
     type: "ticker" as const,
     label: ticker,
-        command: { raw: ticker, symbol: ticker, view: "intel" as ViewMode },
+        command: { raw: ticker, symbol: ticker, view: "synthesis" as ViewMode },
     icon: Brain,
     meta: "QUOTE",
   }));

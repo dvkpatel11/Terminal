@@ -10,7 +10,7 @@
  *  2. Event-based: material price move (>3% intraday) or high-impact news
  */
 
-import { claudeMessages, parseClaudeJson } from "./claudeApi";
+import { openRouterMessages, parseOpenRouterJson } from "./openRouterApi";
 import { getFundamentals, getQuotes, getNews, type Quote, type NewsItem } from "./marketData";
 import { getTechnicalIndicators, type TechnicalIndicators } from "./marketScorecard";
 import { getLiveMacroSnapshot, type LiveMacroSnapshot } from "./economicsData";
@@ -368,15 +368,14 @@ YTD Change: ${s.ytdChange != null ? `${s.ytdChange.toFixed(2)}%` : "N/A"}
 
   const userMessage = sections.join("\n\n");
 
-  // Generate thesis via Claude Sonnet
-  const result = await claudeMessages(
+  // Generate thesis via DeepSeek V4-Flash (via OpenRouter)
+  const result = await openRouterMessages(
     THESIS_SYSTEM,
     [{ role: "user", content: userMessage }],
-    "sonnet",
     2048,
   );
 
-  const thesis = parseClaudeJson<TradeThesis>(result.content);
+  const thesis = parseOpenRouterJson<TradeThesis>(result.content);
 
   // Validate
   thesis.symbol = symbol;

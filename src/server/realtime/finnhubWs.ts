@@ -117,7 +117,6 @@ export function startFinnhub(config: FinnhubConfig): FinnhubHandle {
     ws.on("open", () => {
       backoff = 3000;
       subscribe();
-      console.log(`[finnhub] connected (${equitySymbols.length + finnCrypto.length} symbols)`);
     });
 
     ws.on("message", (data) => {

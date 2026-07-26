@@ -69,6 +69,15 @@ function FeedItem({ post, onSymbol }: { post: SocialPost; onSymbol?: (s: string)
               ${t}
             </button>
           ))}
+          {post.aiSentiment && (
+            <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
+              post.aiSentiment === "bullish" ? "bg-green-500/20 text-green-400" :
+              post.aiSentiment === "bearish" ? "bg-red-500/20 text-red-400" :
+              "bg-muted/30 text-muted-foreground"
+            }`}>
+              {post.aiSentiment.toUpperCase()}
+            </span>
+          )}
           <span className="text-[10px] text-muted-foreground/40 ml-auto flex items-center gap-1">
             {post.contentType !== "meme" && (
               <span className="uppercase">{post.contentType}</span>
@@ -94,41 +103,123 @@ function FeedItem({ post, onSymbol }: { post: SocialPost; onSymbol?: (s: string)
   );
 }
 
-function SentimentSidebar({ sentiment, onSymbol }: { sentiment: Record<string, { positive: number; negative: number; score: number; count: number }>; onSymbol?: (ticker: string) => void }) {
-  const sorted = useMemo(
-    () => Object.entries(sentiment).sort((a, b) => b[1].count - a[1].count).slice(0, 20),
-    [sentiment]
-  );
+function SentimentSidebar({ sentiment, posts, onSymbol }: { sentiment: Record<string, { positive: number; negative: number; score: number; count: number }>; posts?: SocialPost[]; onSymbol?: (ticker: string) => void }) {
+  const [minConfidence, setMinConfidence] = useState(0);
+
+  const sorted = useMemo(() => {
+    const entries = Object.entries(sentiment)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 20);
+    if (minConfidence === 0) return entries;
+    // Filter: keep if no AI tag (pure rule-based) OR AI confidence meets threshold
+    return entries.filter(([ticker]) => {
+      if (!posts) return true;
+      const aiPost = posts.find(p => p.aiSentiment && p.tickers.includes(ticker));
+      return !aiPost || (aiPost.aiConfidence ?? 0) >= minConfidence;
+    });
+  }, [sentiment, posts, minConfidence]);
+
+  // Build AI tag lookup from posts (with platform source)
+  const aiTagMap = useMemo(() => {
+    if (!posts) return new Map<string, { sentiment: string; confidence: number; rationale?: string; platform: string }>();
+    const map = new Map<string, { sentiment: string; confidence: number; rationale?: string; platform: string }>();
+    for (const p of posts) {
+      if (!p.aiSentiment) continue;
+      for (const t of p.tickers) {
+        if (!map.has(t)) {
+          map.set(t, { sentiment: p.aiSentiment, confidence: p.aiConfidence ?? 0, rationale: p.aiRationale, platform: p.platform });
+        }
+      }
+    }
+    return map;
+  }, [posts]);
 
   return (
-    <div className="w-44 border-l border-border bg-[#070707] shrink-0 overflow-y-auto scrollbar-thin">
+    <div className="w-52 border-l border-border bg-[#070707] shrink-0 overflow-y-auto scrollbar-thin">
       <div className="px-3 py-2 border-b border-border/50">
         <div className="panel-label text-[10px]">SENTIMENT</div>
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <span className="text-[8px] text-muted-foreground/50">AI CONF</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round(minConfidence * 100)}
+            onChange={e => setMinConfidence(Number(e.target.value) / 100)}
+            className="flex-1 h-1 accent-[hsl(186,45%,55%)]"
+          />
+          <span className="text-[8px] text-muted-foreground/50 tabular-nums w-7 text-right">{Math.round(minConfidence * 100)}%</span>
+        </div>
       </div>
       <div className="p-2 space-y-0.5">
-        {sorted.map(([ticker, data]) => (
-          <div key={ticker} className="flex items-center justify-between py-1 px-1 text-xs rounded hover:bg-white/[0.03]">
-            <button
-              onClick={() => onSymbol?.(ticker)}
-              className="font-mono font-bold text-foreground hover:text-primary cursor-pointer"
-            >
-              {ticker}
-            </button>
-            <span
-              className={
-                data.score > 0.3
-                  ? "text-green-400 font-mono"
-                  : data.score < -0.3
-                    ? "text-red-400 font-mono"
-                    : "text-muted-foreground font-mono"
-              }
-            >
-              {data.score > 0 ? "+" : ""}
-              {data.score.toFixed(2)}
-            </span>
-            <span className="text-muted-foreground/40 text-[10px] w-5 text-right">{data.count}</span>
-          </div>
-        ))}
+        {sorted.map(([ticker, data]) => {
+          const ai = aiTagMap.get(ticker);
+          return (
+            <div key={ticker} className="py-1.5 px-1 text-xs rounded hover:bg-white/[0.03]">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => onSymbol?.(ticker)}
+                  className="font-mono font-bold text-foreground hover:text-primary cursor-pointer"
+                >
+                  {ticker}
+                </button>
+                <div className="flex items-center gap-1.5">
+                  {ai && (
+                    <>
+                      <span className={`text-[9px] px-1 py-0.5 rounded font-bold ${
+                        ai.sentiment === "bullish" ? "bg-green-500/20 text-green-400" :
+                        ai.sentiment === "bearish" ? "bg-red-500/20 text-red-400" :
+                        "bg-muted/30 text-muted-foreground"
+                      }`}>
+                        {ai.sentiment === "bullish" ? "▲" : ai.sentiment === "bearish" ? "▼" : "—"}
+                      </span>
+                      <span className={`text-[7px] px-0.5 py-0.5 rounded ${
+                        ai.platform === "reddit" ? "bg-orange-500/15 text-orange-400" :
+                        ai.platform === "x" ? "bg-blue-500/15 text-blue-400" :
+                        "bg-purple-500/15 text-purple-400"
+                      }`}>
+                        {ai.platform === "reddit" ? "RD" : ai.platform === "x" ? "X" : "TS"}
+                      </span>
+                    </>
+                  )}
+                  <span
+                    className={
+                      data.score > 0.3
+                        ? "text-green-400 font-mono"
+                        : data.score < -0.3
+                          ? "text-red-400 font-mono"
+                          : "text-muted-foreground font-mono"
+                    }
+                  >
+                    {data.score > 0 ? "+" : ""}
+                    {data.score.toFixed(2)}
+                  </span>
+                  <span className="text-muted-foreground/40 text-[10px] w-5 text-right">{data.count}</span>
+                </div>
+              </div>
+              {/* AI confidence bar */}
+              {ai && ai.confidence > 0 && (
+                <div className="mt-1 flex items-center gap-1.5">
+                  <div className="flex-1 h-1 bg-muted/20 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${
+                        ai.sentiment === "bullish" ? "bg-green-500/60" :
+                        ai.sentiment === "bearish" ? "bg-red-500/60" :
+                        "bg-muted-foreground/30"
+                      }`}
+                      style={{ width: `${Math.round(ai.confidence * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-[8px] text-muted-foreground/40 tabular-nums">{Math.round(ai.confidence * 100)}%</span>
+                </div>
+              )}
+              {/* AI rationale */}
+              {ai?.rationale && (
+                <div className="mt-0.5 text-[9px] text-muted-foreground/50 italic line-clamp-1">{ai.rationale}</div>
+              )}
+            </div>
+          );
+        })}
         {sorted.length === 0 && (
           <div className="text-[10px] text-muted-foreground/40 py-4 text-center">No ticker mentions yet</div>
         )}
@@ -216,7 +307,7 @@ export default function SocialFeedPanel({ onSymbol, onNav }: Props) {
             ))
           )}
         </div>
-        <SentimentSidebar sentiment={sentiment} onSymbol={onSymbol} />
+        <SentimentSidebar sentiment={sentiment} posts={posts} onSymbol={onSymbol} />
       </div>
 
       <div className="shrink-0 px-3 py-1.5 border-t border-border text-[10px] text-muted-foreground/40 flex items-center justify-between bg-[#070707]">

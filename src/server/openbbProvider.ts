@@ -189,6 +189,11 @@ export async function fetchOpenBBOptions(symbol: string): Promise<OpenBBOptionsR
       open_interest: c.open_interest,
       implied_volatility: c.implied_volatility,
       in_the_money: c.in_the_money,
+      delta: c.delta ?? null,
+      gamma: c.gamma ?? null,
+      theta: c.theta ?? null,
+      vega: c.vega ?? null,
+      rho: c.rho ?? null,
     })),
   };
 }

@@ -62,14 +62,25 @@ export const alerts = pgTable("alerts", {
   price: real("price").notNull(),
   triggered: boolean("triggered").default(false).notNull(),
   triggerPrice: real("trigger_price"),
+  triggerValue: real("trigger_value"), // actual metric value when triggered (PE, RSI, etc.)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   triggeredAt: timestamp("triggered_at"),
 });
 
+export const ALERT_CONDITIONS = [
+  "above", "below",                   // price
+  "pe_above", "pe_below",             // P/E ratio
+  "volume_above", "volume_below",     // volume
+  "rsi_above", "rsi_below",           // RSI(14)
+  "macd_above", "macd_below",         // MACD line
+] as const;
+
+export type AlertCondition = typeof ALERT_CONDITIONS[number];
+
 export const insertAlertSchema = z.object({
   instrumentId: z.number().int().positive(),
   symbol: z.string().trim().min(1),
-  condition: z.enum(["above", "below"]),
+  condition: z.enum(ALERT_CONDITIONS),
   price: z.number().finite().positive(),
 });
 
@@ -157,7 +168,7 @@ export const insertOhlcvBarSchema = z.object({
   instrumentId: z.number().int().positive(),
   symbol: z.string().trim().min(1),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  interval: z.enum(["5m", "15m", "1h", "1d"]),
+  interval: z.enum(["5m", "15m", "1h", "1d", "1w", "1m"]),
   open: z.number().finite(),
   high: z.number().finite(),
   low: z.number().finite(),
@@ -330,6 +341,11 @@ export const optionsActivity = pgTable("options_activity", {
   vOiRatio: real("v_oi_ratio").notNull(),
   sentiment: text("sentiment"),
   underlyingPrice: real("underlying_price"),
+  delta: real("delta"),
+  gamma: real("gamma"),
+  theta: real("theta"),
+  vega: real("vega"),
+  rho: real("rho"),
   recordedAt: timestamp("recorded_at").defaultNow().notNull(),
 });
 
@@ -344,6 +360,11 @@ export const insertOptionsActivitySchema = z.object({
   vOiRatio: z.number().finite(),
   sentiment: z.enum(["bullish", "bearish", "neutral"]).nullable().optional(),
   underlyingPrice: z.number().finite().nullable().optional(),
+  delta: z.number().finite().nullable().optional(),
+  gamma: z.number().finite().nullable().optional(),
+  theta: z.number().finite().nullable().optional(),
+  vega: z.number().finite().nullable().optional(),
+  rho: z.number().finite().nullable().optional(),
 });
 
 export type InsertOptionsActivity = z.infer<typeof insertOptionsActivitySchema>;
@@ -556,3 +577,159 @@ export const insertTechnicalIndicatorSchema = z.object({
 
 export type InsertTechnicalIndicator = z.infer<typeof insertTechnicalIndicatorSchema>;
 export type TechnicalIndicatorRecord = typeof technicalIndicators.$inferSelect;
+
+// ─── Positions ───────────────────────────────────────────────────────────────
+export const positions = pgTable("positions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  instrumentId: integer("instrument_id").references(() => instruments.id).notNull(),
+  symbol: text("symbol").notNull(),
+  side: text("side").notNull(), // 'long' | 'short'
+  quantity: real("quantity").notNull(),
+  avgEntry: real("avg_entry").notNull(),
+  currentPrice: real("current_price"),
+  pnl: real("pnl"),
+  pnlPercent: real("pnl_percent"),
+  status: text("status").notNull().default("open"), // 'open' | 'closed'
+  thesis: text("thesis"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  closedAt: timestamp("closed_at"),
+});
+
+export const insertPositionSchema = z.object({
+  instrumentId: z.number().int().positive(),
+  symbol: z.string().trim().min(1),
+  side: z.enum(["long", "short"]),
+  quantity: z.number().finite(),
+  avgEntry: z.number().finite(),
+  currentPrice: z.number().finite().nullable().optional(),
+  pnl: z.number().finite().nullable().optional(),
+  pnlPercent: z.number().finite().nullable().optional(),
+  status: z.enum(["open", "closed"]).optional(),
+  thesis: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  closedAt: z.date().nullable().optional(),
+});
+
+export type InsertPosition = z.infer<typeof insertPositionSchema>;
+export type PositionRecord = typeof positions.$inferSelect;
+
+// ─── Position Fills ──────────────────────────────────────────────────────────
+export const positionFills = pgTable("position_fills", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  positionId: integer("position_id").references(() => positions.id).notNull(),
+  symbol: text("symbol").notNull(),
+  side: text("side").notNull(), // 'buy' | 'sell'
+  quantity: real("quantity").notNull(),
+  price: real("price").notNull(),
+  fees: real("fees").default(0),
+  executedAt: timestamp("executed_at").defaultNow().notNull(),
+  notes: text("notes"),
+});
+
+export const insertPositionFillSchema = z.object({
+  positionId: z.number().int().positive(),
+  symbol: z.string().trim().min(1),
+  side: z.enum(["buy", "sell"]),
+  quantity: z.number().positive(),
+  price: z.number().finite(),
+  fees: z.number().finite().nullable().optional(),
+  executedAt: z.date().nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
+
+export type InsertPositionFill = z.infer<typeof insertPositionFillSchema>;
+export type PositionFillRecord = typeof positionFills.$inferSelect;
+
+// ─── Position Theses ─────────────────────────────────────────────────────────
+export const positionTheses = pgTable("position_theses", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  positionId: integer("position_id").references(() => positions.id).notNull(),
+  symbol: text("symbol").notNull(),
+  direction: text("direction").notNull(), // 'long' | 'short'
+  conviction: text("conviction").notNull(), // 'high' | 'medium' | 'low'
+  bullCase: text("bull_case").notNull(),
+  bearCase: text("bear_case").notNull(),
+  catalysts: text("catalysts"), // JSON array of strings
+  invalidation: text("invalidation"),
+  timeHorizon: text("time_horizon"),
+  model: text("model"),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertPositionThesisSchema = z.object({
+  positionId: z.number().int().positive(),
+  symbol: z.string().trim().min(1),
+  direction: z.enum(["long", "short"]),
+  conviction: z.enum(["high", "medium", "low"]),
+  bullCase: z.string().min(1),
+  bearCase: z.string().min(1),
+  catalysts: z.string().nullable().optional(),
+  invalidation: z.string().nullable().optional(),
+  timeHorizon: z.string().nullable().optional(),
+  model: z.string().nullable().optional(),
+  inputTokens: z.number().int().nullable().optional(),
+  outputTokens: z.number().int().nullable().optional(),
+});
+
+export type InsertPositionThesis = z.infer<typeof insertPositionThesisSchema>;
+export type PositionThesisRecord = typeof positionTheses.$inferSelect;
+
+// ─── Position Intents ────────────────────────────────────────────────────────
+export const positionIntents = pgTable("position_intents", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  symbol: text("symbol").notNull(),
+  side: text("side").notNull(), // 'long' | 'short'
+  conviction: text("conviction"), // 'high' | 'medium' | 'low'
+  thesis: text("thesis"),
+  targetPrice: real("target_price"),
+  stopLoss: real("stop_loss"),
+  timeHorizon: text("time_horizon"),
+  status: text("status").notNull().default("active"), // 'active' | 'filled' | 'expired' | 'cancelled'
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"),
+});
+
+export const insertPositionIntentSchema = z.object({
+  symbol: z.string().trim().min(1),
+  side: z.enum(["long", "short"]),
+  conviction: z.enum(["high", "medium", "low"]).nullable().optional(),
+  thesis: z.string().nullable().optional(),
+  targetPrice: z.number().finite().nullable().optional(),
+  stopLoss: z.number().finite().nullable().optional(),
+  timeHorizon: z.string().nullable().optional(),
+  status: z.enum(["active", "filled", "expired", "cancelled"]).optional(),
+  notes: z.string().nullable().optional(),
+  expiresAt: z.date().nullable().optional(),
+});
+
+export type InsertPositionIntent = z.infer<typeof insertPositionIntentSchema>;
+export type PositionIntentRecord = typeof positionIntents.$inferSelect;
+
+// ─── Agent Skills ────────────────────────────────────────────────────────────
+export const agentSkills = pgTable("agent_skills", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  skillId: text("skill_id").notNull().unique(),
+  label: text("label").notNull(),
+  description: text("description").notNull(),
+  systemPrompt: text("system_prompt").notNull(),
+  defaultPrompts: text("default_prompts").notNull().default("[]"), // JSON array of strings
+  isBuiltIn: boolean("is_built_in").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAgentSkillSchema = z.object({
+  skillId: z.string().trim().min(1).max(50),
+  label: z.string().trim().min(1).max(100),
+  description: z.string().trim().min(1).max(500),
+  systemPrompt: z.string().min(1),
+  defaultPrompts: z.string().optional(), // JSON array string
+  isBuiltIn: z.boolean().optional(),
+});
+
+export type InsertAgentSkill = z.infer<typeof insertAgentSkillSchema>;
+export type AgentSkillRecord = typeof agentSkills.$inferSelect;

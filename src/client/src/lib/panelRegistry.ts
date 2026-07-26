@@ -2,12 +2,11 @@ import { lazy, type ComponentType } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, LineChart, Newspaper,
-  Bot, Filter, Star, BellRing, Globe2, Briefcase,
+  Bot, Filter, Star, BellRing, Globe2,   Briefcase, Calendar,
   Brain, CandlestickChart, HelpCircle, Table2,
   FileText, CircleDollarSign, Activity, TrendingUp,
   ChartLine, Banknote, Bitcoin, MessageCircle, Scan,
-  BarChart, PieChart, Target,
-} from "lucide-react";
+  } from "lucide-react";
 import type { ViewMode, PanelProps } from "./terminalTypes";
 
 /**
@@ -31,26 +30,21 @@ const ScreenerPanel = lazy(() => import("@/components/panels/ScreenerPanel"));
 const WatchlistPanel = lazy(() => import("@/components/panels/WatchlistPanel"));
 const AlertsPanel = lazy(() => import("@/components/panels/AlertsPanel"));
 const EconomicsPanel = lazy(() => import("@/components/panels/EconomicsPanel"));
-const PortfolioPanel = lazy(() => import("@/components/panels/PortfolioPanel"));
-const IntelPanel = lazy(() => import("@/components/panels/IntelPanel"));
+const PortfolioDashboard = lazy(() => import("@/components/panels/PortfolioDashboard"));
 const OptionsPanel = lazy(() => import("@/components/panels/OptionsPanel"));
 const HelpPanel = lazy(() => import("@/components/panels/HelpPanel"));
 const HistoricalPricesPanel = lazy(() => import("@/components/panels/HistoricalPricesPanel"));
 const FinancialsPanel = lazy(() => import("@/components/panels/FinancialsPanel"));
 const DividendsPanel = lazy(() => import("@/components/panels/DividendsPanel"));
-const CompanyProfilePanel = lazy(() => import("@/components/panels/CompanyProfilePanel"));
 const YieldCurvePanel = lazy(() => import("@/components/panels/YieldCurvePanel"));
 const FxDashboardPanel = lazy(() => import("@/components/panels/FxDashboardPanel"));
 const CryptoPanel = lazy(() => import("@/components/panels/CryptoPanel"));
 const SentimentPanel = lazy(() => import("@/components/panels/SentimentPanel"));
 const OptionsFlowPanel = lazy(() => import("@/components/panels/OptionsFlowPanel"));
 const OnChainPanel = lazy(() => import("@/components/panels/OnChainPanel"));
-const ScorecardPanel = lazy(() => import("@/components/panels/ScorecardPanel"));
-const SectorPanel = lazy(() => import("@/components/panels/SectorPanel"));
 const SocialFeedPanel = lazy(() => import("@/components/panels/SocialFeedPanel"));
-const PlaysPanel = lazy(() => import("@/components/panels/PlaysPanel"));
-const ThesisPanel = lazy(() => import("@/components/panels/ThesisPanel"));
 const SynthesisPanel = lazy(() => import("@/components/panels/SynthesisPanel"));
+const CalendarPanel = lazy(() => import("@/components/panels/CalendarPanel"));
 
 // ─── Panel definition ──────────────────────────────────────────────────────
 
@@ -203,22 +197,7 @@ export const PANEL_REGISTRY: Record<ViewMode, PanelDefinition> = {
     quickAccess: true,
     topBarLabel: "PORT",
     aliases: ["PORT", "PRTU", "PORTFOLIO"],
-    component: PortfolioPanel,
-  },
-  // `intel` is the merged single-name intelligence/quote view (formerly `quote` + `intel`).
-  intel: {
-    label: "INTELLIGENCE",
-    code: "INTL",
-    icon: Brain,
-    kbd: "I",
-    needsSymbol: true,
-    isSecurityView: true,
-    showInTopBar: false,
-    category: "symbol",
-    quickAccess: false,
-    topBarLabel: "INTL",
-    aliases: ["INTEL", "DES", "QUOTE", "QR"],
-    component: IntelPanel,
+    component: PortfolioDashboard,
   },
   synthesis: {
     label: "SYNTHESIS",
@@ -231,7 +210,7 @@ export const PANEL_REGISTRY: Record<ViewMode, PanelDefinition> = {
     category: "symbol",
     quickAccess: true,
     topBarLabel: "SYN",
-    aliases: ["SYN", "SYNTHESIS"],
+    aliases: ["SYN", "SYNTHESIS", "INTEL", "DES", "QUOTE", "QR"],
     component: SynthesisPanel,
   },
   options: {
@@ -371,32 +350,6 @@ export const PANEL_REGISTRY: Record<ViewMode, PanelDefinition> = {
     aliases: ["CRYPTO", "COIN", "BTC"],
     component: CryptoPanel,
   },
-  scorecard: {
-    label: "MARKET SCORECARD",
-    code: "CARD",
-    icon: BarChart,
-    kbd: "0",
-    needsSymbol: false,
-    isSecurityView: false,
-    showInTopBar: true,
-    category: "market",
-    topBarLabel: "CARD",
-    aliases: ["CARD", "SCORE", "SCORECARD"],
-    component: ScorecardPanel,
-  },
-  sectors: {
-    label: "SECTOR PERFORMANCE",
-    code: "SECT",
-    icon: PieChart,
-    kbd: "T",
-    needsSymbol: false,
-    isSecurityView: false,
-    showInTopBar: true,
-    category: "market",
-    topBarLabel: "SECT",
-    aliases: ["SECT", "SECTOR", "SECTORS"],
-    component: SectorPanel,
-  },
   social: {
     label: "SOCIAL FEED",
     code: "SCFL",
@@ -410,18 +363,18 @@ export const PANEL_REGISTRY: Record<ViewMode, PanelDefinition> = {
     aliases: ["SCFL", "SOCIAL", "SOC"],
     component: SocialFeedPanel,
   },
-  plays: {
-    label: "TRADE PLAYS",
-    code: "PLAY",
-    icon: Target,
-    kbd: "L",
+  calendar: {
+    label: "INVESTMENT CALENDAR",
+    code: "CAL",
+    icon: Calendar,
+    kbd: "K",
     needsSymbol: false,
     isSecurityView: false,
     showInTopBar: true,
-    category: "market",
-    topBarLabel: "PLAY",
-    aliases: ["PLAY", "PLAYS", "TRADE"],
-    component: PlaysPanel,
+    category: "macro",
+    topBarLabel: "CAL",
+    aliases: ["CAL", "CALENDAR"],
+    component: CalendarPanel,
   },
 };
 

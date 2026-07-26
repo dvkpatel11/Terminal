@@ -9,8 +9,36 @@ export type EconomicEventImportance = "high" | "medium";
 
 const FRED_API_BASE = "https://api.stlouisfed.org/fred";
 const MACRO_TTL_MS = 4 * 60 * 60_000; // 4 hours — these are monthly/daily releases
+// Within ±2h of a high-importance release (CPI, NFP, GDP, FOMC), a 4h cache can
+// serve pre-release numbers for hours after the market has repriced. Shrink the
+// TTL to 10 minutes inside that window so fresh prints surface quickly.
+const MACRO_TTL_RELEASE_WINDOW_MS = 10 * 60_000;
+const RELEASE_WINDOW_MS = 2 * 60 * 60_000;
 
 const macroSnapshotCache = new Map<string, { expiresAt: number; value: LiveMacroSnapshot }>();
+
+/**
+ * True when `now` is within ±2h of any high-importance release on the
+ * economic calendar. Uses the already-cached calendar (15-min TTL) so this
+ * adds no extra upstream calls. Fails open (returns false) on any error.
+ */
+async function isNearHighImportanceRelease(now = new Date()): Promise<boolean> {
+  try {
+    const events = await getEconomicCalendar(now);
+    const nowMs = now.getTime();
+    return events.some((event) => {
+      if (event.importance !== "high") return false;
+      const match = event.timeCt.match(/^(\d{1,2}):(\d{2})\s+(AM|PM)\s+CT$/);
+      if (!match) return false;
+      const hour24 = (match[3] === "PM" ? (Number(match[1]) % 12) + 12 : Number(match[1]) % 12);
+      // CT ≈ UTC-5 (CDT) / UTC-6 (CST); use -5 — an hour of skew is fine for a ±2h window.
+      const eventMs = Date.parse(`${event.date}T00:00:00Z`) + (hour24 + 5) * 3_600_000 + Number(match[2]) * 60_000;
+      return Math.abs(eventMs - nowMs) <= RELEASE_WINDOW_MS;
+    });
+  } catch {
+    return false;
+  }
+}
 
 export interface LiveMacroSnapshot {
   gdp: number | null;          // GDPC1  — real GDP growth QoQ annualised (%)
@@ -171,8 +199,12 @@ export async function getLiveMacroSnapshot(): Promise<LiveMacroSnapshot> {
     asOf,
   };
 
-  setCached(macroSnapshotCache, cacheKey, snapshot, MACRO_TTL_MS);
-  console.log(`[fred] macro snapshot refreshed (asOf: ${asOf})`);
+  // Release-aware TTL: keep macro data on a short leash around scheduled
+  // high-importance prints instead of trusting a 4h cache on CPI morning.
+  const nearRelease = await isNearHighImportanceRelease();
+  const ttl = nearRelease ? MACRO_TTL_RELEASE_WINDOW_MS : MACRO_TTL_MS;
+  setCached(macroSnapshotCache, cacheKey, snapshot, ttl);
+  console.log(`[fred] macro snapshot refreshed (asOf: ${asOf}, ttl: ${ttl / 60_000}min${nearRelease ? ", release window" : ""})`);
   return snapshot;
 }
 

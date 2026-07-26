@@ -114,7 +114,7 @@ export default function TerminalCommandBar({ currentSymbol, currentView, onExecu
     return filteredTickers.map((t) => ({
       type: "ticker" as const,
       label: t,
-      command: { raw: t, symbol: t, view: "intel" as ViewMode },
+      command: { raw: t, symbol: t, view: "synthesis" as ViewMode },
       meta: "QUOTE",
     }));
   }, [filteredTickers]);

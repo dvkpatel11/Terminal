@@ -98,6 +98,8 @@ export interface EconomicsSnapshot {
   usdJpy: EconomicsSnapshotMetric;
   gold: EconomicsSnapshotMetric;
   oil: EconomicsSnapshotMetric;
+  /** Keys of metrics currently served from hardcoded fallback defaults (provider outage). */
+  fallbackFields?: string[];
   status: DataStatus;
 }
 

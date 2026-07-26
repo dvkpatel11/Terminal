@@ -59,7 +59,7 @@ export function openSecurityView(workspace: WorkspaceState, symbol: string, view
 }
 
 export function openSymbolInWorkspace(workspace: WorkspaceState, symbol: string): WorkspaceState {
-  return openSecurityView(workspace, symbol, "intel");
+  return openSecurityView(workspace, symbol, "synthesis");
 }
 
 export function closeSecondaryPane(workspace: WorkspaceState): WorkspaceState {

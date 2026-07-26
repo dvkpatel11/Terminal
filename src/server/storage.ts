@@ -58,6 +58,15 @@ import {
   type InsertVixTermStructure,
   type TechnicalIndicatorRecord,
   type InsertTechnicalIndicator,
+  positions,
+  positionFills,
+  type PositionRecord,
+  type InsertPosition,
+  type PositionFillRecord,
+  type InsertPositionFill,
+  agentSkills,
+  type AgentSkillRecord,
+  type InsertAgentSkill,
   oauthConnections,
   type OauthConnection,
   type InsertOauthConnection,
@@ -75,12 +84,31 @@ export interface IStorage {
   getAlerts(): Promise<Alert[]>;
   addAlert(alert: InsertAlert): Promise<Alert>;
   deleteAlert(id: number): Promise<void>;
-  triggerAlert(id: number, details: { triggerPrice: number; triggeredAt: Date }): Promise<void>;
+  triggerAlert(id: number, details: { triggerPrice: number; triggerValue?: number | null; triggeredAt: Date }): Promise<void>;
 
   // Chat
   getChatMessages(): Promise<ChatMessage[]>;
   addChatMessage(msg: InsertChatMessage): Promise<ChatMessage>;
   clearChatMessages(): Promise<void>;
+
+  // Positions
+  getPositions(): Promise<PositionRecord[]>;
+  getPosition(id: number): Promise<PositionRecord | undefined>;
+  addPosition(pos: InsertPosition): Promise<PositionRecord>;
+  updatePosition(id: number, updates: Partial<InsertPosition>): Promise<PositionRecord>;
+  closePosition(id: number, closedAt?: Date): Promise<void>;
+  deletePosition(id: number): Promise<void>;
+
+  // Position Fills
+  getPositionFills(positionId: number): Promise<PositionFillRecord[]>;
+  addPositionFill(fill: InsertPositionFill): Promise<PositionFillRecord>;
+
+  // Agent Skills
+  getAgentSkills(): Promise<AgentSkillRecord[]>;
+  getAgentSkill(skillId: string): Promise<AgentSkillRecord | undefined>;
+  addAgentSkill(skill: InsertAgentSkill): Promise<AgentSkillRecord>;
+  updateAgentSkill(id: number, updates: Partial<InsertAgentSkill>): Promise<AgentSkillRecord>;
+  deleteAgentSkill(id: number): Promise<void>;
 
   // OAuth Connections
   getOauthConnection(provider: string): Promise<OauthConnection | undefined>;
@@ -219,9 +247,9 @@ export class DatabaseStorage implements IExtendedStorage {
     await this.db.delete(alerts).where(eq(alerts.id, id));
   }
 
-  async triggerAlert(id: number, details: { triggerPrice: number; triggeredAt: Date }): Promise<void> {
+  async triggerAlert(id: number, details: { triggerPrice: number; triggerValue?: number | null; triggeredAt: Date }): Promise<void> {
     await this.db.update(alerts)
-      .set({ triggered: true, triggerPrice: details.triggerPrice, triggeredAt: details.triggeredAt })
+      .set({ triggered: true, triggerPrice: details.triggerPrice, triggerValue: details.triggerValue ?? null, triggeredAt: details.triggeredAt })
       .where(eq(alerts.id, id));
   }
 
@@ -237,6 +265,85 @@ export class DatabaseStorage implements IExtendedStorage {
 
   async clearChatMessages(): Promise<void> {
     await this.db.delete(chatMessages);
+  }
+
+  // ─── Positions ──────────────────────────────────────────────────────────────
+  async getPositions(): Promise<PositionRecord[]> {
+    return this.db.select().from(positions).orderBy(desc(positions.createdAt));
+  }
+
+  async getPosition(id: number): Promise<PositionRecord | undefined> {
+    const result = await this.db.select().from(positions).where(eq(positions.id, id)).limit(1);
+    return result[0];
+  }
+
+  async addPosition(pos: InsertPosition): Promise<PositionRecord> {
+    const result = await this.db.insert(positions).values(pos).returning();
+    return result[0];
+  }
+
+  async updatePosition(id: number, updates: Partial<InsertPosition>): Promise<PositionRecord> {
+    const result = await this.db.update(positions).set(updates).where(eq(positions.id, id)).returning();
+    return result[0];
+  }
+
+  async closePosition(id: number, closedAt?: Date): Promise<void> {
+    await this.db.update(positions).set({ status: "closed", closedAt: closedAt ?? new Date() }).where(eq(positions.id, id));
+  }
+
+  async deletePosition(id: number): Promise<void> {
+    await this.db.delete(positionFills).where(eq(positionFills.positionId, id));
+    await this.db.delete(positions).where(eq(positions.id, id));
+  }
+
+  async getPositionFills(positionId: number): Promise<PositionFillRecord[]> {
+    return this.db.select().from(positionFills).where(eq(positionFills.positionId, positionId)).orderBy(desc(positionFills.executedAt));
+  }
+
+  async addPositionFill(fill: InsertPositionFill): Promise<PositionFillRecord> {
+    const values = {
+      symbol: fill.symbol,
+      side: fill.side,
+      quantity: fill.quantity,
+      price: fill.price,
+      positionId: fill.positionId,
+      ...(fill.fees != null ? { fees: fill.fees } : {}),
+      ...(fill.executedAt != null ? { executedAt: fill.executedAt } : {}),
+      ...(fill.notes != null ? { notes: fill.notes } : {}),
+    };
+    const result = await this.db.insert(positionFills).values(values).returning();
+    return result[0];
+  }
+
+  // ─── Agent Skills ───────────────────────────────────────────────────────────
+  async getAgentSkills(): Promise<AgentSkillRecord[]> {
+    return this.db.select().from(agentSkills).orderBy(agentSkills.createdAt);
+  }
+
+  async getAgentSkill(skillId: string): Promise<AgentSkillRecord | undefined> {
+    const result = await this.db.select().from(agentSkills).where(eq(agentSkills.skillId, skillId)).limit(1);
+    return result[0];
+  }
+
+  async addAgentSkill(skill: InsertAgentSkill): Promise<AgentSkillRecord> {
+    const result = await this.db.insert(agentSkills).values({
+      ...skill,
+      defaultPrompts: skill.defaultPrompts ?? "[]",
+      isBuiltIn: skill.isBuiltIn ?? false,
+    }).returning();
+    return result[0];
+  }
+
+  async updateAgentSkill(id: number, updates: Partial<InsertAgentSkill>): Promise<AgentSkillRecord> {
+    const result = await this.db.update(agentSkills)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(agentSkills.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteAgentSkill(id: number): Promise<void> {
+    await this.db.delete(agentSkills).where(eq(agentSkills.id, id));
   }
 
   // ─── Quotes ──────────────────────────────────────────────────────────────────
@@ -557,10 +664,14 @@ export class MemStorage implements IStorage {
   private watchlist: Map<number, WatchlistItem> = new Map();
   private alertsMap: Map<number, Alert> = new Map();
   private chatMsgs: Map<number, ChatMessage> = new Map();
+  private positionsMap: Map<number, PositionRecord> = new Map();
+  private fillsMap: Map<number, PositionFillRecord> = new Map();
   private oauthConns: Map<number, OauthConnection> = new Map();
   private watchlistId = 1;
   private alertId = 1;
   private chatId = 1;
+  private positionId = 1;
+  private fillId = 1;
   private oauthId = 1;
 
   constructor() {
@@ -609,6 +720,7 @@ export class MemStorage implements IStorage {
       id: this.alertId++,
       triggered: false,
       triggerPrice: null,
+      triggerValue: null,
       createdAt: new Date(),
       triggeredAt: null,
     };
@@ -620,10 +732,10 @@ export class MemStorage implements IStorage {
     this.alertsMap.delete(id);
   }
 
-  async triggerAlert(id: number, details: { triggerPrice: number; triggeredAt: Date }): Promise<void> {
+  async triggerAlert(id: number, details: { triggerPrice: number; triggerValue?: number | null; triggeredAt: Date }): Promise<void> {
     const alert = this.alertsMap.get(id);
     if (alert) {
-      this.alertsMap.set(id, { ...alert, triggered: true, triggerPrice: details.triggerPrice, triggeredAt: details.triggeredAt });
+      this.alertsMap.set(id, { ...alert, triggered: true, triggerPrice: details.triggerPrice, triggerValue: details.triggerValue ?? null, triggeredAt: details.triggeredAt });
     }
   }
 
@@ -639,6 +751,109 @@ export class MemStorage implements IStorage {
 
   async clearChatMessages(): Promise<void> {
     this.chatMsgs.clear();
+  }
+
+  // ─── Positions (in-memory) ─────────────────────────────────────────────────
+  async getPositions(): Promise<PositionRecord[]> {
+    return Array.from(this.positionsMap.values()).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getPosition(id: number): Promise<PositionRecord | undefined> {
+    return this.positionsMap.get(id);
+  }
+
+  async addPosition(pos: InsertPosition): Promise<PositionRecord> {
+    const rec: PositionRecord = {
+      ...pos,
+      id: this.positionId++,
+      currentPrice: pos.currentPrice ?? null,
+      pnl: pos.pnl ?? null,
+      pnlPercent: pos.pnlPercent ?? null,
+      status: pos.status ?? "open",
+      thesis: pos.thesis ?? null,
+      notes: pos.notes ?? null,
+      closedAt: pos.closedAt ?? null,
+      createdAt: new Date(),
+    };
+    this.positionsMap.set(rec.id, rec);
+    return rec;
+  }
+
+  async updatePosition(id: number, updates: Partial<InsertPosition>): Promise<PositionRecord> {
+    const existing = this.positionsMap.get(id);
+    if (!existing) throw new Error(`Position ${id} not found`);
+    const updated = { ...existing, ...updates };
+    this.positionsMap.set(id, updated);
+    return updated;
+  }
+
+  async closePosition(id: number, closedAt?: Date): Promise<void> {
+    const existing = this.positionsMap.get(id);
+    if (existing) this.positionsMap.set(id, { ...existing, status: "closed", closedAt: closedAt ?? new Date() });
+  }
+
+  async deletePosition(id: number): Promise<void> {
+    this.positionsMap.delete(id);
+    const toDelete = Array.from(this.fillsMap.entries()).filter(([, f]) => f.positionId === id).map(([fid]) => fid);
+    toDelete.forEach(fid => this.fillsMap.delete(fid));
+  }
+
+  async getPositionFills(positionId: number): Promise<PositionFillRecord[]> {
+    return Array.from(this.fillsMap.values())
+      .filter(f => f.positionId === positionId)
+      .sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
+  }
+
+  async addPositionFill(fill: InsertPositionFill): Promise<PositionFillRecord> {
+    const rec: PositionFillRecord = {
+      ...fill,
+      id: this.fillId++,
+      fees: fill.fees ?? 0,
+      executedAt: fill.executedAt ?? new Date(),
+      notes: fill.notes ?? null,
+    };
+    this.fillsMap.set(rec.id, rec);
+    return rec;
+  }
+
+  // ─── Agent Skills (in-memory) ──────────────────────────────────────────────
+  private skillsMap: Map<number, AgentSkillRecord> = new Map();
+  private skillIdCounter = 1;
+
+  async getAgentSkills(): Promise<AgentSkillRecord[]> {
+    return Array.from(this.skillsMap.values()).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  }
+
+  async getAgentSkill(skillId: string): Promise<AgentSkillRecord | undefined> {
+    return Array.from(this.skillsMap.values()).find(s => s.skillId === skillId);
+  }
+
+  async addAgentSkill(skill: InsertAgentSkill): Promise<AgentSkillRecord> {
+    const rec: AgentSkillRecord = {
+      id: this.skillIdCounter++,
+      skillId: skill.skillId,
+      label: skill.label,
+      description: skill.description,
+      systemPrompt: skill.systemPrompt,
+      defaultPrompts: skill.defaultPrompts ?? "[]",
+      isBuiltIn: skill.isBuiltIn ?? false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.skillsMap.set(rec.id, rec);
+    return rec;
+  }
+
+  async updateAgentSkill(id: number, updates: Partial<InsertAgentSkill>): Promise<AgentSkillRecord> {
+    const existing = this.skillsMap.get(id);
+    if (!existing) throw new Error(`Skill ${id} not found`);
+    const updated = { ...existing, ...updates, updatedAt: new Date() };
+    this.skillsMap.set(id, updated);
+    return updated;
+  }
+
+  async deleteAgentSkill(id: number): Promise<void> {
+    this.skillsMap.delete(id);
   }
 
   async getOauthConnection(provider: string): Promise<OauthConnection | undefined> {

@@ -16,6 +16,7 @@ interface Props {
 
 export default function OptionsPanel({ symbol, onNav }: Props) {
   const { data, isLoading, error } = useOptions(symbol);
+  const [showGreeks, setShowGreeks] = useState(false);
 
   const contracts = data?.contracts ?? [];
   const underlyingPrice = data?.underlyingPrice;
@@ -76,6 +77,16 @@ export default function OptionsPanel({ symbol, onNav }: Props) {
             ))}
           </SelectContent>
         </Select>
+        <button
+          onClick={() => setShowGreeks(!showGreeks)}
+          className={`px-2 py-1 font-terminal text-[9px] tracking-wider border transition-colors ${
+            showGreeks
+              ? "text-[hsl(186,45%,55%)] border-[hsl(186,45%,55%)]/30 bg-[hsl(186,45%,50%)/0.1]"
+              : "text-muted-foreground border-border hover:border-border/60"
+          }`}
+        >
+          GREEKS
+        </button>
         <div className="ml-auto flex items-center gap-4 text-[10px] text-muted-foreground shrink-0">
           <span>UNDERLYING</span>
           <span className="text-foreground font-bold tabular-nums">${formatPrice(underlyingPrice ?? 0)}</span>
@@ -90,19 +101,21 @@ export default function OptionsPanel({ symbol, onNav }: Props) {
           <table className="w-full text-[10px] font-terminal">
             <thead className="sticky top-0 bg-[#060606] border-b border-border">
               <tr className="border-b border-border/50">
-                <th colSpan={5} className="text-center text-green-400 border-l border-border/30 py-1">CALLS</th>
+                <th colSpan={showGreeks ? 6 : 5} className="text-center text-green-400 border-l border-border/30 py-1">CALLS</th>
                 <th className="text-center text-cyan-300 bg-[#0a0a0a] py-1 font-bold">STRIKE</th>
-                <th colSpan={5} className="text-center text-red-400 border-r border-border/30 py-1">PUTS</th>
+                <th colSpan={showGreeks ? 6 : 5} className="text-center text-red-400 border-r border-border/30 py-1">PUTS</th>
               </tr>
               <tr className="text-muted-foreground">
                 <th className="text-right px-1 py-0.5">OI</th>
                 <th className="text-right px-1 py-0.5">VOL</th>
                 <th className="text-right px-1 py-0.5">IV</th>
+                {showGreeks && <th className="text-right px-1 py-0.5 text-cyan-400">DELTA</th>}
                 <th className="text-right px-1 py-0.5">BID</th>
                 <th className="text-right px-1 py-0.5">ASK</th>
                 <th className="text-center px-1 py-0.5 font-bold">$</th>
                 <th className="text-right px-1 py-0.5">BID</th>
                 <th className="text-right px-1 py-0.5">ASK</th>
+                {showGreeks && <th className="text-right px-1 py-0.5 text-cyan-400">DELTA</th>}
                 <th className="text-right px-1 py-0.5">IV</th>
                 <th className="text-right px-1 py-0.5">VOL</th>
                 <th className="text-right px-1 py-0.5">OI</th>
@@ -125,6 +138,11 @@ export default function OptionsPanel({ symbol, onNav }: Props) {
                     <td className={`text-right px-1 py-0.5 ${itmCall ? itmBg : ""}`}>
                       {call?.impliedVolatility != null ? `${(call.impliedVolatility * 100).toFixed(1)}%` : "—"}
                     </td>
+                    {showGreeks && (
+                      <td className={`text-right px-1 py-0.5 text-cyan-400 tabular-nums ${itmCall ? itmBg : ""}`}>
+                        {call?.delta != null ? call.delta.toFixed(3) : "—"}
+                      </td>
+                    )}
                     <td className={`text-right px-1 py-0.5 text-green-400 ${itmCall ? itmBg : ""}`}>
                       {call?.bid != null ? formatPrice(call.bid) : "—"}
                     </td>
@@ -142,6 +160,11 @@ export default function OptionsPanel({ symbol, onNav }: Props) {
                     <td className={`text-right px-1 py-0.5 text-red-400 ${itmPut ? itmBg : ""}`}>
                       {put?.ask != null ? formatPrice(put.ask) : "—"}
                     </td>
+                    {showGreeks && (
+                      <td className={`text-right px-1 py-0.5 text-cyan-400 tabular-nums ${itmPut ? itmBg : ""}`}>
+                        {put?.delta != null ? put.delta.toFixed(3) : "—"}
+                      </td>
+                    )}
                     <td className={`text-right px-1 py-0.5 ${itmPut ? itmBg : ""}`}>
                       {put?.impliedVolatility != null ? `${(put.impliedVolatility * 100).toFixed(1)}%` : "—"}
                     </td>
@@ -162,7 +185,7 @@ export default function OptionsPanel({ symbol, onNav }: Props) {
       <div className="px-4 py-2 border-t border-border/50 bg-[#060606] flex items-center justify-between">
         <span className="font-terminal text-[9px] text-muted-foreground">HIGHLIGHTED ROWS = IN THE MONEY</span>
         <div className="flex gap-2 text-[10px]">
-          <button onClick={() => onNav("intel")} className="px-2 py-1 border border-border/50 hover:border-cyan-600 hover:text-cyan-300 text-muted-foreground tracking-wider transition-colors">
+          <button onClick={() => onNav("synthesis")} className="px-2 py-1 border border-border/50 hover:border-cyan-600 hover:text-cyan-300 text-muted-foreground tracking-wider transition-colors">
             INTEL
           </button>
           <button onClick={() => onNav("chart")} className="px-2 py-1 border border-border/50 hover:border-cyan-600 hover:text-cyan-300 text-muted-foreground tracking-wider transition-colors">

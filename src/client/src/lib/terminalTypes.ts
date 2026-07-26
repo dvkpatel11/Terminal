@@ -8,7 +8,6 @@ export type ViewMode =
   | "alerts"
   | "economics"
   | "portfolio"
-  | "intel"
   | "options"
   | "sentiment"
   | "optflow"
@@ -17,18 +16,12 @@ export type ViewMode =
   | "hp"
   | "fa"
   | "dvd"
-  | "key"
-  | "ee"
   | "curv"
   | "fxc"
   | "crypto"
-  | "scorecard"
-  | "sectors"
   | "social"
-  | "plays"
-  | "profile"
-  | "thesis"
-  | "synthesis";
+  | "synthesis"
+  | "calendar";
 
 export type PaneId = "primary" | "secondary";
 
@@ -48,7 +41,7 @@ export interface WorkspaceState {
 
 // ── Panel prop interfaces (used by panelRegistry typing) ──────────────────
 
-/** Props for panels that display data for a specific symbol (e.g., IntelPanel, ChartPanel). */
+/** Props for panels that display data for a specific symbol (e.g., SynthesisPanel, ChartPanel). */
 export interface SymbolPanelProps {
   symbol: string;
   onNav?: (view: ViewMode) => void;

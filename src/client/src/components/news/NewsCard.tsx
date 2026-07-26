@@ -84,8 +84,8 @@ export default function NewsCard({
           <h3
             onClick={handleHeadlineClick}
             className={cn(
-              "flex-1 font-terminal font-medium text-foreground leading-snug line-clamp-2 hover:underline hover:decoration-cyan",
-              variant === "hero" ? "text-base" : variant === "expanded" ? "text-xs" : "text-[11px]",
+              "flex-1 font-editorial font-semibold text-foreground leading-snug line-clamp-2 hover:underline hover:decoration-emerald-400",
+              variant === "hero" ? "text-base" : variant === "expanded" ? "text-sm" : "text-[13px]",
             )}
           >
             {item.title}
@@ -94,17 +94,17 @@ export default function NewsCard({
 
         {/* Summary (expanded/hero only) */}
         {(variant === "expanded" || variant === "hero") && item.summary && (
-          <p className="mt-1 text-[11px] font-terminal text-muted-foreground leading-relaxed line-clamp-3">
+          <p className="mt-1.5 text-[12px] font-sans text-muted-foreground leading-relaxed line-clamp-3">
             {item.summary}
           </p>
         )}
 
         {/* Meta row */}
-        <div className="flex items-center gap-2 mt-1.5">
-          <span className="px-1.5 py-0.5 text-[8px] font-terminal font-bold tracking-wider border border-border/50 text-cyan uppercase">
+        <div className="flex items-center gap-2 mt-2">
+          <span className="px-2 py-0.5 text-[10px] font-terminal font-bold tracking-wider border border-emerald-400/30 text-emerald-400 uppercase">
             {item.source}
           </span>
-          <span className="text-[9px] font-terminal text-muted-foreground">
+          <span className="text-[11px] font-sans text-muted-foreground">
             {relativeTime(item.publishedAt)}
           </span>
         </div>
@@ -113,12 +113,12 @@ export default function NewsCard({
         {(() => {
           const tickers = extractTickers(`${item.title} ${item.summary}`);
           return tickers.length > 0 ? (
-            <div className="flex gap-1 mt-1">
+            <div className="flex gap-1.5 mt-2">
               {tickers.slice(0, 5).map((t) => (
                 <button
                   key={t}
                   onClick={(e) => { e.stopPropagation(); onSymbol?.(t); }}
-                  className="text-[9px] px-1 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 font-mono"
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-400/10 text-emerald-400 hover:bg-emerald-400/20 font-mono border border-emerald-400/20"
                 >
                   ${t}
                 </button>
@@ -175,8 +175,8 @@ function SocialCard({
           <h3
             onClick={onHeadlineClick}
             className={cn(
-              "flex-1 font-terminal font-medium text-foreground leading-snug line-clamp-2 hover:underline hover:decoration-cyan",
-              variant === "hero" ? "text-base" : variant === "expanded" ? "text-xs" : "text-[11px]",
+              "flex-1 font-editorial font-semibold text-foreground leading-snug line-clamp-2 hover:underline hover:decoration-purple-400",
+              variant === "hero" ? "text-base" : variant === "expanded" ? "text-sm" : "text-[13px]",
             )}
           >
             {title}
@@ -185,20 +185,20 @@ function SocialCard({
 
         {/* Body (expanded/hero only) */}
         {(variant === "expanded" || variant === "hero") && post.text && post.text !== post.title && (
-          <p className="mt-1 text-[11px] font-terminal text-muted-foreground leading-relaxed line-clamp-3">
+          <p className="mt-1.5 text-[12px] font-sans text-muted-foreground leading-relaxed line-clamp-3">
             {post.text.slice(0, 200)}
           </p>
         )}
 
         {/* Meta row */}
-        <div className="flex items-center gap-2 mt-1.5">
-          <span className={`px-1.5 py-0.5 rounded text-[8px] font-terminal font-bold uppercase ${badge?.bg} ${badge?.text}`}>
+        <div className="flex items-center gap-2 mt-2">
+          <span className={`px-2 py-0.5 rounded text-[10px] font-terminal font-bold uppercase ${badge?.bg} ${badge?.text}`}>
             {badge?.label ?? post.platform}
           </span>
-          <span className="text-[9px] font-terminal text-muted-foreground truncate">{post.accountName}</span>
-          <span className="text-[9px] font-terminal text-muted-foreground/50 shrink-0">{SocialRelativeTime(post.createdAt)}</span>
+          <span className="text-[11px] font-sans text-muted-foreground truncate">{post.accountName}</span>
+          <span className="text-[11px] font-sans text-muted-foreground/50 shrink-0">{SocialRelativeTime(post.createdAt)}</span>
           <SentimentDot score={post.sentiment.score} />
-          <span className="text-[9px] font-terminal text-muted-foreground/40 ml-auto">
+          <span className="text-[11px] font-sans text-muted-foreground/40 ml-auto">
             {post.score > 0 && <>{post.platform === "x" ? `\u2665` : `\u2191`}{post.score}</>}
           </span>
         </div>

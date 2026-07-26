@@ -5,6 +5,8 @@ import {
   weightedScore,
   type ContentType,
 } from './sentimentAnalyzer';
+import { rankBySignalQuality } from '../shared/socialRanking';
+import { tagPostsBatch } from './sentimentTagger';
 import { decryptToken } from "./oauth";
 import { extendedStorage } from "./storage";
 import { getDiscordTrackedChannels } from './symbolRegistry';
@@ -37,6 +39,10 @@ export interface SocialPost {
   thumbnail?: string;
   accountName: string;
   accountUrl: string;
+  /** AI-generated sentiment tag (set after fetch by autoTagPosts) */
+  aiSentiment?: 'bullish' | 'bearish' | 'neutral';
+  aiConfidence?: number;
+  aiRationale?: string;
 }
 
 export interface SocialFeedResponse {
@@ -432,8 +438,7 @@ export async function getSocialFeed(
   if (allTruth.length) byPlatform.truth = allTruth;
   if (allDiscord.length) byPlatform.discord = allDiscord;
 
-  const allPosts = [...allReddit, ...allX, ...allTruth, ...allDiscord]
-    .sort((a, b) => b.engagementScore - a.engagementScore);
+  const allPosts = rankBySignalQuality([...allReddit, ...allX, ...allTruth, ...allDiscord]);
 
   // Filter by symbol if provided — match against extracted tickers
   const filteredPosts = symbol
@@ -446,6 +451,21 @@ export async function getSocialFeed(
   });
 
   const sentiment = aggregateSentiment(filteredPosts);
+
+  // Auto-tag posts with AI sentiment (top 10 only to control cost)
+  const untagged = filteredPosts.filter(p => p.aiSentiment == null).slice(0, 10);
+  if (untagged.length > 0) {
+    try {
+      const tags = await tagPostsBatch(
+        untagged.map(p => ({ text: p.text, title: p.title, platform: p.platform, author: p.author, tickers: p.tickers })),
+      );
+      for (let i = 0; i < untagged.length; i++) {
+        untagged[i].aiSentiment = tags[i]?.tag?.sentiment;
+        untagged[i].aiConfidence = tags[i]?.tag?.confidence;
+        untagged[i].aiRationale = tags[i]?.tag?.rationale_short;
+      }
+    } catch { /* best effort — leave untagged */ }
+  }
 
   return {
     posts: filteredPosts,

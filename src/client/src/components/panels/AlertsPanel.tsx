@@ -5,12 +5,59 @@ import { useAlerts, alertsQueryKey } from "@/lib/useAlerts";
 import { BellRing, Plus, Trash2, Bell } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Alert } from "@shared/schema";
+import type { AlertCondition } from "@shared/schema";
 
 interface Props { onSymbol: (sym: string) => void }
 
+const CONDITION_OPTIONS: { value: AlertCondition; label: string; category: string }[] = [
+  { value: "above", label: "PRICE ABOVE", category: "PRICE" },
+  { value: "below", label: "PRICE BELOW", category: "PRICE" },
+  { value: "pe_above", label: "P/E ABOVE", category: "FUNDAMENTAL" },
+  { value: "pe_below", label: "P/E BELOW", category: "FUNDAMENTAL" },
+  { value: "volume_above", label: "VOLUME ABOVE", category: "VOLUME" },
+  { value: "volume_below", label: "VOLUME BELOW", category: "VOLUME" },
+  { value: "rsi_above", label: "RSI ABOVE", category: "TECHNICAL" },
+  { value: "rsi_below", label: "RSI BELOW", category: "TECHNICAL" },
+  { value: "macd_above", label: "MACD ABOVE", category: "TECHNICAL" },
+  { value: "macd_below", label: "MACD BELOW", category: "TECHNICAL" },
+];
+
+function isPriceCondition(condition: string): boolean {
+  return condition === "above" || condition === "below";
+}
+
+function formatConditionLabel(condition: string): string {
+  const prefixes: Record<string, string> = {
+    above: "▲", below: "▼",
+    pe_above: "PE ▲", pe_below: "PE ▼",
+    volume_above: "VOL ▲", volume_below: "VOL ▼",
+    rsi_above: "RSI ▲", rsi_below: "RSI ▼",
+    macd_above: "MACD ▲", macd_below: "MACD ▼",
+  };
+  return prefixes[condition] ?? condition;
+}
+
+function formatThreshold(condition: string, price: number): string {
+  if (isPriceCondition(condition)) return `$${price.toFixed(2)}`;
+  if (condition.startsWith("pe_")) return price.toFixed(1) + "x";
+  if (condition.startsWith("rsi_")) return price.toFixed(1);
+  if (condition.startsWith("macd_")) return price.toFixed(4);
+  if (condition.startsWith("volume_")) {
+    if (price >= 1_000_000) return `${(price / 1_000_000).toFixed(1)}M`;
+    if (price >= 1_000) return `${(price / 1_000).toFixed(0)}K`;
+    return price.toFixed(0);
+  }
+  return price.toFixed(2);
+}
+
+function getConditionColor(condition: string): string {
+  if (condition.includes("above")) return "text-up";
+  return "text-down";
+}
+
 export default function AlertsPanel({ onSymbol }: Props) {
   const [sym, setSym] = useState("");
-  const [condition, setCondition] = useState<"above" | "below">("above");
+  const [condition, setCondition] = useState<AlertCondition>("above");
   const [price, setPrice] = useState("");
   const qc = useQueryClient();
 
@@ -44,7 +91,7 @@ export default function AlertsPanel({ onSymbol }: Props) {
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-[#070707] shrink-0">
         <BellRing className="w-4 h-4 text-[hsl(186,45%,55%)]" />
-        <span className="panel-label">PRICE ALERTS</span>
+        <span className="panel-label">ALERTS</span>
         <span className="font-terminal text-[9px] text-[hsl(142,71%,45%)] ml-2">{active.length} ACTIVE</span>
         {triggered.length > 0 && (
           <span className="font-terminal text-[9px] text-[hsl(186,45%,55%)] ml-1">{triggered.length} TRIGGERED</span>
@@ -52,7 +99,7 @@ export default function AlertsPanel({ onSymbol }: Props) {
       </div>
 
       {/* Create alert form */}
-      <form onSubmit={handleAdd} className="flex items-center gap-2 px-4 py-3 border-b border-border bg-[#070707] shrink-0">
+      <form onSubmit={handleAdd} className="flex items-center gap-2 px-4 py-3 border-b border-border bg-[#070707] shrink-0 flex-wrap">
         <span className="font-terminal text-[9px] text-muted-foreground shrink-0">WHEN</span>
         <input
           value={sym}
@@ -63,19 +110,24 @@ export default function AlertsPanel({ onSymbol }: Props) {
         />
         <select
           value={condition}
-          onChange={e => setCondition(e.target.value as "above" | "below")}
+          onChange={e => setCondition(e.target.value as AlertCondition)}
           className="bg-[#0d0d0d] border border-border px-2 py-1.5 font-terminal text-[10px] focus:outline-none"
         >
-          <option value="above">CROSSES ABOVE</option>
-          <option value="below">DROPS BELOW</option>
+          {(["PRICE", "FUNDAMENTAL", "VOLUME", "TECHNICAL"] as const).map(cat => (
+            <optgroup key={cat} label={cat}>
+              {CONDITION_OPTIONS.filter(o => o.category === cat).map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </optgroup>
+          ))}
         </select>
-        <span className="font-terminal text-[9px] text-muted-foreground">$</span>
+        {isPriceCondition(condition) && <span className="font-terminal text-[9px] text-muted-foreground">$</span>}
         <input
           type="number"
           value={price}
           onChange={e => setPrice(e.target.value)}
-          placeholder="0.00"
-          step="0.01"
+          placeholder={condition.startsWith("rsi_") ? "70" : condition.startsWith("pe_") ? "25" : condition.startsWith("macd_") ? "0" : condition.startsWith("volume_") ? "1000000" : "0.00"}
+          step={condition.startsWith("macd_") ? "0.001" : condition.startsWith("rsi_") || condition.startsWith("pe_") ? "0.1" : "0.01"}
           className="w-24 bg-[#0d0d0d] border border-border px-2 py-1.5 font-terminal text-[10px] focus:outline-none focus:border-[hsl(186,45%,50%)/50%]"
           data-testid="alert-price-input"
         />
@@ -85,7 +137,7 @@ export default function AlertsPanel({ onSymbol }: Props) {
           className="flex items-center gap-1.5 px-3 py-1.5 bg-[hsl(186,45%,50%)/15%] border border-[hsl(186,45%,50%)/40%] font-terminal text-[10px] text-[hsl(186,45%,55%)] hover:bg-[hsl(186,45%,50%)/25%] disabled:opacity-40 transition-colors"
           data-testid="alert-add-btn"
         >
-          <Plus className="w-3 h-3" /> CREATE ALERT
+          <Plus className="w-3 h-3" /> CREATE
         </button>
       </form>
 
@@ -111,10 +163,10 @@ export default function AlertsPanel({ onSymbol }: Props) {
                     <button onClick={() => onSymbol(a.symbol)} className="font-terminal text-[11px] font-bold text-[hsl(186,45%,55%)] hover:underline">
                       {a.symbol}
                     </button>
-                    <span className={`font-terminal text-[10px] ${a.condition === "above" ? "text-up" : "text-down"}`}>
-                      {a.condition === "above" ? "▲ ABOVE" : "▼ BELOW"}
+                    <span className={`font-terminal text-[10px] ${getConditionColor(a.condition)}`}>
+                      {formatConditionLabel(a.condition)}
                     </span>
-                    <span className="font-terminal text-[11px] tabular-nums font-semibold">${a.price.toFixed(2)}</span>
+                    <span className="font-terminal text-[11px] tabular-nums font-semibold">{formatThreshold(a.condition, a.price)}</span>
                     <span className="font-terminal text-[8px] text-muted-foreground ml-2">SET {new Date(a.createdAt).toLocaleDateString()}</span>
                     <button
                       onClick={() => delMut.mutate(a.id)}
@@ -135,9 +187,11 @@ export default function AlertsPanel({ onSymbol }: Props) {
                   <div key={a.id} className="flex items-center gap-3 px-4 py-3 border-b border-border/50 opacity-60 group hover:opacity-80">
                     <div className="w-2 h-2 rounded-full border border-muted-foreground shrink-0" />
                     <span className="font-terminal text-[11px] font-bold text-muted-foreground">{a.symbol}</span>
-                    <span className="font-terminal text-[10px] text-muted-foreground">{a.condition === "above" ? "▲" : "▼"} ${a.price.toFixed(2)}</span>
+                    <span className={`font-terminal text-[10px] text-muted-foreground`}>
+                      {formatConditionLabel(a.condition)} {formatThreshold(a.condition, a.price)}
+                    </span>
                     {a.triggerPrice !== null && (
-                      <span className="font-terminal text-[10px] text-[hsl(186,45%,55%)]">LAST ${a.triggerPrice.toFixed(2)}</span>
+                      <span className="font-terminal text-[10px] text-[hsl(186,45%,55%)]">NOW ${a.triggerPrice.toFixed(2)}</span>
                     )}
                     <span className="font-terminal text-[9px] text-[hsl(186,45%,55%)] ml-2">
                       {a.triggeredAt ? `TRIGGERED ${new Date(a.triggeredAt).toLocaleString()}` : "TRIGGERED"}

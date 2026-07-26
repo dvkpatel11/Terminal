@@ -16,12 +16,12 @@ export default function SignalGroup({ title, signals, extra }: Props) {
     <PanelSection
       title={title}
       badge={
-        <div className="flex items-center gap-1 font-mono text-[9px]">
-          <span className="text-green-400">{t.bull}</span>
+        <div className="flex items-center gap-1 font-terminal text-data-xs">
+          <span className="text-positive">{t.bull}</span>
           <span className="text-muted-foreground">·</span>
-          <span className="text-cyan-300">{t.neutral}</span>
+          <span className="text-market">{t.neutral}</span>
           <span className="text-muted-foreground">·</span>
-          <span className="text-red-400">{t.bear}</span>
+          <span className="text-negative">{t.bear}</span>
         </div>
       }
     >

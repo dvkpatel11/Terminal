@@ -8,9 +8,9 @@ interface Props {
 }
 
 const levelText: Record<string, string> = {
-  bull: "text-green-400",
-  bear: "text-red-400",
-  neutral: "text-cyan-300",
+  bull: "text-positive",
+  bear: "text-negative",
+  neutral: "text-market",
   na: "text-muted-foreground",
 };
 
@@ -22,7 +22,7 @@ export default function SignalRow({ signal, className }: Props) {
         {signal.label}
       </span>
       {signal.detail && (
-        <span className="text-xs text-muted-foreground font-mono tabular-nums">{signal.detail}</span>
+        <span className="text-xs text-muted-foreground font-terminal tabular-nums">{signal.detail}</span>
       )}
     </div>
   );

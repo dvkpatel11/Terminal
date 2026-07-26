@@ -19,7 +19,7 @@ import {
   supportsIntradayCharts,
   type ChartInterval,
 } from "@/lib/chartSeries";
-import { useOHLCV, useQuote } from "@/lib/useFinance";
+import { useOHLCV, useQuote, useOptionsSR } from "@/lib/useFinance";
 import {
   computeSMA,
   computeEMA,
@@ -115,6 +115,7 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
   const [drawings, setDrawings] = useState<Array<{ id: string; price: number }>>([]);
   const [drawingId, setDrawingId] = useState(0);
   const [events, setEvents] = useState<EventMarker[]>([]);
+  const [showOptionsSR, setShowOptionsSR] = useState(false);
 
   // Measure tool — right-click drag (like Windows drag-select)
   const isMeasuringRef = useRef(false);
@@ -129,6 +130,7 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: quote } = useQuote(symbol);
+  const { data: optionsSRLevels } = useOptionsSR(symbol);
   const isCryptoActive = quote?.exchange === "CRYPTO" || symbolIsCrypto;
   const supportsIntraday = supportsIntradayCharts(quote?.status.freshness ?? null, isCryptoActive);
   const allowedIntervals = getAllowedIntervals(supportsIntraday);
@@ -456,6 +458,24 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
         });
       }
 
+      // Options-Derived Support / Resistance
+      if (showOptionsSR && optionsSRLevels && optionsSRLevels.length > 0) {
+        optionsSRLevels.forEach((level) => {
+          if (destroyed) return;
+          const pData = ohlcvBars.map((b) => ({ time: b.time, value: level.price }));
+          const color = level.type === 'support' ? 'hsl(142,71%,45%)' : 'hsl(0,80%,55%)';
+          const s = chart.addSeries(LineSeries, {
+            color,
+            lineWidth: 1,
+            lineStyle: 2,
+            priceLineVisible: false,
+            lastValueVisible: false,
+          });
+          s.setData(pData as any);
+          overlaySeriesRef.current.set(`OPTSR_${level.type}_${level.price}`, s);
+        });
+      }
+
       // RSI pane (compact, below main)
       if (activeIndicators.has("RSI")) {
         const rsiPane = chart.addPane();
@@ -738,6 +758,8 @@ export default function ChartPanel({ symbol, onSymbol }: Props) {
           {showPivots && PIVOT_PERIODS.map((p) => (
             <button key={p} onClick={() => setPivotPeriod(p)} className={`px-1.5 py-1 font-terminal text-[8px] transition-colors ${pivotPeriod === p ? "text-[hsl(142,71%,55%)]" : "text-muted-foreground/40"}`}>{p}</button>
           ))}
+          <div className="w-px h-4 bg-border/30 mx-1" />
+          <button onClick={() => setShowOptionsSR(!showOptionsSR)} className={`px-2 py-1 font-terminal text-[9px] rounded-sm transition-colors ${showOptionsSR ? "bg-[hsl(38,70%,50%)/15%] text-[hsl(38,70%,55%)]" : "text-muted-foreground/60 hover:text-foreground"}`}>OPT</button>
           <div className="w-px h-4 bg-border/30 mx-1" />
           <button onClick={() => setDrawMode(drawMode === "horizontal" ? "none" : "horizontal")}
             className={`px-1.5 py-1 transition-colors ${drawMode === "horizontal" ? "text-[hsl(186,45%,55%)]" : "text-muted-foreground/50 hover:text-foreground"}`} title="Horizontal Line (Alt+H)">

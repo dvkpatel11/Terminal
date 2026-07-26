@@ -1411,6 +1411,11 @@ export async function getEconomicsSnapshot() {
     t2y: liveMacro?.t2y == null,
     t30y: liveMacro?.t30y == null,
     dxy: dxyCsv === "",
+    eurUsd: eurUsdCsv === "",
+    gbpUsd: gbpUsdCsv === "",
+    usdJpy: usdJpyCsv === "",
+    gold: goldCsv === "",
+    oil: !oilQuote?.price,
   };
 
   const anyFallback = Object.values(usingFallbacks).some(Boolean);
@@ -1445,11 +1450,17 @@ export async function getEconomicsSnapshot() {
     usdJpy: { value: round(usdJpy, 4), prev: round(usdJpy * 0.998, 4), label: "USD/JPY", unit: "" },
     gold: { value: round(gold, 2), prev: round(gold * 0.995, 2), label: "Gold ($/oz)", unit: "" },
     oil: { value: round(oil, 2), prev: round(oil * 1.01, 2), label: "WTI Crude ($/bbl)", unit: "" },
+    // Per-field fallback list so the client can flag exactly which numbers
+    // are hardcoded defaults instead of blanket-trusting the whole snapshot.
+    fallbackFields: Object.entries(usingFallbacks).filter(([, isFb]) => isFb).map(([key]) => key),
     status: buildDataStatus({
       provider: liveMacro ? "FRED + Mixed public snapshot" : "Mixed public snapshot",
       freshness: anyFallback ? "snapshot" : "current",
+      asOf: liveMacro?.asOf ?? null,
       isFallback: anyFallback,
-      delayLabel: liveMacro?.asOf ? `FRED as of ${liveMacro.asOf}` : "Snapshot / mixed-source view",
+      delayLabel: anyFallback
+        ? `Fallback defaults in use: ${Object.entries(usingFallbacks).filter(([, isFb]) => isFb).map(([key]) => key).join(", ")}`
+        : liveMacro?.asOf ? `FRED as of ${liveMacro.asOf}` : "Snapshot / mixed-source view",
     }),
   };
 }
@@ -1618,6 +1629,11 @@ export async function getOptionsChain(symbol: string) {
       openInterest: c.open_interest,
       impliedVolatility: c.implied_volatility,
       inTheMoney: c.in_the_money,
+      delta: c.delta ?? undefined,
+      gamma: c.gamma ?? undefined,
+      theta: c.theta ?? undefined,
+      vega: c.vega ?? undefined,
+      rho: c.rho ?? undefined,
     }));
     const result = {
       underlyingPrice: data.underlying_price,

@@ -47,8 +47,8 @@ export function extractTickers(text: string): string[] {
     if (seen.has(ticker)) continue;
     const idx = lowerText.indexOf(name);
     if (idx !== -1) {
-      const before = idx === 0 || /[\s('""\-\[]/.test(lowerText[idx - 1]);
-      const after = idx + name.length >= lowerText.length || /[\s,;.!?)\]:'"\/\-]/.test(lowerText[idx + name.length]);
+      const before = idx === 0 || /[\s('""\-\[#@|`]/.test(lowerText[idx - 1]);
+      const after = idx + name.length >= lowerText.length || /[\s,;.!?)\]:'"\/\-#|`]/.test(lowerText[idx + name.length]);
       if (before && after) {
         seen.add(ticker);
         found.push(ticker);

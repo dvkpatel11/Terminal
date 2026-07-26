@@ -68,6 +68,7 @@
 
   --font-sans: 'Inter', 'DM Sans', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Menlo', monospace;
+  --font-serif: 'Georgia', 'Times New Roman', 'Escrow', serif;
   --radius: 0.25rem;
 
   --shadow-2xs: 0px 1px 2px hsl(0 0% 0% / 0.4);
@@ -91,13 +92,16 @@
 
   /* ── Financial Terminal Token System ────────────────────────────────── */
 
-  /* Typography Scale (financial density) */
-  --text-terminal-xs: 0.625rem;   /* 10px - chrome only: ticker, status bar */
-  --text-terminal-sm: 0.6875rem;  /* 11px - panel labels, table headers */
-  --text-terminal-base: 0.75rem;  /* 12px - panel body, table cells */
-  --text-terminal-md: 0.8125rem;  /* 13px - PRIMARY body text (Bloomberg standard) */
-  --text-terminal-lg: 0.875rem;   /* 14px - emphasis, section headers */
+  /* Typography Scale (financial density) — MINIMUM 10px for legibility */
+  --text-terminal-2xs: 0.5625rem; /* 9px  - ABSOLUTE minimum: micro labels, badge counts ONLY */
+  --text-terminal-xs: 0.625rem;   /* 10px - chrome: ticker, status bar, table headers */
+  --text-terminal-sm: 0.6875rem;  /* 11px - secondary data, panel sublabels */
+  --text-terminal-base: 0.75rem;  /* 12px - PRIMARY body text, table cells */
+  --text-terminal-md: 0.8125rem;  /* 13px - emphasis body text */
+  --text-terminal-lg: 0.875rem;   /* 14px - section headers, stat values */
   --text-terminal-xl: 1rem;       /* 16px - panel titles, chart labels */
+  --text-terminal-2xl: 1.5rem;    /* 24px - hero scores */
+  --text-terminal-3xl: 1.875rem;  /* 30px - hero prices */
 
   /* Semantic financial colors */
   --color-positive: 142 71% 45%;       /* Green - price up, gain */
@@ -277,11 +281,11 @@
   }
 
   .kv-key {
-    @apply font-terminal text-[9px] text-muted-foreground tracking-wider;
+    @apply font-terminal text-data-xs text-muted-foreground tracking-wider;
   }
 
   .kv-value {
-    @apply font-terminal text-[11px] tabular-nums text-right text-foreground;
+    @apply font-terminal text-data-sm tabular-nums text-right text-foreground;
   }
 
   /* ── Financial Data Table ────────────────────────────────────────────── */
@@ -348,6 +352,10 @@
 @layer utilities {
   .font-terminal {
     font-family: 'JetBrains Mono', 'Fira Code', 'Menlo', monospace;
+  }
+
+  .font-editorial {
+    font-family: 'Georgia', 'Times New Roman', 'Escrow', serif;
   }
 
   /* ── Semantic surface utilities ── */
@@ -509,11 +517,31 @@
   }
 
   /* Financial data text sizing */
+  .text-data-2xs { font-size: var(--text-terminal-2xs); }   /* 9px - micro labels ONLY */
+  .text-data-xs { font-size: var(--text-terminal-xs); }     /* 10px */
+  .text-data-sm { font-size: var(--text-terminal-sm); }     /* 11px */
   .text-data { font-size: var(--text-terminal-base); }      /* 12px */
   .text-data-md { font-size: var(--text-terminal-md); }     /* 13px */
   .text-data-lg { font-size: var(--text-terminal-lg); }     /* 14px */
-  .text-data-xs { font-size: var(--text-terminal-xs); }     /* 10px */
-  .text-data-sm { font-size: var(--text-terminal-sm); }     /* 11px */
+  .text-data-xl { font-size: var(--text-terminal-xl); }     /* 16px */
+  .text-data-2xl { font-size: var(--text-terminal-2xl); }   /* 24px */
+  .text-data-3xl { font-size: var(--text-terminal-3xl); }   /* 30px */
+
+  /* Rotation signal badge */
+  .rotation-badge {
+    @apply font-terminal text-data-xs px-1.5 py-0.5 border;
+  }
+  .rotation-defensive {
+    @apply text-negative;
+    border-color: hsla(0, 80%, 55%, 0.3);
+  }
+  .rotation-growth {
+    @apply text-market;
+    border-color: hsla(186, 45%, 50%, 0.3);
+  }
+  .rotation-mixed {
+    @apply text-muted-foreground border-border;
+  }
 
   /* Financial sentiment utilities */
   .text-positive { color: hsl(var(--color-positive)); }
@@ -535,9 +563,15 @@
   .text-market { color: hsl(var(--color-market)); }
   .text-macro { color: hsl(var(--color-macro)); }
   .text-intel { color: hsl(var(--color-intel)); }
+  .bg-market { background-color: hsl(var(--color-market)); }
+  .bg-macro { background-color: hsl(var(--color-macro)); }
+  .bg-intel { background-color: hsl(var(--color-intel)); }
   .bg-market-muted { background-color: hsl(var(--color-market-muted)); }
   .bg-macro-muted { background-color: hsl(var(--color-macro-muted)); }
   .bg-intel-muted { background-color: hsl(var(--color-intel-muted)); }
+  .border-market { border-color: hsl(var(--color-market)); }
+  .border-macro { border-color: hsl(var(--color-macro)); }
+  .border-intel { border-color: hsl(var(--color-intel)); }
 
   /* Price change flash animation */
   @keyframes flash-up {

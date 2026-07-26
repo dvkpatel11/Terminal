@@ -217,7 +217,7 @@ export default function Terminal() {
                 <WorkspacePane
                   paneId="secondary"
                   pane={{
-                    view: secondaryTab?.view ?? "intel",
+                    view: secondaryTab?.view ?? "synthesis",
                     symbol: secondaryTab?.symbol ?? "",
                   }}
                   focused={focusedPane === "secondary"}

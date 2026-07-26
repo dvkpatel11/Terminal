@@ -11,8 +11,8 @@ test("supportsIntradayCharts enables equity intraday only for current data", () 
 });
 
 test("getAllowedIntervals enables intraday when charting support is available", () => {
-  assert.deepEqual(getAllowedIntervals(true), ["5m", "15m", "1h", "1d"]);
-  assert.deepEqual(getAllowedIntervals(false), ["1d"]);
+  assert.deepEqual(getAllowedIntervals(true), ["5m", "15m", "1h", "1d", "1w", "1m"]);
+  assert.deepEqual(getAllowedIntervals(false), ["1d", "1w", "1m"]);
 });
 
 test("normalizeComparisonSeries reindexes all series to a shared 100 base", () => {

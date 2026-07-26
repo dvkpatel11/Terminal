@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Bot, Send, Trash2, Zap, ChevronDown, Crosshair } from "lucide-react";
+import { Bot, Send, Trash2, Zap, ChevronDown, Crosshair, Settings, Plus, X, Save } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ViewMode } from "@/lib/terminalTypes";
+import { useQuote, useTechnicalIndicators } from "@/lib/useFinance";
 
 interface Skill {
   id: string;
@@ -17,25 +18,7 @@ const FALLBACK_SKILLS: Skill[] = [
     "Analyze AAPL: bull vs bear case with fair value estimate",
     "Compare NVDA vs AMD on valuation and growth metrics",
     "What are the key risks for TSLA in Q2 2026?",
-    "Score MSFT on RSI, MACD, and Bollinger Bands",
-  ]},
-  { id: "macro", label: "MACRO STRATEGIST", description: "Macro economics and policy", defaultPrompts: [
-    "What does the yield curve signal about recession probability?",
-    "How should I position for rate cuts in 2026?",
-    "Analyze current Fed impact on equities and credit",
-    "What's the sector rotation signal from the Scorecard?",
-  ]},
-  { id: "quant", label: "QUANT RESEARCHER", description: "Quantitative analysis", defaultPrompts: [
-    "Calculate optimal position size for SPY with 2% risk",
-    "Analyze correlation between VIX term structure and SPY returns",
-    "What options strategy for earnings volatility?",
-    "Evaluate breadth signals: A/D ratio, stocks above DMA",
-  ]},
-  { id: "crypto", label: "CRYPTO ANALYST", description: "On-chain and DeFi", defaultPrompts: [
-    "Analyze BTC on-chain: whale activity and exchange flows",
-    "What does NVT ratio signal about BTC valuation?",
-    "Compare ETH vs SOL fundamentals",
-    "How does crypto correlate with traditional risk assets?",
+    "Score MSFT on RSI, MACD, and Bollinger Bands"
   ]},
 ];
 
@@ -44,9 +27,9 @@ const VIEW_LABELS: Record<string, string> = {
   screener: "Screener", watchlist: "Watchlist", alerts: "Alerts", economics: "Economics",
   portfolio: "Portfolio", intel: "Intel Dashboard", options: "Options Chain",
   sentiment: "Sentiment", optflow: "Options Flow", onchain: "On-Chain",
-  scorecard: "Scorecard", sectors: "Sector Performance", social: "Social Feed",
+  social: "Social Feed",
   fa: "Financials", dvd: "Dividends", key: "Key Ratios", ee: "Estimates",
-  profile: "Company Profile", thesis: "AI Thesis", crypto: "Crypto", plays: "Trade Ideas",
+  profile: "Company Profile", thesis: "AI Thesis", crypto: "Crypto",
 };
 
 interface Props {
@@ -63,7 +46,7 @@ function MessageBubble({ msg }: { msg: { role: string; content: string } }) {
         {!isUser && (
           <div className="flex items-center gap-1.5 mb-1">
             <Bot className="w-3 h-3 text-[hsl(186_45%_55%)]" />
-            <span className="font-terminal text-[9px] text-[hsl(186_45%_55%)] tracking-widest">BLMTRM AI</span>
+            <span className="font-terminal text-data-xs text-[hsl(186_45%_55%)] tracking-widest">BLMTRM AI</span>
           </div>
         )}
         <div className={`px-4 py-3 ${
@@ -77,7 +60,7 @@ function MessageBubble({ msg }: { msg: { role: string; content: string } }) {
         </div>
         {isUser && (
           <div className="flex justify-end mt-0.5">
-            <span className="font-terminal text-[8px] text-muted-foreground">YOU</span>
+            <span className="font-terminal text-data-2xs text-muted-foreground">YOU</span>
           </div>
         )}
       </div>
@@ -91,9 +74,15 @@ export default function AgentPanel({ onSymbol, symbol, view }: Props) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeSkill, setActiveSkill] = useState("analyst");
   const [skillDropdownOpen, setSkillDropdownOpen] = useState(false);
+  const [showSkillEditor, setShowSkillEditor] = useState(false);
+  const [editingSkill, setEditingSkill] = useState<{ id?: number; skillId: string; label: string; description: string; systemPrompt: string; defaultPrompts: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
+
+  // Fetch live context for the active symbol
+  const { data: quote } = useQuote(symbol ?? "");
+  const { data: technicals } = useTechnicalIndicators(symbol ?? "");
 
   const { data: serverSkills } = useQuery<Skill[]>({
     queryKey: ["/api/chat/skills"],
@@ -104,7 +93,21 @@ export default function AgentPanel({ onSymbol, symbol, view }: Props) {
     staleTime: 300_000,
   });
 
-  const skills = serverSkills ?? FALLBACK_SKILLS;
+  // Raw DB skills for editor (includes id, systemPrompt)
+  const { data: dbSkills = [] } = useQuery<any[]>({
+    queryKey: ["/api/chat/skills/all"],
+    queryFn: async () => {
+      const res = await fetch("/api/chat/skills/all");
+      return res.json();
+    },
+    staleTime: 300_000,
+  });
+
+  // Merge: server skills enriched with dbId/systemPrompt for editor
+  const skills = (serverSkills ?? FALLBACK_SKILLS).map(s => {
+    const db = dbSkills.find((d: any) => d.skillId === s.id);
+    return { ...s, dbId: db?.id, systemPrompt: db?.systemPrompt ?? "" };
+  });
   const currentSkill = skills.find(s => s.id === activeSkill) ?? skills[0];
 
   const { data: messages = [], isLoading } = useQuery<any[]>({
@@ -120,6 +123,35 @@ export default function AgentPanel({ onSymbol, symbol, view }: Props) {
       await apiRequest("DELETE", "/api/chat");
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/chat"] }),
+  });
+
+  // Skill CRUD mutations
+  const saveSkillMut = useMutation({
+    mutationFn: async (skill: { id?: number; skillId: string; label: string; description: string; systemPrompt: string; defaultPrompts: string }) => {
+      const body = { ...skill, defaultPrompts: skill.defaultPrompts };
+      if (skill.id) {
+        const res = await fetch(`/api/chat/skills/${skill.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        if (!res.ok) throw new Error("Failed to update skill");
+        return res.json();
+      }
+      const res = await fetch("/api/chat/skills", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error("Failed to create skill");
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/chat/skills"] });
+      setEditingSkill(null);
+      setShowSkillEditor(false);
+    },
+  });
+
+  const deleteSkillMut = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/chat/skills/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete skill");
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/chat/skills"] }),
   });
 
   useEffect(() => {
@@ -155,6 +187,8 @@ export default function AgentPanel({ onSymbol, symbol, view }: Props) {
           skill: activeSkill,
           symbol: symbol ?? undefined,
           view: view ?? undefined,
+          quote: quote ? { price: quote.price, changePercent: quote.changePercent, volume: quote.volume } : undefined,
+          technicals: technicals ? { rsi14: technicals.rsi14 ?? null, macd: technicals.macd ?? null, vwap: technicals.vwap ?? null, support: technicals.support ?? null, resistance: technicals.resistance ?? null } : undefined,
         }),
       });
 
@@ -202,9 +236,9 @@ export default function AgentPanel({ onSymbol, symbol, view }: Props) {
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-[hsl(186_45%_55%)]" />
           <span className="panel-label">BLMTRM AI AGENT</span>
-          <span className="font-terminal text-[8px] text-muted-foreground border border-border px-1.5 py-0.5">MINIMAX M3</span>
+          <span className="font-terminal text-data-2xs text-muted-foreground border border-border px-1.5 py-0.5">MINIMAX M3</span>
           {symbol && (
-            <span className="flex items-center gap-1 font-terminal text-[9px] text-[hsl(186_45%_55%)] bg-[hsl(186_45%_50%/0.1)] border border-[hsl(186_45%_50%/0.2)] px-1.5 py-0.5">
+            <span className="flex items-center gap-1 font-terminal text-data-xs text-[hsl(186_45%_55%)] bg-[hsl(186_45%_50%/0.1)] border border-[hsl(186_45%_50%/0.2)] px-1.5 py-0.5">
               <Crosshair size={9} />
               {symbol}
               {view && view !== "agent" && (
@@ -219,7 +253,7 @@ export default function AgentPanel({ onSymbol, symbol, view }: Props) {
           <div ref={dropdownRef} className="relative">
             <button
               onClick={() => setSkillDropdownOpen(!skillDropdownOpen)}
-              className="flex items-center gap-1.5 px-2 py-1 font-terminal text-[9px] tracking-wider text-[hsl(186_45%_55%)] bg-[hsl(186_45%_50%/0.08)] border border-[hsl(186_45%_50%/0.2)] hover:bg-[hsl(186_45%_50%/0.15)] transition-colors"
+              className="flex items-center gap-1.5 px-2 py-1 font-terminal text-data-xs tracking-wider text-[hsl(186_45%_55%)] bg-[hsl(186_45%_50%/0.08)] border border-[hsl(186_45%_50%/0.2)] hover:bg-[hsl(186_45%_50%/0.15)] transition-colors"
             >
               <span>{currentSkill?.label ?? "SELECT SKILL"}</span>
               <ChevronDown className={`w-3 h-3 transition-transform ${skillDropdownOpen ? "rotate-180" : ""}`} />
@@ -231,7 +265,7 @@ export default function AgentPanel({ onSymbol, symbol, view }: Props) {
                   <button
                     key={skill.id}
                     onClick={() => { setActiveSkill(skill.id); setSkillDropdownOpen(false); }}
-                    className={`w-full text-left px-3 py-2 font-terminal text-[10px] transition-colors ${
+                    className={`w-full text-left px-3 py-2 font-terminal text-data-sm transition-colors ${
                       skill.id === activeSkill
                         ? "text-[hsl(186_45%_60%)] bg-[hsl(186_45%_50%/0.1)]"
                         : "text-muted-foreground/70 hover:text-foreground hover:bg-white/[0.03]"
@@ -241,19 +275,74 @@ export default function AgentPanel({ onSymbol, symbol, view }: Props) {
                     <div className="text-[9px] text-muted-foreground/50 mt-0.5">{skill.description}</div>
                   </button>
                 ))}
+                <div className="border-t border-border/50">
+                  <button
+                    onClick={() => { setShowSkillEditor(!showSkillEditor); setSkillDropdownOpen(false); }}
+                    className="w-full text-left px-3 py-2 font-terminal text-data-sm text-muted-foreground/60 hover:text-[hsl(186_45%_55%)] hover:bg-white/[0.03] flex items-center gap-1.5"
+                  >
+                    <Settings size={10} /> MANAGE SKILLS
+                  </button>
+                </div>
               </div>
             )}
           </div>
 
           <button
             onClick={() => clearMut.mutate()}
-            className="flex items-center gap-1.5 font-terminal text-[9px] text-muted-foreground hover:text-[hsl(0_80%_60%)] transition-colors"
+            className="flex items-center gap-1.5 font-terminal text-data-xs text-muted-foreground hover:text-[hsl(0_80%_60%)] transition-colors"
             data-testid="clear-chat"
           >
             <Trash2 className="w-3 h-3" /> CLEAR
           </button>
         </div>
       </div>
+
+      {/* Skill Editor (collapsible) */}
+      {showSkillEditor && (
+        <div className="border-b border-border bg-[#080808] px-4 py-3 space-y-3 shrink-0">
+          <div className="flex items-center justify-between">
+            <span className="font-terminal text-data-xs tracking-widest text-[hsl(186_45%_55%)]">SKILL EDITOR</span>
+            <div className="flex items-center gap-2">
+              <button onClick={() => { setEditingSkill({ skillId: "", label: "", description: "", systemPrompt: "", defaultPrompts: "" }); }} className="flex items-center gap-1 font-terminal text-data-xs text-[hsl(186_45%_55%)] hover:text-foreground">
+                <Plus size={10} /> NEW
+              </button>
+              <button onClick={() => { setShowSkillEditor(false); setEditingSkill(null); }} className="text-muted-foreground hover:text-foreground"><X size={12} /></button>
+            </div>
+          </div>
+
+          {/* Skill list */}
+          {!editingSkill && (
+            <div className="space-y-1 max-h-32 overflow-y-auto scrollbar-thin">
+              {skills.map(s => (
+                <div key={s.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-white/[0.03] group">
+                  <span className="font-terminal text-data-sm flex-1 truncate">{s.label}</span>
+                  <button onClick={() => setEditingSkill({ id: (s as any).dbId, skillId: s.id, label: s.label, description: s.description, systemPrompt: (s as any).systemPrompt ?? "", defaultPrompts: JSON.stringify(s.defaultPrompts ?? []) })} className="opacity-0 group-hover:opacity-100 font-terminal text-data-xs text-muted-foreground hover:text-[hsl(186_45%_55%)]">EDIT</button>
+                  {(s as any).dbId && <button onClick={() => deleteSkillMut.mutate((s as any).dbId)} className="opacity-0 group-hover:opacity-100 font-terminal text-data-xs text-muted-foreground hover:text-red-400">DEL</button>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Skill edit form */}
+          {editingSkill && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <input value={editingSkill.skillId} onChange={e => setEditingSkill({ ...editingSkill, skillId: e.target.value })} placeholder="ID (e.g. my_strategy)" className="flex-1 bg-[#0d0d0d] border border-border px-2 py-1 font-terminal text-data-sm focus:outline-none" disabled={!!editingSkill.id} />
+                <input value={editingSkill.label} onChange={e => setEditingSkill({ ...editingSkill, label: e.target.value })} placeholder="DISPLAY LABEL" className="flex-1 bg-[#0d0d0d] border border-border px-2 py-1 font-terminal text-data-sm focus:outline-none" />
+              </div>
+              <input value={editingSkill.description} onChange={e => setEditingSkill({ ...editingSkill, description: e.target.value })} placeholder="Short description..." className="w-full bg-[#0d0d0d] border border-border px-2 py-1 font-terminal text-data-sm focus:outline-none" />
+              <textarea value={editingSkill.systemPrompt} onChange={e => setEditingSkill({ ...editingSkill, systemPrompt: e.target.value })} placeholder="System prompt instructions..." rows={4} className="w-full bg-[#0d0d0d] border border-border px-2 py-1 font-terminal text-data-sm focus:outline-none resize-none" />
+              <input value={editingSkill.defaultPrompts} onChange={e => setEditingSkill({ ...editingSkill, defaultPrompts: e.target.value })} placeholder='["Prompt 1", "Prompt 2"]' className="w-full bg-[#0d0d0d] border border-border px-2 py-1 font-terminal text-data-sm focus:outline-none" />
+              <div className="flex items-center gap-2">
+                <button onClick={() => saveSkillMut.mutate(editingSkill)} className="flex items-center gap-1 px-2 py-1 bg-[hsl(186_45%_50%/0.15)] border border-[hsl(186_45%_50%/0.4)] font-terminal text-data-sm text-[hsl(186_45%_55%)] hover:bg-[hsl(186_45%_50%/0.25)]">
+                  <Save size={10} /> SAVE
+                </button>
+                <button onClick={() => setEditingSkill(null)} className="px-2 py-1 border border-border font-terminal text-data-sm text-muted-foreground hover:text-foreground">CANCEL</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4">
@@ -268,16 +357,16 @@ export default function AgentPanel({ onSymbol, symbol, view }: Props) {
               <div className="font-terminal text-sm text-muted-foreground text-center">
                 AUTONOMOUS FINANCIAL INTELLIGENCE
               </div>
-              <div className="font-terminal text-[10px] text-muted-foreground/60 text-center max-w-sm">
+              <div className="font-terminal text-data-sm text-muted-foreground/60 text-center max-w-sm">
                 Ask about markets, analyze stocks, get macro insights, or discuss trading strategies.
               </div>
               {symbol && (
-                <div className="font-terminal text-[10px] text-[hsl(186_45%_55%)] flex items-center gap-1">
+                <div className="font-terminal text-data-sm text-[hsl(186_45%_55%)] flex items-center gap-1">
                   <Crosshair size={10} />
                   Context: {symbol} · {VIEW_LABELS[view ?? ""] ?? "No panel"}
                 </div>
               )}
-              <div className="font-terminal text-[9px] text-[hsl(186_45%_55%)] tracking-wider">
+              <div className="font-terminal text-data-xs text-[hsl(186_45%_55%)] tracking-wider">
                 SKILL: {currentSkill?.label}
               </div>
             </div>
@@ -288,7 +377,7 @@ export default function AgentPanel({ onSymbol, symbol, view }: Props) {
                 <button
                   key={i}
                   onClick={() => sendMessage(p)}
-                  className="text-left px-3 py-2 border border-border hover:border-[hsl(186_45%_50%/0.5)] hover:bg-[hsl(186_45%_50%/0.08)] font-terminal text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-left px-3 py-2 border border-border hover:border-[hsl(186_45%_50%/0.5)] hover:bg-[hsl(186_45%_50%/0.08)] font-terminal text-data-sm text-muted-foreground hover:text-foreground transition-colors"
                   data-testid={`prompt-${i}`}
                 >
                   {p}
@@ -304,8 +393,8 @@ export default function AgentPanel({ onSymbol, symbol, view }: Props) {
                 <div className="max-w-[85%]">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Bot className="w-3 h-3 text-[hsl(186_45%_55%)]" />
-                    <span className="font-terminal text-[9px] text-[hsl(186_45%_55%)] tracking-widest">BLMTRM AI</span>
-                    <span className="font-terminal text-[8px] text-muted-foreground animate-pulse">▌</span>
+                    <span className="font-terminal text-data-xs text-[hsl(186_45%_55%)] tracking-widest">BLMTRM AI</span>
+                    <span className="font-terminal text-data-2xs text-muted-foreground animate-pulse">▌</span>
                   </div>
                   <div className="bg-[#0d0d0d] border border-border px-4 py-3">
                     <div className="font-terminal text-xs leading-relaxed whitespace-pre-wrap">{streaming}</div>
@@ -321,7 +410,7 @@ export default function AgentPanel({ onSymbol, symbol, view }: Props) {
       {/* Input */}
       <div className="shrink-0 border-t border-border bg-[#070707] p-3">
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <span className="font-terminal text-[10px] text-[hsl(186_45%_55%)] shrink-0">&gt;</span>
+          <span className="font-terminal text-data-sm text-[hsl(186_45%_55%)] shrink-0">&gt;</span>
           <input
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -340,7 +429,7 @@ export default function AgentPanel({ onSymbol, symbol, view }: Props) {
           </button>
         </form>
         <div className="flex items-center gap-3 mt-1.5">
-          <span className="font-terminal text-[8px] text-muted-foreground/60">SHIFT+ENTER NEW LINE · ENTER SEND</span>
+          <span className="font-terminal text-data-2xs text-muted-foreground/60">SHIFT+ENTER NEW LINE · ENTER SEND</span>
         </div>
       </div>
     </div>

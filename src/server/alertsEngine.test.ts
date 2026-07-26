@@ -9,10 +9,8 @@ test("evaluateAlertTrigger fires above alerts when quote trades through threshol
     { symbol: "AAPL", price: 205 },
   );
 
-  assert.deepEqual(result, {
-    triggered: true,
-    triggerPrice: 205,
-  });
+  assert.equal(result.triggered, true);
+  assert.equal(result.triggerValue, 205);
 });
 
 test("evaluateAlertTrigger fires below alerts when quote falls through threshold", () => {
@@ -21,10 +19,8 @@ test("evaluateAlertTrigger fires below alerts when quote falls through threshold
     { symbol: "TSLA", price: 148.5 },
   );
 
-  assert.deepEqual(result, {
-    triggered: true,
-    triggerPrice: 148.5,
-  });
+  assert.equal(result.triggered, true);
+  assert.equal(result.triggerValue, 148.5);
 });
 
 test("evaluateAlerts returns only newly triggered alerts for matching quotes", () => {
@@ -41,7 +37,61 @@ test("evaluateAlerts returns only newly triggered alerts for matching quotes", (
     ],
   );
 
-  assert.deepEqual(result, [
-    { id: 1, symbol: "AAPL", triggerPrice: 205 },
-  ]);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].id, 1);
+  assert.equal(result[0].triggerPrice, 205);
+});
+
+test("evaluateAlertTrigger fires rsi_above when RSI exceeds threshold", () => {
+  const result = evaluateAlertTrigger(
+    { condition: "rsi_above", price: 70 },
+    { symbol: "AAPL", price: 195, rsi14: 75 },
+  );
+  assert.equal(result.triggered, true);
+  assert.equal(result.triggerValue, 75);
+});
+
+test("evaluateAlertTrigger fires rsi_below when RSI drops below threshold", () => {
+  const result = evaluateAlertTrigger(
+    { condition: "rsi_below", price: 30 },
+    { symbol: "AAPL", price: 195, rsi14: 25 },
+  );
+  assert.equal(result.triggered, true);
+  assert.equal(result.triggerValue, 25);
+});
+
+test("evaluateAlertTrigger does not fire rsi_above when RSI is below threshold", () => {
+  const result = evaluateAlertTrigger(
+    { condition: "rsi_above", price: 70 },
+    { symbol: "AAPL", price: 195, rsi14: 55 },
+  );
+  assert.equal(result.triggered, false);
+});
+
+test("evaluateAlertTrigger fires volume_above when volume exceeds threshold", () => {
+  const result = evaluateAlertTrigger(
+    { condition: "volume_above", price: 1000000 },
+    { symbol: "AAPL", price: 195, volume: 5000000 },
+  );
+  assert.equal(result.triggered, true);
+  assert.equal(result.triggerValue, 5000000);
+});
+
+test("evaluateAlertTrigger fires macd_below when MACD drops below threshold", () => {
+  const result = evaluateAlertTrigger(
+    { condition: "macd_below", price: 0 },
+    { symbol: "AAPL", price: 195, macd: -0.5 },
+  );
+  assert.equal(result.triggered, true);
+  assert.equal(result.triggerValue, -0.5);
+});
+
+test("evaluateAlerts includes triggerValue for non-price alerts", () => {
+  const result = evaluateAlerts(
+    [{ id: 1, symbol: "AAPL", condition: "rsi_above", price: 70, triggered: false }],
+    [{ symbol: "AAPL", price: 195, rsi14: 75 }],
+  );
+  assert.equal(result.length, 1);
+  assert.equal(result[0].triggerValue, 75);
+  assert.equal(result[0].triggerPrice, 195);
 });

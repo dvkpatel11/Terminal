@@ -12,9 +12,9 @@ interface Props {
 export default function ChangePill({ change, changePercent, showAbsolute = false, size = "md", className }: Props) {
   const cls = pctClass(changePercent);
   const sizes = {
-    sm: "text-[9px]",
-    md: "text-[10px]",
-    lg: "text-sm",
+    sm: "text-data-xs",
+    md: "text-data-sm",
+    lg: "text-data-lg",
   };
 
   return (

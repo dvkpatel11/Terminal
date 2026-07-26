@@ -32,6 +32,7 @@ interface PromptsConfig {
 // ─── Loader ────────────────────────────────────────────────────────────────
 
 let _config: PromptsConfig | null = null;
+let _dbSkills: Record<string, SkillConfig> = {};
 
 function loadConfig(): PromptsConfig {
   if (_config) return _config;
@@ -45,6 +46,11 @@ function loadConfig(): PromptsConfig {
 export function reloadPrompts(): void {
   _config = null;
   loadConfig();
+}
+
+/** Inject DB-backed skills (merged on top of file-based skills). */
+export function setDbSkills(skills: Record<string, SkillConfig>): void {
+  _dbSkills = skills;
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────
@@ -66,9 +72,12 @@ export function buildSystemPrompt(skillId?: string, context?: PromptContext): st
   const config = loadConfig();
   let prompt = config.base;
 
-  // Append skill-specific instructions
-  if (skillId && config.skills[skillId]) {
-    prompt += config.skills[skillId].systemPrompt;
+  // Append skill-specific instructions (DB skills override file-based)
+  if (skillId) {
+    const skill = _dbSkills[skillId] ?? config.skills[skillId];
+    if (skill) {
+      prompt += skill.systemPrompt;
+    }
   }
 
   // Inject runtime context if provided
@@ -101,23 +110,35 @@ export function buildSystemPrompt(skillId?: string, context?: PromptContext): st
 }
 
 /**
- * Get skill metadata (label, description, default prompts).
+ * Get skill metadata — DB skills override file-based skills.
  */
 export function getSkillConfig(skillId: string): SkillConfig | undefined {
-  return loadConfig().skills[skillId];
+  return _dbSkills[skillId] ?? loadConfig().skills[skillId];
 }
 
 /**
- * Get all skill IDs and their labels.
+ * Get all skill IDs and their labels — merges file-based + DB skills (DB wins on collision).
  */
 export function getAllSkills(): Array<{ id: string; label: string; description: string; defaultPrompts: string[] }> {
   const config = loadConfig();
-  return Object.entries(config.skills).map(([id, skill]) => ({
-    id,
-    label: skill.label,
-    description: skill.description,
-    defaultPrompts: skill.defaultPrompts,
-  }));
+  const merged = new Map<string, { id: string; label: string; description: string; defaultPrompts: string[] }>();
+
+  // File-based skills as base
+  for (const [id, skill] of Object.entries(config.skills)) {
+    merged.set(id, { id, label: skill.label, description: skill.description, defaultPrompts: skill.defaultPrompts });
+  }
+
+  // DB skills override
+  for (const [id, skill] of Object.entries(_dbSkills)) {
+    merged.set(id, {
+      id,
+      label: skill.label,
+      description: skill.description,
+      defaultPrompts: skill.defaultPrompts,
+    });
+  }
+
+  return Array.from(merged.values());
 }
 
 /**

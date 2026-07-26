@@ -62,7 +62,7 @@ export function useQuote(symbol: string) {
   });
 }
 
-export function useOHLCV(symbol: string, range: string = "1Y", interval: "5m" | "15m" | "1h" | "1d" = "1d") {
+export function useOHLCV(symbol: string, range: string = "1Y", interval: "5m" | "15m" | "1h" | "1d" | "1w" | "1m" = "1d") {
   return useQuery<OHLCVSeries>({
     queryKey: ["/api/finance/ohlcv", symbol, range, interval],
     queryFn: async () => {
@@ -392,6 +392,11 @@ export interface OptionsContract {
   openInterest?: number;
   impliedVolatility?: number;
   inTheMoney?: boolean;
+  delta?: number;
+  gamma?: number;
+  theta?: number;
+  vega?: number;
+  rho?: number;
 }
 
 export interface OptionsResponse {
@@ -501,6 +506,7 @@ export interface UnusualActivity {
   vOiRatio: number;
   sentiment: "bullish" | "bearish" | "neutral";
   underlyingPrice: number;
+  premium: number;
 }
 
 export interface BlockTrade {
@@ -531,6 +537,28 @@ export function useOptionsFlow(symbol?: string) {
     },
     staleTime: 60_000,
     enabled: true,
+  });
+}
+
+export interface OptionsSRLevel {
+  price: number;
+  type: "support" | "resistance";
+  label: string;
+  oi: number;
+  volume: number;
+}
+
+export function useOptionsSR(symbol?: string) {
+  return useQuery<OptionsSRLevel[]>({
+    queryKey: ["/api/finance/options-sr", symbol ?? "market"],
+    queryFn: async () => {
+      if (!symbol) return [];
+      const res = await fetch(`/api/finance/options-sr?symbol=${symbol}`);
+      if (!res.ok) throw new Error("Failed to fetch options S/R");
+      return res.json();
+    },
+    staleTime: 120_000,
+    enabled: !!symbol,
   });
 }
 
@@ -759,6 +787,9 @@ export interface SocialPost {
   thumbnail?: string;
   accountName: string;
   accountUrl: string;
+  aiSentiment?: "bullish" | "bearish" | "neutral";
+  aiConfidence?: number;
+  aiRationale?: string;
 }
 
 export interface SocialFeedResponse {
@@ -792,19 +823,21 @@ function feedItemScore(item: FeedItem): number {
   if (item.kind === "news") {
     const age = now - new Date(item.item.publishedAt).getTime();
     const hoursOld = Math.max(0.1, age / 3_600_000);
-    const recency = 1 / Math.pow(hoursOld, 0.6); // decay over time
+    const recency = 1 / Math.pow(hoursOld, 0.6);
     const sentimentBoost =
       item.item.sentiment === "positive" ? 0.15 :
       item.item.sentiment === "negative" ? 0.1 : 0;
     return recency + sentimentBoost;
   }
-  // Social post
-  const age = now - new Date(item.item.createdAt).getTime();
+  // Social post — use signal quality from shared module
+  const post = item.item;
+  const age = now - new Date(post.createdAt).getTime();
   const hoursOld = Math.max(0.1, age / 3_600_000);
   const recency = 1 / Math.pow(hoursOld, 0.6);
-  const engagement = Math.log10(Math.max(1, item.item.engagementScore)) * 0.3;
-  const sentimentBoost = Math.abs(item.item.sentiment.score) * 0.15;
-  return recency + engagement + sentimentBoost;
+  const confidence = post.sentiment?.score != null ? Math.abs(post.sentiment.score) : 0;
+  const engagement = Math.log10(Math.max(1, post.engagementScore)) * 0.3;
+  const signalBoost = confidence * 0.4;
+  return recency + engagement + signalBoost;
 }
 
 /** Merge news and social posts into a single ranked feed. */
@@ -1147,5 +1180,140 @@ export function useThesis(symbol: string, enabled = true) {
     },
     staleTime: 60_000,
     enabled,
+  });
+}
+
+// ─── Unified Calendar ────────────────────────────────────────────────────────
+
+export interface UnifiedCalendarEvent {
+  id: string;
+  date: string;
+  type: "economic" | "earnings" | "dividend" | "split" | "fed";
+  title: string;
+  symbol?: string;
+  importance: "high" | "medium" | "low";
+  impact?: string;
+  previous?: string;
+  consensus?: string;
+  source: string;
+}
+
+export interface CalendarDay {
+  date: string;
+  dayLabel: string;
+  events: UnifiedCalendarEvent[];
+  riskLevel: "high" | "medium" | "low" | "none";
+}
+
+export interface UnifiedCalendar {
+  days: CalendarDay[];
+  highRiskDates: string[];
+  watchlistEvents: Record<string, UnifiedCalendarEvent[]>;
+  generatedAt: string;
+}
+
+export function useUnifiedCalendar(days = 14) {
+  return useQuery<UnifiedCalendar>({
+    queryKey: ["/api/finance/calendar/unified", days],
+    queryFn: async () => {
+      const res = await fetch(`/api/finance/calendar/unified?days=${days}`);
+      if (!res.ok) throw new Error("Failed to fetch calendar");
+      return res.json();
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
+// ─── Positions (DB-backed) ──────────────────────────────────────────────────
+
+export interface PositionRecord {
+  id: number;
+  instrumentId: number;
+  symbol: string;
+  side: string;
+  quantity: number;
+  avgEntry: number;
+  currentPrice: number | null;
+  pnl: number | null;
+  pnlPercent: number | null;
+  status: string;
+  thesis: string | null;
+  notes: string | null;
+  createdAt: string;
+  closedAt: string | null;
+}
+
+export interface PositionFillRecord {
+  id: number;
+  positionId: number;
+  symbol: string;
+  side: string;
+  quantity: number;
+  price: number;
+  fees: number | null;
+  executedAt: string;
+  notes: string | null;
+}
+
+export function usePositions() {
+  return useQuery<PositionRecord[]>({
+    queryKey: ["/api/portfolio/positions"],
+    queryFn: async () => {
+      const res = await fetch("/api/portfolio/positions");
+      if (!res.ok) throw new Error("Failed to fetch positions");
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useAddPosition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (pos: {
+      symbol: string;
+      side: "long" | "short";
+      quantity: number;
+      avgEntry: number;
+      thesis?: string;
+      notes?: string;
+    }) => {
+      // ensure instrument exists
+      const instRes = await fetch(`/api/finance/instruments?symbol=${encodeURIComponent(pos.symbol)}`);
+      const instData = await instRes.json();
+      const instrumentId = instData?.instrument?.id ?? 0;
+      const res = await fetch("/api/portfolio/positions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...pos, instrumentId }),
+      });
+      if (!res.ok) throw new Error("Failed to add position");
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/portfolio/positions"] }),
+  });
+}
+
+export function useDeletePosition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/portfolio/positions/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete position");
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/portfolio/positions"] }),
+  });
+}
+
+export function useClosePosition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/portfolio/positions/${id}/close`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to close position");
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/portfolio/positions"] }),
   });
 }

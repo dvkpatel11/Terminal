@@ -138,10 +138,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         set((state) => {
           if (state.secondary) return state;
           const sym = state.secondarySymbol;
-          const id = makeTabId("intel", sym);
+          const id = makeTabId("synthesis", sym);
           return {
             secondary: {
-              tabs: [{ id, view: "intel", symbol: sym }],
+              tabs: [{ id, view: "synthesis", symbol: sym }],
               activeTabId: id,
             },
           };

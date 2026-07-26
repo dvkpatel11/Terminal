@@ -126,12 +126,28 @@ function snapshotRows(metrics: Array<{ key: string; metric: EconomicsSnapshotMet
   });
 }
 
-function EconCard({ metric }: { metric: EconomicsSnapshotMetric }) {
+function EconCard({ metric, isFallback = false }: { metric: EconomicsSnapshotMetric; isFallback?: boolean }) {
   return (
-    <div className="bg-[#080808] border border-border p-3 hover:border-[hsl(186,45%,50%)/40%] transition-colors">
-      <div className="font-terminal text-[9px] tracking-widest text-muted-foreground mb-1">{metric.label}</div>
-      <div className="font-terminal text-xl font-bold tabular-nums text-foreground">{formatMetricValue(metric)}</div>
-      <div className="font-terminal text-[10px] tabular-nums mt-1 text-muted-foreground">{formatDelta(metric)} vs prior</div>
+    <div
+      className={`bg-[#080808] border p-3 transition-colors ${
+        isFallback
+          ? "border-orange-500/50 hover:border-orange-500/70"
+          : "border-border hover:border-[hsl(186,45%,50%)/40%]"
+      }`}
+      title={isFallback ? "Provider unavailable — this value is a hardcoded fallback default, NOT live data." : undefined}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <div className="font-terminal text-[10px] tracking-widest text-muted-foreground">{metric.label}</div>
+        {isFallback && (
+          <span className="font-terminal text-[10px] text-orange-400 font-bold animate-pulse">FALLBACK</span>
+        )}
+      </div>
+      <div className={`font-terminal text-xl font-bold tabular-nums ${isFallback ? "text-orange-300/80" : "text-foreground"}`}>
+        {formatMetricValue(metric)}
+      </div>
+      <div className="font-terminal text-[10px] tabular-nums mt-1 text-muted-foreground">
+        {isFallback ? "UNVERIFIED — provider down" : `${formatDelta(metric)} vs prior`}
+      </div>
     </div>
   );
 }
@@ -229,10 +245,10 @@ export default function EconomicsPanel() {
               </div>
             ) : econ ? (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <EconCard metric={econ.gdp} />
-                <EconCard metric={econ.cpi} />
-                <EconCard metric={econ.unemployment} />
-                <EconCard metric={econ.fedFunds} />
+                <EconCard metric={econ.gdp} isFallback={econ.fallbackFields?.includes("gdp")} />
+                <EconCard metric={econ.cpi} isFallback={econ.fallbackFields?.includes("cpi")} />
+                <EconCard metric={econ.unemployment} isFallback={econ.fallbackFields?.includes("unemployment")} />
+                <EconCard metric={econ.fedFunds} isFallback={econ.fallbackFields?.includes("fedFunds")} />
               </div>
             ) : null}
           </section>

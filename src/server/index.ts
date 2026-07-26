@@ -12,13 +12,17 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { getServerListenOptions } from "./listenConfig";
 import { createAlertMonitor, runAlertEvaluationCycle, runSymbolCycle } from "./alertMonitor";
+import type { MetricSnapshot } from "./alertsEngine";
 import { storage } from "./storage";
 import { getQuotes } from "./marketData";
+import { getTechnicalIndicators } from "./marketScorecard";
 import { startOpenBBServer } from "./openbbProvider";
 import { createQuoteBus, type QuoteBus } from "./realtime/quoteBus";
 import { startFinnhub, type CryptoSymbolMap } from "./realtime/finnhubWs";
 import { startBinance, type BinanceSymbolMap } from "./realtime/binanceWs";
 import { getFinnhubEquities, getBinanceSymbolMap } from "./symbolRegistry";
+import { startThesisScheduler } from "./thesisScheduler";
+import { setDbSkills } from "./promptConfig";
 
 const app = express();
 const httpServer = createServer(app);
@@ -131,24 +135,42 @@ app.use((req, res, next) => {
   const alertDeps = {
     loadAlerts: async () => {
       const alerts = await storage.getAlerts();
-      return alerts.map((alert) => ({
+      return alerts.map(alert => ({
         id: alert.id,
         symbol: alert.symbol,
-        condition: alert.condition as "above" | "below",
+        condition: alert.condition as any,
         price: alert.price,
         triggered: alert.triggered,
       }));
     },
     fetchQuotes: async (symbols: string[]) => {
       const fromBus = bus.getQuotes(symbols);
-      const busSet = new Set(fromBus.map((q) => q.symbol));
-      const missing = symbols.filter((s) => !busSet.has(s.toUpperCase()));
+      const busSet = new Set(fromBus.map(q => q.symbol));
+      const missing = symbols.filter(s => !busSet.has(s.toUpperCase()));
       const fromNet = missing.length
-        ? (await getQuotes(missing)).map((q) => ({ symbol: q.symbol, price: q.price }))
+        ? (await getQuotes(missing)).map(q => ({ symbol: q.symbol, price: q.price, volume: q.volume }))
         : [];
       return [...fromBus, ...fromNet];
     },
-    triggerAlert: (id: number, details: { triggerPrice: number; triggeredAt: Date }) =>
+    fetchMetrics: async (symbols: string[]): Promise<MetricSnapshot[]> => {
+      const results: MetricSnapshot[] = [];
+      for (const sym of symbols) {
+        try {
+          const tech = await getTechnicalIndicators(sym);
+          results.push({
+            symbol: sym,
+            price: 0, // will be filled from quote snapshot
+            pe: null,
+            rsi14: tech.rsi14,
+            macd: tech.macd,
+          });
+        } catch {
+          // Skip — quote snapshot will provide price-only data
+        }
+      }
+      return results;
+    },
+    triggerAlert: (id: number, details: { triggerPrice: number; triggerValue?: number | null; triggeredAt: Date }) =>
       storage.triggerAlert(id, details),
   };
 
@@ -195,6 +217,24 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
 
     createAlertMonitor(async () => runAlertEvaluationCycle(alertDeps), 15_000);
+
+    // Start daily thesis scheduler (06:00 UTC)
+    startThesisScheduler();
+
+    // Load DB-backed agent skills into promptConfig
+    storage.getAgentSkills().then(skills => {
+      const dbMap: Record<string, { label: string; description: string; systemPrompt: string; defaultPrompts: string[] }> = {};
+      for (const s of skills) {
+        dbMap[s.skillId] = {
+          label: s.label,
+          description: s.description,
+          systemPrompt: s.systemPrompt,
+          defaultPrompts: JSON.parse(s.defaultPrompts || "[]"),
+        };
+      }
+      setDbSkills(dbMap);
+      if (skills.length > 0) log(`loaded ${skills.length} custom agent skills`);
+    }).catch(() => {});
   });
 
   const shutdown = () => {

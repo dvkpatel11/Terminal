@@ -4,7 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import { storage, extendedStorage } from "./storage";
-import { insertWatchlistItemSchema, insertAlertSchema } from "@shared/schema";
+import { insertWatchlistItemSchema, insertAlertSchema, insertPositionSchema, insertPositionFillSchema, insertAgentSkillSchema } from "@shared/schema";
 import axios from "axios";
 import { evaluateAlerts } from "./alertsEngine";
 import {
@@ -28,11 +28,12 @@ import {
 } from "./marketData";
 import { handleSocialSentimentRequest, getSentimentSourceStatuses, testSentimentSource } from "./socialSentiment";
 import { getSocialFeed, parseSocialUrl, type SocialSourceConfig } from "./socialFeed";
-import { handleOptionsFlowRequest } from "./optionsFlow";
+import { handleOptionsFlowRequest, handleOptionsSRRequest } from "./optionsFlow";
 import { handleOnChainRequest } from "./onchain";
 import { tagPostSentiment, tagPostsBatch, type TagSentimentInput } from "./sentimentTagger";
 import { generateTradeThesis, needsReEvaluation, getCachedThesisForSymbol, logThesisAudit, type ThesisInput } from "./thesisGenerator";
 import { getEconomicCalendar, getEconomicEventDetail } from "./economicsData";
+import { getUnifiedCalendar } from "./calendarAggregator";
 import { calculatePortfolioAnalytics } from "./portfolioAnalytics";
 import {
   getSectorPerformance,
@@ -49,7 +50,9 @@ import {
 import { generateOAuthState, validateOAuthState, exchangeCodeForTokens, fetchUserInfo, refreshAccessToken, encryptToken, decryptToken, setAppCredentials, getAppCredentials, hasAppCredentials } from "./oauth";
 import { OAUTH_PROVIDERS } from "./oauthProviders";
 import discordRouter from "./discordRoutes";
-import { buildSystemPrompt, getAllSkills, type PromptContext } from "./promptConfig";
+import { buildSystemPrompt, getAllSkills, setDbSkills, type PromptContext } from "./promptConfig";
+import { getToolByName, getToolSchemas } from "./agentTools";
+import { getBreakerState } from "./providerUtils";
 
 function parseSymbols(value: unknown) {
   return String(value || "")
@@ -82,6 +85,31 @@ export async function registerRoutes(
       }
     };
   };
+
+  // ─── Health check ─────────────────────────────────────────────────────────
+  const startTime = Date.now();
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      uptime: Math.floor((Date.now() - startTime) / 1000),
+      timestamp: new Date().toISOString(),
+      dataSources: {
+        storage: process.env.DATABASE_URL ? "postgres" : "in-memory",
+        nvidiaNim: !!process.env.NVIDIA_API_KEY,
+        openRouter: !!process.env.OPENROUTER_API_KEY,
+        finnhub: !!process.env.FINNHUB_API_KEY,
+      },
+      // Circuit-breaker states per upstream provider: "closed" (healthy),
+      // "half-open" (recovering), "open" (failing — data is fallback/stale),
+      // or null if the provider has not been called yet this session.
+      providers: {
+        yahoo: getBreakerState("yahoo") ?? null,
+        coingecko: getBreakerState("coingecko") ?? null,
+        fred: getBreakerState("fred") ?? null,
+        web: getBreakerState("generic") ?? null,
+      },
+    });
+  });
 
   // ─── Finance proxy routes ─────────────────────────────────────────────────
   app.get("/api/finance/sparklines", handleFinance(async () => getIndexSparklines()));
@@ -255,6 +283,12 @@ export async function registerRoutes(
     return handleOptionsFlowRequest(query);
   }));
 
+  app.get("/api/finance/options-sr", handleFinance(async (req) => {
+    const query: Record<string, string> = {};
+    if (typeof req.query.symbol === "string") query.symbol = req.query.symbol;
+    return handleOptionsSRRequest(query);
+  }));
+
   app.get("/api/finance/onchain", handleFinance(async (req) => {
     const query: Record<string, string> = {};
     if (typeof req.query.symbol === "string") query.symbol = req.query.symbol;
@@ -309,10 +343,44 @@ export async function registerRoutes(
     }
   });
 
+  // Unified calendar endpoint
+  app.get("/api/finance/calendar/unified", handleFinance(async (req) => {
+    const days = Math.min(30, Math.max(1, Number(req.query.days) || 14));
+    // Get watchlist symbols for corporate events
+    const watchlist = await storage.getWatchlist();
+    const symbols = watchlist.map(item => item.symbol).filter(Boolean);
+    return getUnifiedCalendar(symbols, days);
+  }));
+
   app.get("/api/finance/peers", handleFinance(async (req) => {
     const symbol = String(req.query.symbol || "AAPL").toUpperCase();
     return getPeers(symbol);
   }));
+
+  // Instruments — upsert or fetch by symbol
+  app.get("/api/finance/instruments", async (req, res) => {
+    const symbol = String(req.query.symbol || "").toUpperCase().trim();
+    if (!symbol) return res.status(400).json({ error: "symbol required" });
+    try {
+      if (extendedStorage) {
+        const existing = await extendedStorage.getInstrumentBySymbol(symbol);
+        if (existing) return res.json({ instrument: existing });
+        // Auto-create from market data
+        const inst = await extendedStorage.upsertInstrument({
+          symbol,
+          name: symbol,
+          exchange: "UNKNOWN",
+          assetClass: "equity",
+        });
+        return res.json({ instrument: inst });
+      }
+      // MemStorage fallback — return a stub
+      res.json({ instrument: { id: 0, symbol, name: symbol, exchange: "UNKNOWN", assetClass: "equity", isActive: true } });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Instrument lookup failed";
+      res.status(500).json({ error: detail });
+    }
+  });
 
   app.get("/api/finance/screener", handleFinance(async (req) => {
     return getScreenerResults({
@@ -465,6 +533,79 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
+  // ─── Positions ────────────────────────────────────────────────────────────
+  app.get("/api/portfolio/positions", async (_req, res) => {
+    const positions = await storage.getPositions();
+    res.json(positions);
+  });
+
+  app.post("/api/portfolio/positions", async (req, res) => {
+    const parsed = insertPositionSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten() });
+    }
+    const position = await storage.addPosition(parsed.data);
+    res.json(position);
+  });
+
+  app.patch("/api/portfolio/positions/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid position id" });
+    }
+    const existing = await storage.getPosition(id);
+    if (!existing) {
+      return res.status(404).json({ error: "Position not found" });
+    }
+    const position = await storage.updatePosition(id, req.body);
+    res.json(position);
+  });
+
+  app.delete("/api/portfolio/positions/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid position id" });
+    }
+    await storage.deletePosition(id);
+    res.json({ ok: true });
+  });
+
+  app.post("/api/portfolio/positions/:id/close", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid position id" });
+    }
+    const existing = await storage.getPosition(id);
+    if (!existing) {
+      return res.status(404).json({ error: "Position not found" });
+    }
+    await storage.closePosition(id);
+    res.json({ ok: true });
+  });
+
+  app.get("/api/portfolio/positions/:id/fills", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid position id" });
+    }
+    const fills = await storage.getPositionFills(id);
+    res.json(fills);
+  });
+
+  app.post("/api/portfolio/positions/:id/fills", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid position id" });
+    }
+    const parsed = insertPositionFillSchema.safeParse({ ...req.body, positionId: id });
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten() });
+    }
+    const fill = await storage.addPositionFill(parsed.data);
+    res.json(fill);
+  });
+
+
   // ─── Chat (AI Agent) ───────────────────────────────────────────────────────
   const NVIDIA_API_URL = process.env.NVIDIA_API_URL ?? "https://integrate.api.nvidia.com/v1/chat/completions";
   const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY ?? "";
@@ -521,56 +662,81 @@ export async function registerRoutes(
     res.setHeader("Connection", "keep-alive");
 
     let fullContent = "";
+    const MAX_TOOL_ROUNDS = 5;
 
     try {
-      const response = await axios.post(NVIDIA_API_URL, {
-        model: NVIDIA_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...chatMessages,
-        ],
-        max_tokens: 8192,
-        temperature: 1.0,
-        top_p: 0.95,
-        stream: true,
-      }, {
-        headers: {
-          "Authorization": `Bearer ${NVIDIA_API_KEY}`,
-          "Accept": "text/event-stream",
-          "Content-Type": "application/json",
-        },
-        responseType: "stream",
-      });
+      // Tool-calling loop: keep going until we get a text response
+      const messages: Array<{ role: string; content?: string; tool_calls?: any[]; tool_call_id?: string; name?: string }> = [
+        { role: "system", content: systemPrompt },
+        ...chatMessages,
+      ];
+      const toolSchemas = getToolSchemas();
 
-      response.data.on("data", (chunk: Buffer) => {
-        const lines = chunk.toString().split("\n");
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.choices?.[0]?.delta?.content) {
-                const text = data.choices[0].delta.content;
-                fullContent += text;
-                res.write(`data: ${JSON.stringify({ text })}\n\n`);
+      for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+        const response = await axios.post(NVIDIA_API_URL, {
+          model: NVIDIA_MODEL,
+          messages,
+          tools: toolSchemas.length > 0 ? toolSchemas : undefined,
+          max_tokens: 8192,
+          temperature: 1.0,
+          top_p: 0.95,
+        }, {
+          headers: {
+            "Authorization": `Bearer ${NVIDIA_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        const choice = response.data?.choices?.[0];
+        const assistantMsg = choice?.message;
+
+        if (!assistantMsg) break;
+
+        // Check if the model wants to call tools
+        if (assistantMsg.tool_calls?.length > 0) {
+          // Add the assistant message with tool calls to history
+          messages.push({ role: "assistant", content: assistantMsg.content ?? undefined, tool_calls: assistantMsg.tool_calls });
+
+          // Execute each tool call
+          for (const tc of assistantMsg.tool_calls) {
+            const toolName = tc.function?.name;
+            const toolArgs = tc.function?.arguments ? JSON.parse(tc.function.arguments) : {};
+            const tool = getToolByName(toolName);
+
+            let toolResult: string;
+            if (tool) {
+              try {
+                toolResult = await tool.execute(toolArgs);
+              } catch (e) {
+                toolResult = JSON.stringify({ error: `Tool ${toolName} failed: ${e}` });
               }
-            } catch {}
+            } else {
+              toolResult = JSON.stringify({ error: `Unknown tool: ${toolName}` });
+            }
+
+            // Send tool result back to the model
+            messages.push({ role: "tool", content: toolResult, tool_call_id: tc.id, name: toolName });
+          }
+
+          // Continue the loop for the next model response
+          continue;
+        }
+
+        // No tool calls — this is the final text response
+        if (assistantMsg.content) {
+          fullContent = assistantMsg.content;
+          // Stream the final response to the client
+          const words = fullContent.split(/(\s+)/);
+          for (const word of words) {
+            res.write(`data: ${JSON.stringify({ text: word })}\n\n`);
           }
         }
-      });
+        break;
+      }
 
-      response.data.on("end", async () => {
-        await storage.addChatMessage({ role: "assistant", content: fullContent });
-        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-        res.end();
-      });
-
-      response.data.on("error", async (err: Error) => {
-        console.error("NVIDIA API stream error:", err);
-        const msg = "AI agent temporarily unavailable. Please try again.";
-        await storage.addChatMessage({ role: "assistant", content: msg });
-        res.write(`data: ${JSON.stringify({ text: msg, done: true })}\n\n`);
-        res.end();
-      });
+      await storage.addChatMessage({ role: "assistant", content: fullContent });
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
     } catch (err) {
       console.error("NVIDIA API error:", err);
       const msg = "AI agent temporarily unavailable. Please try again.";
@@ -588,6 +754,92 @@ export async function registerRoutes(
   // ─── Chat Skills (from prompts.json) ───────────────────────────────────
   app.get("/api/chat/skills", (_req, res) => {
     res.json(getAllSkills());
+  });
+
+  // ─── Agent Skills CRUD ────────────────────────────────────────────────────
+  app.get("/api/chat/skills/all", async (_req, res) => {
+    const skills = await storage.getAgentSkills();
+    res.json(skills);
+  });
+
+  app.post("/api/chat/skills", async (req, res) => {
+    const parsed = insertAgentSkillSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten() });
+    }
+    try {
+      const skill = await storage.addAgentSkill(parsed.data);
+      // Refresh merged skills in promptConfig
+      const allSkills = await storage.getAgentSkills();
+      const dbMap: Record<string, { label: string; description: string; systemPrompt: string; defaultPrompts: string[] }> = {};
+      for (const s of allSkills) {
+        dbMap[s.skillId] = {
+          label: s.label,
+          description: s.description,
+          systemPrompt: s.systemPrompt,
+          defaultPrompts: JSON.parse(s.defaultPrompts || "[]"),
+        };
+      }
+      setDbSkills(dbMap);
+      res.json(skill);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Failed to create skill";
+      res.status(500).json({ error: detail });
+    }
+  });
+
+  app.patch("/api/chat/skills/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid skill id" });
+    }
+    const parsed = insertAgentSkillSchema.partial().safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten() });
+    }
+    try {
+      const skill = await storage.updateAgentSkill(id, parsed.data);
+      const allSkills = await storage.getAgentSkills();
+      const dbMap: Record<string, { label: string; description: string; systemPrompt: string; defaultPrompts: string[] }> = {};
+      for (const s of allSkills) {
+        dbMap[s.skillId] = {
+          label: s.label,
+          description: s.description,
+          systemPrompt: s.systemPrompt,
+          defaultPrompts: JSON.parse(s.defaultPrompts || "[]"),
+        };
+      }
+      setDbSkills(dbMap);
+      res.json(skill);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Failed to update skill";
+      res.status(500).json({ error: detail });
+    }
+  });
+
+  app.delete("/api/chat/skills/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: "Invalid skill id" });
+    }
+    try {
+      await storage.deleteAgentSkill(id);
+      const allSkills = await storage.getAgentSkills();
+      const dbMap: Record<string, { label: string; description: string; systemPrompt: string; defaultPrompts: string[] }> = {};
+      for (const s of allSkills) {
+        dbMap[s.skillId] = {
+          label: s.label,
+          description: s.description,
+          systemPrompt: s.systemPrompt,
+          defaultPrompts: JSON.parse(s.defaultPrompts || "[]"),
+        };
+      }
+      setDbSkills(dbMap);
+      res.json({ ok: true });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Failed to delete skill";
+      res.status(500).json({ error: detail });
+    }
   });
 
   app.post("/api/config/test-nvidia", async (req, res) => {

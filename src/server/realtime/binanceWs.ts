@@ -36,11 +36,7 @@ export function parseBinanceMessage(
   return { symbol, price };
 }
 
-export function applyBinanceMessage(
-  bus: QuoteBus,
-  raw: unknown,
-  reverse: Record<string, string>,
-): void {
+export function applyBinanceMessage(bus: QuoteBus, raw: unknown, reverse: Record<string, string>): void {
   const tick = parseBinanceMessage(raw, reverse);
   if (tick) bus.updateQuote(tick.symbol, tick.price);
 }
@@ -61,12 +57,7 @@ function buildReverse(map: BinanceSymbolMap): Record<string, string> {
  * required) into the quote bus. Auto-reconnects with exponential backoff.
  */
 export function startBinance(config: BinanceConfig): BinanceHandle {
-  const {
-    bus,
-    symbolMap,
-    url = "wss://stream.binance.com:9443/stream",
-    maxBackoffMs = 30_000,
-  } = config;
+  const { bus, symbolMap, url = "wss://stream.binance.com:9443/stream", maxBackoffMs = 30_000 } = config;
 
   const reverse = buildReverse(symbolMap);
   const streams = Object.values(symbolMap)
@@ -85,7 +76,6 @@ export function startBinance(config: BinanceConfig): BinanceHandle {
 
     ws.on("open", () => {
       backoff = 1000;
-      console.log(`[binance] connected (${Object.keys(symbolMap).length} crypto streams)`);
     });
 
     ws.on("message", (data) => {

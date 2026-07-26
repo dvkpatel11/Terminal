@@ -7,9 +7,9 @@ interface Props {
 }
 
 const dotColor: Record<SignalLevel, string> = {
-  bull: "bg-green-500",
-  bear: "bg-red-500",
-  neutral: "bg-amber-500",
+  bull: "bg-positive",
+  bear: "bg-negative",
+  neutral: "bg-market",
   na: "bg-muted",
 };
 

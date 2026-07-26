@@ -18,7 +18,7 @@ export default function EmptyState({ icon, title, description, action, className
       </div>
       <h3 className="font-terminal text-sm font-semibold text-foreground/80 tracking-wider">{title}</h3>
       {description && (
-        <p className="mt-1.5 font-terminal text-[11px] text-muted-foreground/60 max-w-[280px] leading-relaxed">
+        <p className="mt-1.5 font-terminal text-data-sm text-muted-foreground/60 max-w-[280px] leading-relaxed">
           {description}
         </p>
       )}

@@ -26,6 +26,7 @@ interface NavTab {
   code: string;
   view: ViewMode;
   icon: LucideIcon;
+  label: string;
 }
 
 interface NavGroup {
@@ -41,43 +42,43 @@ interface NavGroup {
 const CATEGORY_THEME: Record<PanelCategory, { label: string; color: string; restingBg: string; activeBg: string; activeBorder: string; glow: string }> = {
   market: {
     label: "MARKET",
-    color: "text-black",
-    restingBg: "bg-black/5",
-    activeBg: "bg-black/10",
-    activeBorder: "border-b-black",
-    glow: "shadow-[0_1px_0_rgba(0,0,0,0.25)]",
+    color: "text-emerald-400",
+    restingBg: "bg-emerald-400/5",
+    activeBg: "bg-emerald-400/10",
+    activeBorder: "border-b-emerald-400",
+    glow: "shadow-[0_1px_0_rgba(52,211,153,0.5)]",
   },
   macro: {
     label: "MACRO",
-    color: "text-black",
-    restingBg: "bg-black/5",
-    activeBg: "bg-black/10",
-    activeBorder: "border-b-black",
-    glow: "shadow-[0_1px_0_rgba(0,0,0,0.25)]",
+    color: "text-amber-400",
+    restingBg: "bg-amber-400/5",
+    activeBg: "bg-amber-400/10",
+    activeBorder: "border-b-amber-400",
+    glow: "shadow-[0_1px_0_rgba(251,191,36,0.5)]",
   },
   intel: {
     label: "INTEL",
-    color: "text-black",
-    restingBg: "bg-black/5",
-    activeBg: "bg-black/10",
-    activeBorder: "border-b-black",
-    glow: "shadow-[0_1px_0_rgba(0,0,0,0.25)]",
+    color: "text-cyan-400",
+    restingBg: "bg-cyan-400/5",
+    activeBg: "bg-cyan-400/10",
+    activeBorder: "border-b-cyan-400",
+    glow: "shadow-[0_1px_0_rgba(34,211,238,0.5)]",
   },
   symbol: {
     label: "SYMBOL",
-    color: "text-black",
-    restingBg: "bg-black/5",
-    activeBg: "bg-black/10",
-    activeBorder: "border-b-black",
-    glow: "shadow-[0_1px_0_rgba(0,0,0,0.25)]",
+    color: "text-teal-400",
+    restingBg: "bg-teal-400/5",
+    activeBg: "bg-teal-400/10",
+    activeBorder: "border-b-teal-400",
+    glow: "shadow-[0_1px_0_rgba(45,212,191,0.5)]",
   },
   system: {
     label: "SYSTEM",
-    color: "text-black",
-    restingBg: "bg-black/5",
-    activeBg: "bg-black/10",
-    activeBorder: "border-b-black",
-    glow: "shadow-[0_1px_0_rgba(0,0,0,0.25)]",
+    color: "text-blue-400",
+    restingBg: "bg-blue-400/5",
+    activeBg: "bg-blue-400/10",
+    activeBorder: "border-b-blue-400",
+    glow: "shadow-[0_1px_0_rgba(96,165,250,0.5)]",
   },
 };
 
@@ -87,7 +88,7 @@ const NAV_GROUPS: NavGroup[] = TOPBAR_CATEGORIES.map((cat) => {
   const theme = CATEGORY_THEME[cat];
   const tabs = PANELS_BY_CATEGORY[cat]
     .filter((v) => PANEL_REGISTRY[v].showInTopBar)
-    .map((v) => ({ code: PANEL_REGISTRY[v].code, view: v, icon: PANEL_REGISTRY[v].icon }));
+    .map((v) => ({ code: PANEL_REGISTRY[v].code, view: v, icon: PANEL_REGISTRY[v].icon, label: PANEL_REGISTRY[v].label }));
   return {
     label: theme.label,
     color: theme.color,
@@ -189,12 +190,12 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
   const dateStr = clock.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }).toUpperCase();
 
   return (
-    <header className="flex flex-col bg-gradient-to-b from-orange-500 to-orange-600 border-b border-orange-700 shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.4)]">
+    <header className="flex flex-col bg-gradient-to-b from-[#0A0A0A] to-[#111111] border-b border-[#222] shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
       {/* Row 1: Branding | Global Nav | Market Status | spacer | Terminal Icon | Bell | Clock */}
       <div className="flex items-center h-10">
-        <div className="flex items-center gap-2 px-3 h-full border-r border-border/70 bg-gradient-to-b from-market/90 to-market/70 min-w-[120px] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]">
-          <Terminal className="w-3.5 h-3.5 text-black/90" strokeWidth={2.5} />
-          {!compact && <span className="font-terminal text-data-xs font-bold tracking-[0.2em] text-black/90">MONITOR</span>}
+        <div className="flex items-center gap-2 px-3 h-full border-r border-[#333] bg-gradient-to-b from-[#1A1A1A] to-[#111] min-w-[120px] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+          <Terminal className="w-3.5 h-3.5 text-emerald-400" strokeWidth={2.5} />
+          {!compact && <span className="font-terminal text-data-xs font-bold tracking-[0.2em] text-emerald-400">MONITOR</span>}
         </div>
 
         {/* Global nav tabs — color coded by category, scrollable */}
@@ -208,13 +209,16 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
                   <button
                     key={tab.view}
                     onClick={() => onNav(tab.view)}
-                    className={`flex items-center gap-1 px-2 h-full font-terminal text-data-xs tracking-[0.12em] transition-colors duration-150 border-b-[1.5px] shrink-0 ${
+                    className={`flex items-center gap-1.5 px-3 h-full font-terminal text-data-xs tracking-[0.12em] transition-all duration-150 border-b-[2px] shrink-0 ${
                       isActive
                         ? `${group.color} font-bold ${group.activeBg} border-b-current ${group.glow}`
-                        : `${group.color}/70 ${group.restingBg} border-b-transparent hover:bg-black/10`
+                        : `${group.color}/60 ${group.restingBg} border-b-transparent hover:bg-white/5`
                     }`}
                   >
-                    <tab.icon className="w-3 h-3 shrink-0 opacity-70" />
+                    <tab.icon className="w-3.5 h-3.5 shrink-0" />
+                    {!compact && (
+                      <span className="opacity-90">{tab.label}</span>
+                    )}
                   </button>
                 );
               })}
@@ -228,12 +232,12 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         <div ref={symbolDropdownRef} className="relative h-full">
           <button
             onClick={() => setSymbolDropdownOpen(!symbolDropdownOpen)}
-            className="flex items-center gap-1.5 px-3 h-full hover:bg-black/10 transition-colors duration-150 border-l border-orange-700/70"
+            className="flex items-center gap-1.5 px-3 h-full hover:bg-white/5 transition-colors duration-150 border-l border-[#333]"
             data-testid="active-symbol"
           >
-            {!compact && <span className="font-terminal text-data-xs tracking-[0.15em] text-black/60">ACTIVE</span>}
-            <span className="font-terminal text-data-md font-bold text-black">{activeSymbol}</span>
-            <ChevronDown className={`w-3 h-3 text-black/60 transition-transform duration-150 ${symbolDropdownOpen ? "rotate-180" : ""}`} />
+            {!compact && <span className="font-terminal text-data-xs tracking-[0.15em] text-[#666]">ACTIVE</span>}
+            <span className="font-terminal text-data-md font-bold text-emerald-400">{activeSymbol}</span>
+            <ChevronDown className={`w-3 h-3 text-[#666] transition-transform duration-150 ${symbolDropdownOpen ? "rotate-180" : ""}`} />
           </button>
 
           {symbolDropdownOpen && (
@@ -275,7 +279,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         {/* Terminal icon → command palette */}
         <button
           onClick={onCommandBarOpen}
-          className="flex items-center justify-center w-10 h-full hover:bg-black/10 text-black/70 hover:text-black transition-colors duration-150 border-l border-orange-700/70"
+          className="flex items-center justify-center w-10 h-full hover:bg-white/5 text-[#888] hover:text-emerald-400 transition-colors duration-150 border-l border-[#333]"
           title="Command Palette (Ctrl+Space)"
           data-testid="cmd-palette-trigger"
         >
@@ -286,12 +290,12 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         <div ref={notificationsRef} className="relative h-full">
           <button
             onClick={() => setAlertConfigOpen(true)}
-            className="relative flex items-center justify-center w-11 h-full hover:bg-black/10 text-black/70 hover:text-black transition-colors duration-150"
+            className="relative flex items-center justify-center w-11 h-full hover:bg-white/5 text-[#888] hover:text-emerald-400 transition-colors duration-150"
             data-testid="nav-alerts"
           >
             <Bell className="w-3.5 h-3.5" />
             {triggeredAlerts.length > 0 && (
-              <span className="absolute top-2 right-2 min-w-[14px] h-[14px] px-1 rounded-full bg-negative text-[7px] leading-[14px] text-white font-terminal text-center shadow-[0_0_6px_rgba(239,68,68,0.4)]">
+              <span className="absolute top-2 right-2 min-w-[14px] h-[14px] px-1 rounded-full bg-red-500 text-[7px] leading-[14px] text-white font-terminal text-center shadow-[0_0_6px_rgba(239,68,68,0.4)]">
                 {triggeredAlerts.length}
               </span>
             )}
@@ -301,7 +305,7 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         {/* Settings gear */}
         <button
           onClick={() => onConfigOpenChange(true)}
-          className="flex items-center justify-center w-10 h-full hover:bg-black/10 text-black/70 hover:text-black transition-colors duration-150 border-l border-orange-700/70"
+          className="flex items-center justify-center w-10 h-full hover:bg-white/5 text-[#888] hover:text-emerald-400 transition-colors duration-150 border-l border-[#333]"
           title="Settings (Ctrl+,)"
           data-testid="settings-gear"
         >
@@ -309,20 +313,20 @@ export default function TopBar({ activeSymbol, view, onNav, onSymbol, onExecute,
         </button>
 
         {/* Clock */}
-        <div className="flex flex-col items-end justify-center px-3.5 h-full font-terminal border-l border-orange-700/70">
-          <span className="text-data-sm font-terminal tabular-nums text-black/90 tracking-wide">{timeStr}</span>
-          {!compact && <span className="text-data-xs font-terminal tabular-nums text-black/60 tracking-wider">{dateStr}</span>}
+        <div className="flex flex-col items-end justify-center px-3.5 h-full font-terminal border-l border-[#333]">
+          <span className="text-data-sm font-terminal tabular-nums text-emerald-400 tracking-wide">{timeStr}</span>
+          {!compact && <span className="text-data-xs font-terminal tabular-nums text-[#666] tracking-wider">{dateStr}</span>}
         </div>
 
         {/* Market status — rightmost */}
-        <div className="flex items-center gap-1.5 px-3 h-full border-l border-orange-700/70">
+        <div className="flex items-center gap-1.5 px-3 h-full border-l border-[#333]">
           {mktStatus.pulse && (
             <div className="relative w-1.5 h-1.5">
-              <div className={`absolute inset-0 rounded-full ${mktStatus.color === "text-up" ? "bg-positive" : "bg-black"} animate-ping opacity-75`} />
-              <div className={`w-1.5 h-1.5 rounded-full ${mktStatus.color === "text-up" ? "bg-positive" : "bg-black"}`} />
+              <div className={`absolute inset-0 rounded-full ${mktStatus.color === "text-up" ? "bg-emerald-400" : "bg-red-500"} animate-ping opacity-75`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${mktStatus.color === "text-up" ? "bg-emerald-400" : "bg-red-500"}`} />
             </div>
           )}
-          <span className={`font-terminal text-data-sm tracking-[0.18em] font-semibold text-black`}>{mktStatus.label}</span>
+          <span className={`font-terminal text-data-sm tracking-[0.18em] font-semibold ${mktStatus.color === "text-up" ? "text-emerald-400" : "text-red-400"}`}>{mktStatus.label}</span>
         </div>
       </div>
 

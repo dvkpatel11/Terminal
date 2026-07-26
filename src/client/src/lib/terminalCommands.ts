@@ -22,7 +22,7 @@ export function parseTerminalCommand(input: string): ParsedTerminalCommand | nul
   if (tokens.length === 1) {
     const view = getCommandAliasView(tokens[0]);
     if (view) return { raw, view };
-    return { raw, symbol: tokens[0], view: "intel" };
+    return { raw, symbol: tokens[0], view: "synthesis" };
   }
 
   // Two tokens: try SYMBOL CODE, then CODE SYMBOL
@@ -41,5 +41,5 @@ export function parseTerminalCommand(input: string): ParsedTerminalCommand | nul
   }
 
   // Default: treat first as symbol
-  return { raw, symbol: first, view: "intel" };
+  return { raw, symbol: first, view: "synthesis" };
 }
